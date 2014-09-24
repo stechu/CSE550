@@ -1,0 +1,12 @@
+//#################################################################
+// constants.hpp
+//
+// Holds constants and useful macros
+//#################################################################
+
+#define SHELL_PROMPT "cse550>"
+#define DELIMITER '|'
+
+#define STDOUT cout
+#define STDIN cin
+
