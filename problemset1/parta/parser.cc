@@ -10,8 +10,40 @@
 #include <iostream>
 #include <unistd.h>
 #include <stdlib.h>
+#include <sys/wait.h>
+#include <string.h>
+#include <stdio.h>
+#include <boost/algorithm/string.hpp>
 
 using namespace std;
+
+//hack up a trim function for whitespace
+string trim(string input)
+{
+  int start_index = 0;
+  int end_index = input.size();
+  int count = 0;
+  for (int i = 0; i < (int) input.size(); i++)
+    {
+      if (input[i] == ' ' || input[i] == '\t' || input[i] == '\n')
+	count++;
+      else
+	break;
+    }
+  start_index = count;
+
+  count = 0;
+  for (int i = (int) (input.size() - 1); i >= 0; i--)
+    {
+      if (input[i] == ' ' || input[i] == '\t' || input[i] == '\n')
+	count++;
+      else
+	break;
+    }
+  end_index = input.size() - count;
+  assert(start_index <= end_index);
+  return input.substr(start_index, end_index);
+}
 
 // vector<string> parse_commands(string raw_input)
 // - takes the raw input and tokenizes the commands by the | delimiter
@@ -20,24 +52,20 @@ vector<string> parse_commands(string raw_input)
 {
   vector<string> commands;
 
-  int start_index = 0;
+  //tokenize the commands
 
-  //iterate through and tokenize the command
-  //TODO: catch the edge case malformed command with pipe at the beginning
-  for (int i = 0; i < (int) raw_input.length(); i++)
+  char *tokenized_command;
+
+  tokenized_command = strtok((char*) raw_input.c_str(), DELIMITERS);
+
+  while (tokenized_command != NULL)
     {
-      if (raw_input[i] == DELIMITER)
-	{
-	  assert(i - start_index > 0);
-	  string token = raw_input.substr(start_index, i - start_index); //start index, length of string
-	  commands.push_back(token);
-	  start_index = i + 1;
-	}
+      string tokenized_command_str(tokenized_command);
+      commands.push_back(trim(tokenized_command_str));
+      tokenized_command = strtok(NULL, DELIMITERS);
     }
 
-  //add remaining tail end commands
-  string last_token = raw_input.substr(start_index);
-  commands.push_back(last_token);
+  //TODO: trim leading whitespace if necessary
 
   return commands;
 }
@@ -51,7 +79,7 @@ int fork_and_pipe_commands(vector<string> commands)
 {
   int num_commands = commands.size();
   int num_pipes = num_commands - 1;
-
+  
   vector<pid_t> pids;
 
   //get the parent pid for comparison
@@ -60,24 +88,31 @@ int fork_and_pipe_commands(vector<string> commands)
   //###############################################
   // Pipe creation
   //###############################################
-  
-  vector<int *> pipe_fd_pairs;
+
+  //pipe fd is returned [read end, write end]
+  vector< pair<int, int> > pipe_fd_pairs;
   for (int i = 0; i < num_pipes; i++)
     {
-      int fd_pair[2];
+      int pipe_fds[2];
 
-      int status = pipe(fd_pair);
+      int status = pipe(pipe_fds);
       if (status == -1)
 	exit(-1);
+ 
+      pair<int, int> fd_pair;
+      fd_pair.first = pipe_fds[0];
+      fd_pair.second = pipe_fds[1];
 
       //bookkeeping for the pipe fds
       pipe_fd_pairs.push_back(fd_pair);
+
+      cout << "Created pipe " << i << " with fds " << fd_pair.second << " -> " << fd_pair.first << "\n";
     }
 
   //close the first read pipe end
-  int * head_fds;
-  head_fds = pipe_fd_pairs[0];
-  close(head_fds[0]); //close the unused read pipe end
+  //int * head_fds;
+  //head_fds = pipe_fd_pairs[0];
+  //close(head_fds[0]); //close the unused read pipe end
   
   //###############################################
   // Spawn Child Processes
@@ -96,53 +131,113 @@ int fork_and_pipe_commands(vector<string> commands)
 	  string command = commands[i];
 	  
 	  //determine the read stream fd
-	  int * read_fd_pair = pipe_fd_pairs[i];
 	  int read_fd;
 	  int write_fd;
 
 	  if (i == 0)
-	    read_fd = NULL;
+	    read_fd = -1; //pass a -1 to indicate no STDIN
 	  else
-	    read_fd = read_fd_pair[1];
+	    {
+	      pair<int, int> read_fd_pair = pipe_fd_pairs[i-1];
+	      read_fd = read_fd_pair.first;
+	    }
 
 	  //determine the write stream fd
 	  if (i < num_commands - 1)
 	    {
-	      int * write_fd_pair = pipe_fd_pairs[i+1];
-	      write_fd = write_fd_pair[0];
+	      pair <int, int> write_fd_pair = pipe_fd_pairs[i];
+	      write_fd = write_fd_pair.second;
 	    }
 	  else
 	    {
-	      write_fd = NULL;
+	      write_fd = STDOUT_FILENO;
 	    }
+
+	  cout << getpid() << ": spawned with command " << command << " with file descriptors: " << read_fd << " -> " << write_fd << "\n";
 
 	  //call the child process handler
 	  child_process(command, read_fd, write_fd);
 
-	  //TODO: figure out how to join the child process and wait until it happens
-	  
 	  break;
 	}
       else
 	{
+	  cout << "Fork succeeded with pid_t: " << child_pid << "\n";
 	  pids.push_back(child_pid);
+	}
+    }
+
+  // if parent process - wait for any of the child pid_t's to finish executing - 
+  // - must wait for pids.size() times since we spawned that many children
+  if (!is_child)
+    {
+      for (int j = 0; j < (int) pids.size(); j++)
+	{
+	  cout << "Waiting for child process to die...\n";
+	  
+	  int status = 0;
+	  pid_t exit_child_pid = waitpid(-1, &status, 0);
+	  
+	  cout << "Child with pid: " << exit_child_pid << " terminated...\n";
 	}
     }
 
   return 0;
 }
 
-int child_process(string command, pid_t read_fd, pid_t write_fd)
+// int child_process(string command, int read_fd, int write_fd)
+// - redirects the stdin and stdout of the process appropratiately
+// - executes the command
+int child_process(string command, int read_fd, int write_fd)
 {
   //drop some asserts here to verify the pipe stdin source
+  assert(command.length() > 0);
+  assert(read_fd >= -1);
+  assert(write_fd >= 0);
+  int status;
 
-  //apply dup2 to associate stdin with read_fd and stdout with write_fd
+  //######################################################################
+  // Set the read_fd and write_fd to appropriate stdin and stdou
+  //######################################################################
+
+  //redirect the STDIN for this process or close it
+  if (read_fd == -1)
+    close(STDIN_FILENO);
+  else
+    {
+      status = dup2(read_fd, STDIN_FILENO);
+      if (status == -1)
+	exit(-1);
+    }
+
+  //redirect the STDOUT for this process
+  status = dup2(write_fd, STDOUT_FILENO);
+  if (status == -1)
+    exit(-1);
   
-  //read input until an EOF is found then executed the child process on the new command
+  //######################################################################
+  // Launch exec system call to fire off the program
+  //######################################################################
 
-  //TODO: call exec with the command for the child process
+  //initialize the execvp call argument array
+  int ARGS = 2;
+  char * argv[ARGS];
+  string cmd_str = command;
 
-  //drop some asserts here to verify the pipe stdout destination
+  argv[0] = (char *) cmd_str.c_str(); //convention to point to file begin executed
+  argv[1] = (char *) NULL; //null terminated array
+
+  //launch exec command and nuke process image
+  status = execvp(command.c_str(), argv);
+
+  if (status == -1)
+    {
+      cout << "Error starting execvp command: " << command << "\n";
+      exit(-1);
+    }
+
+  //this should never execute since execvp should wipe out the image
+  assert(false);
 
   return 0;
 }
