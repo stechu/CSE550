@@ -155,6 +155,16 @@ int fork_and_pipe_commands(vector<string> commands)
 
 	  cout << getpid() << ": spawned with command " << command << " with file descriptors: " << read_fd << " -> " << write_fd << "\n";
 
+	  //go through and kill all the unused pipes
+	  for (int k = 0; k < num_pipes; k++)
+	    {
+	      pair<int, int> fd_pair = pipe_fd_pairs[k];
+	      if (fd_pair.first != read_fd)
+		close(fd_pair.first);
+	      if (fd_pair.second != write_fd)
+		close(fd_pair.second);
+	    }
+
 	  //call the child process handler
 	  child_process(command, read_fd, write_fd);
 
@@ -209,11 +219,12 @@ int child_process(string command, int read_fd, int write_fd)
       if (status == -1)
 	exit(-1);
     }
-
+  
   //redirect the STDOUT for this process
   status = dup2(write_fd, STDOUT_FILENO);
   if (status == -1)
     exit(-1);
+  
   
   //######################################################################
   // Launch exec system call to fire off the program

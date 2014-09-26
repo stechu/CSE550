@@ -32,7 +32,7 @@ int main(int argc, char * argv[])
   vector<string> commands = parse_commands(raw_input);
 
   //dump the command output for all to see
-  for (int i = 0; i < commands.size(); i++)
+  for (int i = 0; i < (int) commands.size(); i++)
     {
       cout << commands[i] << "\n";      
     }
@@ -48,6 +48,7 @@ int main(int argc, char * argv[])
   //check if EOF if found and note flag
 
   //fire off command processing
+  fork_and_pipe_commands(commands);
 
   //repeat if EOF flag not found
 

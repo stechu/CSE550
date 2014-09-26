@@ -5,8 +5,7 @@
 //#################################################################
 
 #define SHELL_PROMPT "cse550>"
-#define DELIMITER '|'
-
+#define DELIMITERS "|"
 #define STDOUT cout
 #define STDIN cin
 

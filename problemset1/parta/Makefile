@@ -27,7 +27,7 @@ debug: $(EXECUTABLE)
 	$(CC) $(CPPFLAGS) -c $<
 
 run: $(EXECUTABLE)
-	./$(EXECUTABLE) "ls | head | wc"
+	./$(EXECUTABLE) "ls | wc"
 
 clean:
 	rm -f $(EXECUTABLE) *~ \#* *.o
