@@ -8,9 +8,9 @@
 EXECUTABLE=550server
 CC=$(shell which g++)
 CPPFLAGS=-Wall -Wextra -g
-LDFLAGS=-lm
+LDFLAGS=-lm -lpthreads
 LDLIBS=
-SRCS=main.cc parser.cc
+SRCS=main.cc server.cc
 OBJS=$(subst .cc,.o,$(SRCS))
 INCLUDES=
 DEBUGGER=$(shell which valgrind)
@@ -18,7 +18,7 @@ DEBUGGER=$(shell which valgrind)
 all: $(EXECUTABLE)
 
 $(EXECUTABLE): $(OBJS)
-	$(CXX) $(CPPFLAGS) $(LDFLAGS) $(LDLIBS) -o $(EXECUTABLE) $(OBJS)
+	$(CC) $(CPPFLAGS) $(LDFLAGS) $(LDLIBS) -o $(EXECUTABLE) $(OBJS)
 
 debug: $(EXECUTABLE)
 	$(DEBUGGER) $(EXECUTABLE)
