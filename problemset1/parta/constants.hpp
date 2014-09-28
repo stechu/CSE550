@@ -8,4 +8,4 @@
 #define DELIMITERS "|"
 #define STDOUT cout
 #define STDIN cin
-
+#define EXIT_STRING "exit"

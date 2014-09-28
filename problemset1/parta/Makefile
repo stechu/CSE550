@@ -8,7 +8,7 @@
 EXECUTABLE=550shell
 CC=$(shell which g++)
 CPPFLAGS=-Wall -Wextra -g
-LDFLAGS=-lm
+LDFLAGS=-lm -lreadline
 LDLIBS=
 SRCS=main.cc parser.cc
 OBJS=$(subst .cc,.o,$(SRCS))

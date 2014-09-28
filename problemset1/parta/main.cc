@@ -12,6 +12,8 @@
 #include <vector>
 #include <string>
 #include "parser.hpp"
+#include <readline/readline.h>
+#include <readline/history.h>
 
 using namespace std;
 
@@ -37,22 +39,44 @@ int main(int argc, char * argv[])
       cout << commands[i] << "\n";      
     }
 
-  //PSEUDOCODE FOR ACTUAL PARSING
+  //main command line loop
+  bool done = false;
+  while (!done)
+    {
 
-  //TODO: display prompt
+      //read line of input using system call
+      char * line = readline(SHELL_PROMPT);
 
-  //read line of input using system call
+      string cmds_line(line);
+      
+      //if EOF is found NULL is returned
+      if (line == NULL)
+	{
+	  cout << SHELL_PROMPT << " terminated.\n";
+	  done = true;
+	  
+	  free(line); //clean up the malloced readline
+	  break;
+	}
+      else if (cmds_line.compare(EXIT_STRING) == 0)
+	{
+	  done = true;
+	  free(line); //clean up the malloced readline
+	  break;
+	}
+      
+      //parse line for commands
+      vector<string> cmds = parse_commands(cmds_line);
+      
+      //fire off command processing
+      fork_and_pipe_commands(commands);
 
-  //parse line for commands
-
-  //check if EOF if found and note flag
-
-  //fire off command processing
-  fork_and_pipe_commands(commands);
-
-  //repeat if EOF flag not found
+      //clean up the malloced readline
+      free(line);
+    }
 
   //display consolve terminate message
+  cout << SHELL_PROMPT << " terminated.\n";
 
   return 0;
 }
