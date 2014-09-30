@@ -8,7 +8,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <vector>
-#include <server.hpp>
+#include "server.hpp"
+#include <queue>
+#include "thread_pool.hpp"
+#include "task_queue.hpp"
 
 using namespace std;
 
@@ -18,6 +21,7 @@ int initialize_server(string ip_address, int port)
   //PSEUDOCODE
  
   //Initialize the thread pool
+  //initialize_thread_pool(THREAD_POOL_SIZE);
 
   //Open a TCP listening connection
  
@@ -45,8 +49,8 @@ int worker_thread(string filepath)
 }
 
 //thread pool initialization call
-int initialize_thread_pool(int num_threads)
+void initialize_thread_pool(int num_threads)
 {
+  
 
-  return 0;
 }

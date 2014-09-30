@@ -8,9 +8,9 @@
 EXECUTABLE=550server
 CC=$(shell which g++)
 CPPFLAGS=-Wall -Wextra -g
-LDFLAGS=-lm -lpthreads
+LDFLAGS=-lm -lpthread
 LDLIBS=
-SRCS=main.cc server.cc
+SRCS=main.cc server.cc task_queue.cc thread_pool.cc
 OBJS=$(subst .cc,.o,$(SRCS))
 INCLUDES=
 DEBUGGER=$(shell which valgrind)
