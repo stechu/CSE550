@@ -2,3 +2,7 @@
 \#*
 *.tmp
 _*
+*.o
+550shell
+550server
+.git
