@@ -12,6 +12,12 @@
 #include <queue>
 #include "thread_pool.hpp"
 #include "task_queue.hpp"
+#include <sys/socket.h>
+#include <sys/types.h>
+#include "constants.hpp"
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <string.h>
 
 using namespace std;
 
@@ -21,9 +27,27 @@ int initialize_server(string ip_address, int port)
   //PSEUDOCODE
  
   //Initialize the thread pool
-  //initialize_thread_pool(THREAD_POOL_SIZE);
-
+  thread_pool tpool(THREAD_POOL_SIZE);
+  
   //Open a TCP listening connection
+  // - create socket
+  // - bind socket
+  // - listen for connections
+  // - accept connections
+
+  int server_socket = socket(AF_INET, SOCK_DGRAM, 0);
+  if (server_socket == -1)
+    return -1; //failed to create socket
+
+  struct sockaddr_in socket_addr;
+
+  // initialize some awful socket address data structure
+  memset(&socket_addr, 0, sizeof(struct sockaddr_in));
+  socket_addr.sin_family = AF_INET;
+  socket_addr.sin_port = port;
+  socket_addr.sin_addr.s_addr = inet_addr(ip_address.c_str());
+
+  bind(server_socket, (struct sockaddr *) &socket_addr, sizeof(sockaddr_in));
  
   //Loop for connections until server is terminated
 
@@ -36,21 +60,7 @@ int initialize_server(string ip_address, int port)
   //If running threads fail to terminate, kill them
 
   //Destroy the thread pool
+  tpool.destroy();
 
   return 0;
-}
-
-//worker thread
-// - takes a file path and reads it into process memory
-int worker_thread(string filepath)
-{
-
-  return 0;
-}
-
-//thread pool initialization call
-void initialize_thread_pool(int num_threads)
-{
-  
-
 }
