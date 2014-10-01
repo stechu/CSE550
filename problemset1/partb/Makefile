@@ -10,12 +10,15 @@ CC=$(shell which g++)
 CPPFLAGS=-Wall -Wextra -g
 LDFLAGS=-lm -lpthread
 LDLIBS=
-SRCS=main.cc server.cc task_queue.cc thread_pool.cc
+SRCS=main.cc server.cc thread_pool.cc
 OBJS=$(subst .cc,.o,$(SRCS))
 INCLUDES=
 DEBUGGER=$(shell which valgrind)
 
 all: $(EXECUTABLE)
+
+run: $(EXECUTABLE)
+	./$(EXECUTABLE) 127.0.0.1 9000
 
 $(EXECUTABLE): $(OBJS)
 	$(CC) $(CPPFLAGS) $(LDFLAGS) $(LDLIBS) -o $(EXECUTABLE) $(OBJS)

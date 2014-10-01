@@ -12,34 +12,20 @@
 
 using namespace std;
 
-class thread_pool {
-  //sychronization mechanisms for thread pool queues
-  pthread_mutex_t thread_queue_mutex;
-  pthread_mutex_t task_queue_mutex;
-  pthread_mutex_t result_queue_mutex;
-  
-  pthread_cond_t work_cond_var;
+static pthread_mutex_t task_queue_mutex;   //serializes access to the task queue
+static pthread_mutex_t result_queue_mutex; //serializes access to the result queue
+static pthread_mutex_t exit_mutex;         //synchronizes writes to the exit status for correct termination
 
-  //queues associated with thread pool
-  queue<pthread_t> thread_queue;
-  queue<string> task_queue;
-  queue< pair<string, char *> > result_queue;
+static pthread_cond_t work_cond_var;       //condition variable for worker threads waiting for work
+static bool exit_signal;                   //global flag indicating if threads should exit
 
-public:
-  thread_pool(int);
+void initialize_thread_pool(int num_threads);
 
-  void queue_task(string);
-  string dequeue_task();
+void queue_task(string s);
+string dequeue_task();
 
-  void queue_result(pair<string, char*>);
-  pair<string, char *> dequeue_result();
+void queue_result(pair<string, char*> s);
+pair<string, char *> dequeue_result();
 
-  void destroy();
-  void * worker_thread();
-
-  static void *worker_helper(void * context)
-  {
-    return ((thread_pool*) context)->worker_thread();
-  }
-};
-
+void destroy_thread_pool();
+void * worker_thread(void * ptr);

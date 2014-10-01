@@ -11,7 +11,6 @@
 #include "server.hpp"
 #include <queue>
 #include "thread_pool.hpp"
-#include "task_queue.hpp"
 #include <sys/socket.h>
 #include <sys/types.h>
 #include "constants.hpp"
@@ -27,7 +26,7 @@ int initialize_server(string ip_address, int port)
   //PSEUDOCODE
  
   //Initialize the thread pool
-  thread_pool tpool(THREAD_POOL_SIZE);
+  initialize_thread_pool(THREAD_POOL_SIZE);
   
   //Open a TCP listening connection
   // - create socket
@@ -60,7 +59,7 @@ int initialize_server(string ip_address, int port)
   //If running threads fail to terminate, kill them
 
   //Destroy the thread pool
-  tpool.destroy();
+  destroy_thread_pool();
 
   return 0;
 }

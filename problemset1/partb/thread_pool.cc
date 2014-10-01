@@ -17,28 +17,41 @@
 
 using namespace std;
 
-//constructor for thread pool
-thread_pool::thread_pool(int num_threads)
+queue<string> task_queue;
+queue< pair<string, char *> > result_queue;
+
+vector<pthread_t> pthreads;
+
+// thread pool initialization
+// - threads are created and launched into worker thread function
+// - bookkeeping so that threads can be cleaned up later on termination
+void initialize_thread_pool(int num_threads)
 {
-  pthread_mutex_init(&thread_queue_mutex, NULL);
+  exit_signal = false;
+
   pthread_mutex_init(&task_queue_mutex, NULL);
   pthread_mutex_init(&result_queue_mutex, NULL);
+  pthread_mutex_init(&exit_mutex, NULL);
+  
+  cout << "[Debug] Thread pool mutex initialization: SUCCESS\n";
 
-  pthread_mutex_lock(&thread_queue_mutex);
   for (int i = 0; i < num_threads; i++)
     {
       pthread_t new_thread;
-      pthread_create(&new_thread, NULL, &thread_pool::worker_helper, (void *) i);
+      pthread_create(&new_thread, NULL, worker_thread, (void *) i);
 
+      pthreads.push_back(new_thread);
       //TODO: set the pthread stack, and memory parameter sizes
+      
     }
-  pthread_mutex_unlock(&thread_queue_mutex);
+
+  cout << "[Debug] Thread pool thread creation: SUCCESS\n";
 
 }
 
 //adds a task to the task queue
 // SYNCHRONIZED CALL
-void thread_pool::queue_task(string s)
+void queue_task(string s)
 {
   pthread_mutex_lock(&task_queue_mutex);
   task_queue.push(s);
@@ -50,7 +63,7 @@ void thread_pool::queue_task(string s)
 // THIS IS NOT A PROTECTED REGION
 // MUTEX SHOULD BE ACQUIRED BY CONDITION VARIABLE CHECK
 // Throws an exception if not work is available
-string thread_pool::dequeue_task()
+string dequeue_task()
 {
   //pthread_mutex_lock(&task_queue_mutex);
   string task;
@@ -67,7 +80,7 @@ string thread_pool::dequeue_task()
 
 //adds a worker result to the result queue
 // SYNCHRONIZED CALL
-void thread_pool::queue_result(pair<string, char*> s)
+void queue_result(pair<string, char*> s)
 {
   pthread_mutex_lock(&result_queue_mutex);
   result_queue.push(s);
@@ -76,7 +89,7 @@ void thread_pool::queue_result(pair<string, char*> s)
 
 //removes a worker result from the queue
 // SYNCHRONIZAED CALL
-pair<string, char *> thread_pool::dequeue_result()
+pair<string, char *> dequeue_result()
 {
   pthread_mutex_lock(&result_queue_mutex);
   pair<string, char *> result = result_queue.front();
@@ -85,26 +98,17 @@ pair<string, char *> thread_pool::dequeue_result()
   return result;
 }
 
-void thread_pool::destroy()
-{
-  //TODO: wait for threads to join or kill them if they timeout
-
-  pthread_mutex_destroy(&thread_queue_mutex);
-  pthread_mutex_destroy(&task_queue_mutex);
-  pthread_mutex_destroy(&result_queue_mutex);
-
-  //TODO: free any allocated memory
-}
-
 //############################################################
 // Main worker thread to handle the file I/Os
 //############################################################
-void * thread_pool::worker_thread()
+void * worker_thread(void * ptr)
 {
   //enter main loop
   bool done = false;
   bool work_available = false; //hacked up flag that indicates if task is available
   string task;
+
+  cout << "[Info] Thread creation successful...\n";
 
   while (!done)
     {
@@ -128,7 +132,7 @@ void * thread_pool::worker_thread()
 
       pthread_mutex_unlock(&task_queue_mutex);
 
-      //no work so do nothing and wait for condition variable to fire again
+      //no work so do nothing and wait for condition variable to get a signal
       if (work_available == false) 
 	{
 	  pthread_mutex_lock(&task_queue_mutex);
@@ -189,9 +193,47 @@ void * thread_pool::worker_thread()
       // Check for termination conditions
       //##########################################################
       
-      //TODO: check to see if termination condition is reached
-      //STUB
+      pthread_mutex_lock(&exit_mutex);
+      if (exit_signal)
+	done = true;
+      pthread_mutex_unlock(&exit_mutex);
     }
 
   return 0;
+}
+
+void destroy_thread_pool()
+{
+  //kill all of the active threads by setting the 
+  pthread_mutex_lock(&exit_mutex);
+  exit_signal = true;
+  pthread_mutex_unlock(&exit_mutex);
+  
+  pthread_mutex_lock(&task_queue_mutex);
+  pthread_cond_broadcast(&work_cond_var);
+  pthread_mutex_unlock(&task_queue_mutex);
+
+  for (int i = 0; i < pthreads.size(); i++)
+    {
+      pthread_t target_thread = pthreads[i];
+      pthread_join(target_thread, NULL);
+      cout << "[Debug] Thread exited and joined\n";
+
+      pthread_mutex_lock(&task_queue_mutex);
+      pthread_cond_broadcast(&work_cond_var);
+      pthread_mutex_unlock(&task_queue_mutex);
+    }
+
+  cout << "[Debug] Thread pool worker threads joined\n";
+
+  //kill all of the active mutexes and condition variables
+  pthread_mutex_destroy(&task_queue_mutex);
+  pthread_mutex_destroy(&result_queue_mutex);
+  pthread_mutex_destroy(&exit_mutex);
+
+  pthread_cond_destroy(&work_cond_var);
+
+  cout << "[Debug] Thread pool destroyed mutexes and condition variables: SUCCESS\n";
+
+  //TODO: free any allocated memory
 }
