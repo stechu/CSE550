@@ -4,11 +4,11 @@
 // Heade file for parser.cc
 //#################################################################
 
-using namespace std;
-
 #include <string>
 #include <vector>
 #include <assert.h>
+
+using namespace std;
 
 vector<string> parse_commands(string raw_input);
 int fork_and_pipe_commands(vector<string> commands);
