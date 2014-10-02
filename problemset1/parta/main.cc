@@ -17,59 +17,60 @@
 
 using namespace std;
 
-int main(int argc, char * argv[])
+int main()
 {
   //argument validation
-  assert(argc == 2);
+  //assert(argc == 2);
 
-  string raw_input = argv[1];
+  //string raw_input = argv[1];
 
   //TEST HARNESS CODE
 
   cout << SHELL_PROMPT;
-  cout << "Initializing console shell...\n";
+  cout << "Initializing econsole shell...\n";
 
-  cout << "Received test input: " << raw_input << "\n";
+  //cout << "Received test input: " << raw_input << "\n";
 
-  vector<string> commands = parse_commands(raw_input);
+  //vector<string> commands = parse_commands(raw_input);
 
   //dump the command output for all to see
-  for (int i = 0; i < (int) commands.size(); i++)
-    {
-      cout << commands[i] << "\n";      
-    }
+  // for (int i = 0; i < (int) commands.size(); i++)
+  //{
+  //  cout << commands[i] << "\n";      
+  //}
 
   //main command line loop
   bool done = false;
   while (!done)
-    {
+  {
 
       //read line of input using system call
       char * line = readline(SHELL_PROMPT);
 
       string cmds_line(line);
+      cout<<"line "<<cmds_line<<endl;
       
       //if EOF is found NULL is returned
       if (line == NULL)
-	{
-	  cout << SHELL_PROMPT << " terminated.\n";
-	  done = true;
-	  
-	  free(line); //clean up the malloced readline
-	  break;
-	}
+    	{
+    	  cout << SHELL_PROMPT << " terminated.\n";
+    	  done = true;
+    	  
+    	  free(line); //clean up the malloced readline
+    	  break;
+    	}
       else if (cmds_line.compare(EXIT_STRING) == 0)
-	{
-	  done = true;
-	  free(line); //clean up the malloced readline
-	  break;
-	}
+    	{
+    	  done = true;
+    	  free(line); //clean up the malloced readline
+    	  break;
+    	}
       
       //parse line for commands
       vector<string> cmds = parse_commands(cmds_line);
       
       //fire off command processing
-      fork_and_pipe_commands(commands);
+      fork_and_pipe_commands(cmds);
 
       //clean up the malloced readline
       free(line);
