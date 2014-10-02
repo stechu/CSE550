@@ -92,22 +92,17 @@ int fork_and_pipe_commands(vector<string> commands)
   //pipe fd is returned [read end, write end]
   vector< pair<int, int> > pipe_fd_pairs;
   for (int i = 0; i < num_pipes; i++)
-    {
-      int pipe_fds[2];
-
-      int status = pipe(pipe_fds);
-      if (status == -1)
-	exit(-1);
- 
-      pair<int, int> fd_pair;
-      fd_pair.first = pipe_fds[0];
-      fd_pair.second = pipe_fds[1];
-
-      //bookkeeping for the pipe fds
-      pipe_fd_pairs.push_back(fd_pair);
-
-      cout << "Created pipe " << i << " with fds " << fd_pair.second << " -> " << fd_pair.first << "\n";
-    }
+  {
+    int pipe_fds[2];
+    int status = pipe(pipe_fds);
+    if (status == -1) exit(-1);
+    pair<int, int> fd_pair;
+    fd_pair.first = pipe_fds[0];
+    fd_pair.second = pipe_fds[1];
+    //bookkeeping for the pipe fds
+    pipe_fd_pairs.push_back(fd_pair);
+    cout << "Created pipe " << i << " with fds " << fd_pair.second << " -> "<< fd_pair.first << "\n";
+   }
 
   //close the first read pipe end
   //int * head_fds;
@@ -120,80 +115,78 @@ int fork_and_pipe_commands(vector<string> commands)
 
   bool is_child = false;
   for (int i = 0; i < num_commands; i++)
-    {
-      pid_t child_pid = fork();
+  {
+    pid_t child_pid = fork();
 
-      is_child = (parent_pid != getpid());
+    is_child = (parent_pid != getpid());
 
-      //if child process set the stdio to appropriate pipes
-      if (is_child)
-	{
-	  string command = commands[i];
+    //if child process set the stdio to appropriate pipes
+    if (is_child)
+	  {
+	    string command = commands[i];
 	  
-	  //determine the read stream fd
-	  int read_fd;
-	  int write_fd;
+	    //determine the read stream fd
+	    int read_fd;
+	    int write_fd;
 
-	  if (i == 0)
-	    read_fd = -1; //pass a -1 to indicate no STDIN
-	  else
-	    {
+	    if (i == 0){
+	      read_fd = -1; //pass a -1 to indicate no STDIN
+      } 
+      else {
 	      pair<int, int> read_fd_pair = pipe_fd_pairs[i-1];
 	      read_fd = read_fd_pair.first;
 	    }
 
-	  //determine the write stream fd
-	  if (i < num_commands - 1)
+	    //determine the write stream fd
+	    if (i < num_commands - 1)
 	    {
 	      pair <int, int> write_fd_pair = pipe_fd_pairs[i];
 	      write_fd = write_fd_pair.second;
 	    }
-	  else
-	    {
+	    else {
 	      write_fd = STDOUT_FILENO;
 	    }
 
-	  cout << getpid() << ": spawned with command " << command << " with file descriptors: " << read_fd << " -> " << write_fd << "\n";
+	    cout << getpid() << ": spawned with command " << command << " with file descriptors: " << read_fd << " -> " << write_fd << "\n";
 
-	  //go through and kill all the unused pipes
-	  for (int k = 0; k < num_pipes; k++)
-	    {
-	      pair<int, int> fd_pair = pipe_fd_pairs[k];
-	      if (fd_pair.first != read_fd)
-		close(fd_pair.first);
-	      if (fd_pair.second != write_fd)
-		close(fd_pair.second);
-	    }
+  	  //go through and kill all the unused pipe file descriptors
+  	  for (int k = 0; k < num_pipes; k++)
+  	  {
+  	    pair<int, int> fd_pair = pipe_fd_pairs[k];
+  	    if (fd_pair.first != read_fd)
+  		    close(fd_pair.first);
+  	    if (fd_pair.second != write_fd)
+  		    close(fd_pair.second);
+  	  }
 
-	  //call the child process handler
-	  child_process(command, read_fd, write_fd);
-
-	  break;
-	}
-      else
-	{
-	  cout << "Fork succeeded with pid_t: " << child_pid << "\n";
-	  pids.push_back(child_pid);
-	}
-    }
+  	  //call the child process handler
+  	  child_process(command, read_fd, write_fd);
+  	  break;
+	  }
+    else {
+	    cout << "Fork succeeded with pid_t: " << child_pid << "\n";
+	    pids.push_back(child_pid);
+	  }
+  }
 
   // if parent process - wait for any of the child pid_t's to finish executing - 
   // - must wait for pids.size() times since we spawned that many children
   if (!is_child)
-    {
-      for (int j = 0; j < (int) pids.size(); j++)
-	{
-	  cout << "Waiting for child process to die...\n";
+  {
+    for (int j = 0; j < (int) pids.size(); j++)
+	  {
+	    cout << "Waiting for child process to die...\n";
 	  
-	  int status = 0;
-	  pid_t exit_child_pid = waitpid(-1, &status, 0);
+	    int status = 0;
+	    pid_t exit_child_pid = waitpid(-1, &status, 0);
 	  
-	  cout << "Child with pid: " << exit_child_pid << " terminated...\n";
-	}
-    }
+	    cout << "Child with pid: " << exit_child_pid << " terminated...\n";
+	  }
+  }
 
   return 0;
 }
+
 
 // int child_process(string command, int read_fd, int write_fd)
 // - redirects the stdin and stdout of the process appropratiately
@@ -214,11 +207,11 @@ int child_process(string command, int read_fd, int write_fd)
   if (read_fd == -1)
     close(STDIN_FILENO);
   else
-    {
-      status = dup2(read_fd, STDIN_FILENO);
-      if (status == -1)
-	exit(-1);
-    }
+  {
+    status = dup2(read_fd, STDIN_FILENO);
+    if (status == -1)
+	     exit(-1);
+  }
   
   //redirect the STDOUT for this process
   status = dup2(write_fd, STDOUT_FILENO);
@@ -242,10 +235,10 @@ int child_process(string command, int read_fd, int write_fd)
   status = execvp(command.c_str(), argv);
 
   if (status == -1)
-    {
-      cout << "Error starting execvp command: " << command << "\n";
-      exit(-1);
-    }
+  {
+    cout << "Error starting execvp command: " << command << "\n";
+    exit(-1);
+  }
 
   //this should never execute since execvp should wipe out the image
   assert(false);
