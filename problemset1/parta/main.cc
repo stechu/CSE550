@@ -19,25 +19,10 @@ using namespace std;
 
 int main()
 {
-  //argument validation
-  //assert(argc == 2);
 
-  //string raw_input = argv[1];
-
-  //TEST HARNESS CODE
-
+  //welcome message
   cout << SHELL_PROMPT;
   cout << "Initializing econsole shell...\n";
-
-  //cout << "Received test input: " << raw_input << "\n";
-
-  //vector<string> commands = parse_commands(raw_input);
-
-  //dump the command output for all to see
-  // for (int i = 0; i < (int) commands.size(); i++)
-  //{
-  //  cout << commands[i] << "\n";      
-  //}
 
   //main command line loop
   bool done = false;
@@ -48,7 +33,7 @@ int main()
       char * line = readline(SHELL_PROMPT);
 
       string cmds_line(line);
-      cout<<"line "<<cmds_line<<endl;
+      cout<<"executing "<<cmds_line<<endl;
       
       //if EOF is found NULL is returned
       if (line == NULL)
