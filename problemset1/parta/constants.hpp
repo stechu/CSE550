@@ -9,3 +9,4 @@
 #define STDOUT cout
 #define STDIN cin
 #define EXIT_STRING "exit"
+#define DEBUG false

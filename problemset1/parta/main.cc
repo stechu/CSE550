@@ -22,7 +22,10 @@ int main()
 
   //welcome message
   cout << SHELL_PROMPT;
+
+#if (DEBUG)
   cout << "Initializing econsole shell...\n";
+#endif
 
   //main command line loop
   bool done = false;
@@ -33,8 +36,11 @@ int main()
       char * line = readline(SHELL_PROMPT);
 
       string cmds_line(line);
+
+#if (DEBUG)
       cout<<"executing "<<cmds_line<<endl;
-      
+#endif      
+
       //if EOF is found NULL is returned
       if (line == NULL)
     	{
