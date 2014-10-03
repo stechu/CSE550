@@ -154,9 +154,9 @@ int fork_and_pipe_commands(vector<string> commands)
   	  {
   	    pair<int, int> fd_pair = pipe_fd_pairs[k];
   	    if (fd_pair.first != read_fd)
-  		    close(fd_pair.first);
+	      close(fd_pair.first);
   	    if (fd_pair.second != write_fd)
-  		    close(fd_pair.second);
+	      close(fd_pair.second);
   	  }
 
   	  //call the child process handler
@@ -173,6 +173,14 @@ int fork_and_pipe_commands(vector<string> commands)
   // - must wait for pids.size() times since we spawned that many children
   if (!is_child)
   {
+    //close the parent's pipes
+    for (int i = 0; i < num_pipes; i++)
+      {
+	pair<int, int> fd = pipe_fd_pairs[i];
+	close(fd.first);
+	close(fd.second);
+      }
+
     for (int j = 0; j < (int) pids.size(); j++)
 	  {
 	    cout << "Waiting for child process to die...\n";
@@ -208,12 +216,14 @@ int child_process(string command, int read_fd, int write_fd)
     close(STDIN_FILENO);
   else
   {
+    //    status = dup2(read_fd, STDIN_FILENO);
     status = dup2(read_fd, STDIN_FILENO);
     if (status == -1)
-	     exit(-1);
+      exit(-1);
   }
   
   //redirect the STDOUT for this process
+  //status = dup2(write_fd, STDOUT_FILENO);
   status = dup2(write_fd, STDOUT_FILENO);
   if (status == -1)
     exit(-1);
