@@ -21,11 +21,11 @@ static bool exit_signal;                   //global flag indicating if threads s
 
 void initialize_thread_pool(int num_threads);
 
-void queue_task(string s);
-string dequeue_task();
+void queue_task(pair<int, string> s);
+pair<int, string> dequeue_task();
 
-void queue_result(pair<string, char*> s);
-pair<string, char *> dequeue_result();
+void queue_result(pair<int, char *> s);
+pair<int, char *> dequeue_result();
 
 void destroy_thread_pool();
 void * worker_thread(void * ptr);

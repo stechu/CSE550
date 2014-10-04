@@ -17,8 +17,8 @@
 
 using namespace std;
 
-queue<string> task_queue;
-queue< pair<string, char *> > result_queue;
+queue< pair<int, string> > task_queue;
+queue< pair<int, char *> > result_queue;
 
 vector<pthread_t> pthreads;
 
@@ -51,7 +51,7 @@ void initialize_thread_pool(int num_threads)
 
 //adds a task to the task queue
 // SYNCHRONIZED CALL
-void queue_task(string s)
+void queue_task(pair<int, string> s)
 {
   pthread_mutex_lock(&task_queue_mutex);
   task_queue.push(s);
@@ -63,10 +63,10 @@ void queue_task(string s)
 // THIS IS NOT A PROTECTED REGION
 // MUTEX SHOULD BE ACQUIRED BY CONDITION VARIABLE CHECK
 // Throws an exception if not work is available
-string dequeue_task()
+pair<int, string> dequeue_task()
 {
   //pthread_mutex_lock(&task_queue_mutex);
-  string task;
+  pair<int, string> task;
   if (task_queue.size() == 0)
     throw 42; //throw an exception if the task_queue is empty
   else
@@ -80,7 +80,7 @@ string dequeue_task()
 
 //adds a worker result to the result queue
 // SYNCHRONIZED CALL
-void queue_result(pair<string, char*> s)
+void queue_result(pair<int, char*> s)
 {
   pthread_mutex_lock(&result_queue_mutex);
   result_queue.push(s);
@@ -89,10 +89,10 @@ void queue_result(pair<string, char*> s)
 
 //removes a worker result from the queue
 // SYNCHRONIZAED CALL
-pair<string, char *> dequeue_result()
+pair<int, char *> dequeue_result()
 {
   pthread_mutex_lock(&result_queue_mutex);
-  pair<string, char *> result = result_queue.front();
+  pair<int, char*> result = result_queue.front();
   result_queue.pop();
   pthread_mutex_unlock(&result_queue_mutex);
   return result;
@@ -106,7 +106,7 @@ void * worker_thread(void * ptr)
   //enter main loop
   bool done = false;
   bool work_available = false; //hacked up flag that indicates if task is available
-  string task;
+  pair<int, string> task;
 
   cout << "[Info] Thread creation successful...\n";
 
@@ -123,7 +123,7 @@ void * worker_thread(void * ptr)
 	{
 	  task = dequeue_task();
 	  work_available = true;
-	  assert(!task.empty());
+	  //TODO: put assertions here
 	}
       catch (int e)
 	{
@@ -155,10 +155,8 @@ void * worker_thread(void * ptr)
 
       if (work_available == true)
 	{
-	  assert(!task.empty());
-
 	  //attempt to open the file
-	  ifstream read_file(task.c_str(), ifstream::in);
+	  ifstream read_file(task.second.c_str(), ifstream::in);
 
 	  char * char_buffer;
 
@@ -181,8 +179,8 @@ void * worker_thread(void * ptr)
 	      char_buffer = NULL;
 	    }
 
-	  pair<string, char*> result;
-	  result.first = task;
+	  pair<int, char*> result;
+	  result.first = task.first;
 	  result.second = char_buffer;
 
 	  //queue the result into the result queue
@@ -213,7 +211,7 @@ void destroy_thread_pool()
   pthread_cond_broadcast(&work_cond_var);
   pthread_mutex_unlock(&task_queue_mutex);
 
-  for (int i = 0; i < pthreads.size(); i++)
+  for (int i = 0; i < (int) pthreads.size(); i++)
     {
       pthread_t target_thread = pthreads[i];
       pthread_join(target_thread, NULL);
