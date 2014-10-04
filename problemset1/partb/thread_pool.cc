@@ -17,14 +17,16 @@
 
 using namespace std;
 
-queue< pair<int, string> > task_queue;
-queue< pair<int, char *> > result_queue;
+queue< pair<int, string> > task_queue;   //task queue, holds [request identifier, filepath]
+queue< pair<int, char *> > result_queue; //result queue, holds [request identifier, pointer to buffer]
 
-vector<pthread_t> pthreads;
+vector<pthread_t> pthreads;              //bookkeeping to track the threads
 
+//########################################################################
 // thread pool initialization
 // - threads are created and launched into worker thread function
 // - bookkeeping so that threads can be cleaned up later on termination
+//########################################################################
 void initialize_thread_pool(int num_threads)
 {
   exit_signal = false;
@@ -49,8 +51,11 @@ void initialize_thread_pool(int num_threads)
 
 }
 
-//adds a task to the task queue
-// SYNCHRONIZED CALL
+//########################################################################
+// adds a task to the task queue
+// - argument is a pair containing [request identifier, filepath name]
+// - SYNCHRONIZED CALL
+//########################################################################
 void queue_task(pair<int, string> s)
 {
   pthread_mutex_lock(&task_queue_mutex);
@@ -59,10 +64,13 @@ void queue_task(pair<int, string> s)
   pthread_mutex_unlock(&task_queue_mutex);
 }
 
+//########################################################################
 // gets the task at the front of the queue
-// THIS IS NOT A PROTECTED REGION
-// MUTEX SHOULD BE ACQUIRED BY CONDITION VARIABLE CHECK
-// Throws an exception if not work is available
+// - should only be called from the thread_pool
+// - THIS IS NOT A PROTECTED REGION
+// - MUTEX SHOULD BE ACQUIRED BY CONDITION VARIABLE CHECK
+// - Throws an exception if not work is available
+//########################################################################
 pair<int, string> dequeue_task()
 {
   //pthread_mutex_lock(&task_queue_mutex);
@@ -78,8 +86,11 @@ pair<int, string> dequeue_task()
   return task;
 }
 
-//adds a worker result to the result queue
-// SYNCHRONIZED CALL
+//########################################################################
+// adds a worker result to the result queue
+// - should only be called from the thread_pool
+// - SYNCHRONIZED CALL
+//########################################################################
 void queue_result(pair<int, char*> s)
 {
   pthread_mutex_lock(&result_queue_mutex);
@@ -87,8 +98,13 @@ void queue_result(pair<int, char*> s)
   pthread_mutex_unlock(&result_queue_mutex);
 }
 
-//removes a worker result from the queue
-// SYNCHRONIZAED CALL
+//########################################################################
+// removes a worker result from the queue
+// - returns a pair containg [request identification, buffer pointer]
+// - a NULL buffer pointer is returned if filepath does not exist
+// - SYNCHRONIZAED CALL
+//########################################################################
+
 pair<int, char *> dequeue_result()
 {
   pthread_mutex_lock(&result_queue_mutex);
@@ -200,6 +216,12 @@ void * worker_thread(void * ptr)
   return 0;
 }
 
+//########################################################################
+// destroys the thread pool
+// - allows threads to terminate before joining
+// - signals threads the exit worker thread
+// - releases mutexes and condition variables
+//########################################################################
 void destroy_thread_pool()
 {
   //kill all of the active threads by setting the 
