@@ -17,37 +17,54 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <string.h>
+#include <netdb.h>
 
 using namespace std;
 
 //main thread execution call
-int initialize_server(string ip_address, int port)
+int initialize_server(const char * ip_address, const char * port)
 {
-  //PSEUDOCODE
- 
+  
+  //boilerplates
+  int status;
+  struct addrinfo hints, *res, *p;
+  socklen_t addr_size;
+  struct sockaddr_in socket_addr;
+
   //Initialize the thread pool
   initialize_thread_pool(THREAD_POOL_SIZE);
   
   //Open a TCP listening connection
-  // - create socket
-  // - bind socket
-  // - listen for connections
-  // - accept connections
+  // 1 - load up address structs
+  // 2 - create a listening socket
+  // 3 - bind socket
+  // 4 - listen for connections
+  // 5 - accept connections
 
-  int server_socket = socket(AF_INET, SOCK_DGRAM, 0);
-  if (server_socket == -1)
-    return -1; //failed to create socket
+  // load up address structs
+  memset(&hints, 0, sizeof(hints));
+  hints.ai_family = AF_INET;        // IPv4, we are old fashioned
+  hints.ai_socktype = SOCK_STREAM;  // TCP
+  hints.ai_flags = AI_PASSIVE;      // fill in my IP for me 
 
-  struct sockaddr_in socket_addr;
+  if((status = getaddrinfo(NULL, port, &hints, &res))!=0){
+    fprintf(stderr, "getaddrinfo: %s \n", gai_strerror(status));
+    exit(EXIT_FAILURE);
+  }
 
-  // initialize some awful socket address data structure
-  memset(&socket_addr, 0, sizeof(struct sockaddr_in));
-  socket_addr.sin_family = AF_INET;
-  socket_addr.sin_port = port;
-  socket_addr.sin_addr.s_addr = inet_addr(ip_address.c_str());
+  // create a listening socket
+  int server_socket = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+  if (server_socket == -1){
+    perror("Cannot create socket, aborted.");
+    exit(EXIT_FAILURE);
+  }
 
-  bind(server_socket, (struct sockaddr *) &socket_addr, sizeof(sockaddr_in));
- 
+  // bind socket
+  if(bind(server_socket, res->ai_addr, res->ai_addrlen) == -1){
+    perror("Cannot bind socket.");
+    exit(EXIT_FAILURE);
+  }
+
   //Loop for connections until server is terminated
 
   //Validate filepath request
@@ -60,6 +77,9 @@ int initialize_server(string ip_address, int port)
 
   //Destroy the thread pool
   destroy_thread_pool();
+
+  //Free memory
+  freeaddrinfo(res); 
 
   return 0;
 }

@@ -6,4 +6,4 @@
 
 using namespace std;
 
-int initialize_server(string ip_address, int port);
+int initialize_server(const char * ip_address, const char * port);
