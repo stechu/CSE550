@@ -17,6 +17,7 @@ static pthread_mutex_t result_queue_mutex; //serializes access to the result que
 static pthread_mutex_t exit_mutex;         //synchronizes writes to the exit status for correct termination
 
 static pthread_cond_t work_cond_var;       //condition variable for worker threads waiting for work
+static pthread_cond_t result_cond_var;     //condition variable telling main thread if result is available
 static bool exit_signal;                   //global flag indicating if threads should exit
 
 void initialize_thread_pool(int num_threads);
@@ -29,3 +30,4 @@ pair<int, char *> dequeue_result();
 
 void destroy_thread_pool();
 void * worker_thread(void * ptr);
+char * read_file(char * filepath);
