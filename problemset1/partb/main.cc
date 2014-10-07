@@ -97,7 +97,7 @@ int main(int argc, char * argv[])
     return -1;
 
   //call the server initialization function
-  initialize_server(ip_address, atoi(server_port.c_str()));
+  initialize_server(ip_address.c_str(), server_port.c_str());
 
   return 0;
 
