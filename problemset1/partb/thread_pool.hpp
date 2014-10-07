@@ -3,6 +3,8 @@
 //
 // Header file definitions for thread pool
 //###########################################################################################
+#ifndef THREAD_POOL_HPP
+#define THREAD_POOL_HPP
 
 #include <string>
 #include <stdio.h>
@@ -68,3 +70,5 @@ public:
   char * read_file(char *);
 
 };
+
+#endif // THREAD_POOL_HPP

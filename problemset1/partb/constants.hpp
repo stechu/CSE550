@@ -4,6 +4,9 @@
 // Holds configuration constants for server550
 //#####################################################################################
 
+#ifndef CONSTANTS_HPP
+#define CONSTANTS_HPP
+
 
 ///////////////////////////////////////////////////////////////////////////////
 //
@@ -28,3 +31,5 @@ const static char * RESOURCE_PATH = "./testdata";
 //
 ///////////////////////////////////////////////////////////////////////////////
 const static int MAX_DATA_SIZE = 100;
+
+#endif // CONSTANTS_HPP
