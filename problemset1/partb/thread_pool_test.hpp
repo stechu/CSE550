@@ -6,4 +6,4 @@ int basic_initialization_test();
 
 int basic_file_test();
 
-int run_tests();
+int run_thread_pool_tests();

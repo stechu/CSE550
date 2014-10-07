@@ -20,18 +20,43 @@
 #include <map>
 #include <unistd.h>
 #include <errno.h>
+#include <set>
+#include <dirent.h>
 
 #include "constants.hpp"
 #include "thread_pool.hpp"
 #include "server.hpp"
 
 
-using namespace std;
+// reload resources
+// return: number of files in resource folder
+int reload_resources(std::set<std::string> & resources){
+  struct dirent * de = NULL;
+  DIR * d = NULL;
+
+  resources.clear();
+
+  d = opendir(RESOURCE_PATH);
+  if (d == NULL){
+    return -1;
+  }
+
+  while((de = readdir(d)) != NULL){
+    std::string file_name (de->d_name);
+    if(file_name == "." || file_name == ".."){
+      continue;
+    }
+    resources.insert(file_name);
+  }
+
+  closedir(d);
+  return resources.size();
+}
 
 
 // receive connections
 int receive_connections(const int socket_fd, int & request_id, 
-  map<int, pair<int, string> > & requests){
+  std::map<int, std::pair<int, std::string> > & requests){
   
   struct sockaddr_storage their_addr;
   socklen_t addr_size = sizeof their_addr;
@@ -116,11 +141,12 @@ int initialize_server(const char * ip_address, const char * port)
   }
 
   //load static resources
-  //TODO
+  std::set<std::string> resources;
+
 
   //event based connection handling
   int request_id = 0;                    //unique identifier for each request
-  map<int, pair<int, string> > requests; //requests, key=request id, v=sock,url
+  std::map<int, std::pair<int, std::string> > requests; //requests, key=request id, v=sock,url
 
   //Validate filepath request
 

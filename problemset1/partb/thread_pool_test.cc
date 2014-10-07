@@ -1,5 +1,5 @@
 //####################################################################
-// thread_pool_tests.cc
+// thread_pool_test.cc
 //
 // Test cases for the thread pool
 //####################################################################
@@ -207,7 +207,7 @@ int multi_file_test()
   return 0;
 }
 
-int run_tests()
+int run_thread_pool_tests()
 {
   int result = 0;
   try

@@ -8,12 +8,13 @@
 SERVER_EXECUTABLE=550server
 CLIENT_EXECUTABLE=550client
 CC=$(shell which g++)
-CPPFLAGS=-Wall -std=c++0x -Wextra -g
+CPPFLAGS=-Wall -Wextra -g -std=c++11
+CFLAGS=
 LDFLAGS=-lm -lpthread
 LDLIBS=
 SERVER_SRCS=main.cc server.cc thread_pool.cc
 CLIENT_SRCS=client.cc server.cc thread_pool.cc
-TEST_SRCS=thread_pool_test.cc
+TEST_SRCS=thread_pool_test.cc server_test.cc
 SERVER_OBJS=$(subst .cc,.o,$(SERVER_SRCS))
 CLIENT_OBJS=$(subst .cc,.o,$(CLIENT_SRCS))
 TEST_OBJS=$(subst .cc,.o,$(TEST_SRCS))

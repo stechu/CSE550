@@ -14,6 +14,7 @@
 #include "server.hpp"
 #include <stdlib.h>
 #include "thread_pool_test.hpp"
+#include "server_test.hpp"
 
 using namespace std;
 
@@ -76,7 +77,8 @@ int main(int argc, char * argv[])
 #if (TEST == 1)
   cout << "##################[INITIALIZING TEST CASES]#####################\n";
 
-  run_tests();
+  run_thread_pool_tests();
+  run_server_tests();
 
 #else
 
