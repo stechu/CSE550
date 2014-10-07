@@ -26,6 +26,7 @@
 #include "constants.hpp"
 #include "thread_pool.hpp"
 #include "server.hpp"
+#include "utilities.hpp"
 
 
 // reload resources
@@ -54,19 +55,55 @@ int reload_resources(std::set<std::string> & resources){
 }
 
 
-// receive connections
-int receive_connections(const int socket_fd, int & request_id, 
+// serving web pages in blocking mode
+// return - 0 if success
+int blocking_serv(const int socket_fd, int & request_id, 
   std::map<int, std::pair<int, std::string> > & requests){
   
+  // some variables
   struct sockaddr_storage their_addr;
   socklen_t addr_size = sizeof their_addr;
-  
+  char s[INET6_ADDRSTRLEN];
+
+  // main accept loop
   while(request_id<MAX_CONNECTIONS){
+    // accept an connection
     int new_fd = accept(socket_fd, (struct sockaddr *) & their_addr, &addr_size);
+    if(new_fd == -1){
+      perror("[WARN] unable to accept.");
+      continue;
+    }
+
+    // log the requesting ip
+    inet_ntop(their_addr.ss_family,
+      get_in_addr((struct sockaddr *)&their_addr),
+      s,
+      sizeof s);
+    fprintf(stdout, "[DEBUG] Server: got connection from %s, \n", s);
+
+    // for now, send hello world
+    if (send(new_fd, "Hello, world!", 13, 0) == -1){
+        perror("[WARN] send error.");
+    }
+    close(new_fd);
+  
+    //TODO: Validate filepath request
+
+    //TODO: Offload file I/O to worker thread
+
+    //TODO: On SIGINT or SIGTERM join running threads
+    
+    //TODO: If running threads fail to terminate, kill them
+  
   }
   return 0;
 }
 
+// serving web pages in non-blocking mode
+int async_serv(const int socket_fd, int & request_id, 
+  std::map<int, std::pair<int, std::string> > & requests){
+  return 0;
+}
 
 //main thread execution call
 int initialize_server(const char * ip_address, const char * port)
@@ -142,19 +179,19 @@ int initialize_server(const char * ip_address, const char * port)
 
   //load static resources
   std::set<std::string> resources;
-
+  int page_num = reload_resources(resources);
+  if(page_num == 0){
+    perror("[ERROR] serving folder does not contain any file. \n");
+    exit(EXIT_FAILURE);
+  } else {
+    fprintf(stdout, "[INFO] serving %d pages. \n", page_num);
+  }
 
   //event based connection handling
   int request_id = 0;                    //unique identifier for each request
   std::map<int, std::pair<int, std::string> > requests; //requests, key=request id, v=sock,url
-
-  //Validate filepath request
-
-  //Offload file I/O to worker thread
-
-  //On SIGINT or SIGTERM join running threads
-
-  //If running threads fail to terminate, kill them
+  blocking_serv(server_socket, request_id, requests);
+ 
 
   //Destroy the thread pool
   pool.destroy();
