@@ -5,36 +5,42 @@
 # Author: Vincent Lee
 #####################################################################3
 
-EXECUTABLE=550server
+SERVER_EXECUTABLE=550server
+CLIENT_EXECUTABLE=550client
 CC=$(shell which g++)
 CPPFLAGS=-Wall -Wextra -g
 LDFLAGS=-lm -lpthread
 LDLIBS=
-SRCS=main.cc server.cc thread_pool.cc
+SERVER_SRCS=main.cc server.cc thread_pool.cc
+CLIENT_SRCS=client.cc server.cc thread_pool.cc
 TEST_SRCS=thread_pool_test.cc
-OBJS=$(subst .cc,.o,$(SRCS))
+SERVER_OBJS=$(subst .cc,.o,$(SERVER_SRCS))
+CLIENT_OBJS=$(subst .cc,.o,$(CLIENT_SRCS))
 TEST_OBJS=$(subst .cc,.o,$(TEST_SRCS))
 INCLUDES=
 DEBUGGER=$(shell which valgrind)
 TEST=1
 
-all: $(EXECUTABLE)
+all: $(SERVER_EXECUTABLE) $(CLIENT_EXECUTABLE)
 
-run: $(EXECUTABLE)
-	./$(EXECUTABLE) 127.0.0.1 9000
+run: $(SERVER_EXECUTABLE)
+	./$(SERVER_EXECUTABLE) 127.0.0.1 9000
 
-test: $(OBJS) $(TEST_OBJS)
-	$(CC) $(CPPFLAGS) $(LDFLAGS) $(LDLIBS) -DTEST=$(TEST) -o $(EXECUTABLE) $(OBJS) $(TEST_OBJS)
-	./$(EXECUTABLE)
+test: $(SERVER_OBJS) $(TEST_OBJS)
+	$(CC) $(CPPFLAGS) $(LDFLAGS) $(LDLIBS) -DTEST=$(TEST) -o $(SERVER_EXECUTABLE) $(SERVER_OBJS) $(TEST_OBJS)
+	./$(SERVER_EXECUTABLE)
 
-$(EXECUTABLE): $(OBJS) $(TEST_OBJS)
-	$(CC) $(CPPFLAGS) $(LDFLAGS) $(LDLIBS) -o $(EXECUTABLE) $(OBJS) $(TEST_OBJS)
+$(SERVER_EXECUTABLE): $(SERVER_OBJS) $(TEST_OBJS)
+	$(CC) $(CPPFLAGS) $(LDFLAGS) $(LDLIBS) -o $(SERVER_EXECUTABLE) $(SERVER_OBJS) $(TEST_OBJS)
 
-debug: $(EXECUTABLE)
-	$(DEBUGGER) $(EXECUTABLE)
+$(CLIENT_EXECUTABLE): $(CLIENT_OBJS) $(TEST_OBJS)
+	$(CC) $(CPPFLAGS) $(LDFLAGS) $(LDLIBS) -o $(CLIENT_EXECUTABLE) $(CLIENT_OBJS) $(TEST_OBJS)
+
+debug: $(SERVER_EXECUTABLE)
+	$(DEBUGGER) $(SERVER_EXECUTABLE)
 
 %.o: %.cc
 	$(CC) $(CPPFLAGS) -DTEST=$(TEST) -c $<
 
 clean:
-	rm -f $(EXECUTABLE) *~ \#* *.o *.txt
+	rm -f $(SERVER_EXECUTABLE) *~ \#* *.o *.txt
