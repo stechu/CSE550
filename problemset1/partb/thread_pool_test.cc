@@ -95,9 +95,19 @@ int basic_file_test()
 
   //wait for a signal to come back
   pthread_mutex_lock(&result_queue_mutex);
-  pthread_cond_wait(&result_cond_var, &result_queue_mutex);
+  //pthread_cond_wait(&result_cond_var, &result_queue_mutex);
 
-  cout << "[Info] Got the signal, now attempting a dequeue of the result\n";
+  //cout << "[Info] Got the signal, now attempting a dequeue of the result\n";
+
+  pthread_mutex_unlock(&result_queue_mutex);
+  
+  volatile int size = 0;
+  while (size < 1) //spin lock for now
+    {
+      size = (int) result_queue.size();
+      cout << size << "\n";
+    }
+  pthread_mutex_lock(&result_queue_mutex);
 
   //get the result from the queue
   pair<int, char*> result;

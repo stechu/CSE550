@@ -20,6 +20,9 @@ static pthread_cond_t work_cond_var;       //condition variable for worker threa
 static pthread_cond_t result_cond_var;     //condition variable telling main thread if result is available
 static bool exit_signal;                   //global flag indicating if threads should exit
 
+static queue< pair<int, string> > task_queue;   //task queue, holds [request identifier, filepath]
+static queue< pair<int, char *> > result_queue; //result queue, holds [request identifier, pointer to buffer]
+
 void initialize_thread_pool(int num_threads);
 
 void queue_task(pair<int, string> s);

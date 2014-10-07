@@ -18,9 +18,6 @@
 
 using namespace std;
 
-queue< pair<int, string> > task_queue;   //task queue, holds [request identifier, filepath]
-queue< pair<int, char *> > result_queue; //result queue, holds [request identifier, pointer to buffer]
-
 vector<pthread_t> pthreads;              //bookkeeping to track the threads
 
 //########################################################################
@@ -104,6 +101,7 @@ void queue_result(pair<int, char*> s)
   pthread_mutex_lock(&result_queue_mutex);
   result_queue.push(s);
   pthread_cond_broadcast(&result_cond_var);
+  cout << "Queue result has issued a broadcast\n";
   pthread_mutex_unlock(&result_queue_mutex);
 }
 
