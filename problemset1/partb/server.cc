@@ -131,7 +131,7 @@ int initialize_server(const char * ip_address, const char * port)
   //If running threads fail to terminate, kill them
 
   //Destroy the thread pool
-  pool.destroy_thread_pool();
+  pool.destroy();
 
   return 0;
 }
