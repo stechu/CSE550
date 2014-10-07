@@ -56,7 +56,7 @@ int initialize_server(const char * ip_address, const char * port)
   int server_socket = -1;
 
   //Initialize the thread pool
-  //initialize_thread_pool(THREAD_POOL_SIZE);
+  thread_pool pool(THREAD_POOL_SIZE);
   
   //Open a TCP listening connection
   // 1 - load up address structs
@@ -108,7 +108,7 @@ int initialize_server(const char * ip_address, const char * port)
   freeaddrinfo(servinfo);
 
   //listening 
-  if(listen(server_socket, BACKLOG) == -1){
+  if(listen(server_socket, BACK_LOG_SIZE) == -1){
     perror("[ERROR] Fail to listen, aborted.");
     exit(EXIT_FAILURE);
   } else {
@@ -131,7 +131,7 @@ int initialize_server(const char * ip_address, const char * port)
   //If running threads fail to terminate, kill them
 
   //Destroy the thread pool
-  //destroy_thread_pool();
+  pool.destroy_thread_pool();
 
   return 0;
 }

@@ -13,6 +13,7 @@
 #include <vector>
 #include "server.hpp"
 #include <stdlib.h>
+#include "thread_pool_test.hpp"
 
 using namespace std;
 
@@ -72,6 +73,13 @@ int validate_ip(string ip_address)
 //#################################################################################
 int main(int argc, char * argv[])
 {
+#if (TEST == 1)
+  cout << "##################[INITIALIZING TEST CASES]#####################\n";
+
+  run_tests();
+
+#else
+
   //validate we got enough arguments
   if (argc != 3)
     {
@@ -92,4 +100,6 @@ int main(int argc, char * argv[])
   initialize_server(ip_address.c_str(), server_port.c_str());
 
   return 0;
+
+#endif
 }

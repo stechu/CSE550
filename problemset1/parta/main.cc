@@ -19,10 +19,6 @@ using namespace std;
 
 int main()
 {
-
-  //welcome message
-  cout << SHELL_PROMPT;
-
 #if (DEBUG)
   cout << "Initializing econsole shell...\n";
 #endif
