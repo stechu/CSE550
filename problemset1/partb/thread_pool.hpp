@@ -12,25 +12,43 @@
 
 using namespace std;
 
-static pthread_mutex_t task_queue_mutex;   //serializes access to the task queue
-static pthread_mutex_t result_queue_mutex; //serializes access to the result queue
-static pthread_mutex_t exit_mutex;         //synchronizes writes to the exit status for correct termination
+class thread_pool
+{
+public:
+  thread_pool(int);                   //thread pool constructor
 
-static pthread_cond_t work_cond_var;       //condition variable for worker threads waiting for work
-static pthread_cond_t result_cond_var;     //condition variable telling main thread if result is available
-static bool exit_signal;                   //global flag indicating if threads should exit
+  pthread_mutex_t task_queue_mutex;   //serializes access to the task queue
+  pthread_mutex_t result_queue_mutex; //serializes access to the result queue
+  pthread_mutex_t exit_mutex;         //synchronizes writes to the exit status for correct termination
 
-static queue< pair<int, string> > task_queue;   //task queue, holds [request identifier, filepath]
-static queue< pair<int, char *> > result_queue; //result queue, holds [request identifier, pointer to buffer]
+  pthread_cond_t task_cond_var;       //condition variable for worker threads waiting for work
+  pthread_cond_t result_cond_var;     //condition variable telling main thread if result is available
+  bool exit_signal;                   //global flag indicating if threads should exit
+  
+  vector<pthread_t> pthreads;              //bookkeeping to track the threads
 
-void initialize_thread_pool(int num_threads);
+  queue< pair<int, string> > task_queue;   //task queue, holds [request identifier, filepath]
+  queue< pair<int, char *> > result_queue; //result queue, holds [request identifier, pointer to buffer]
+  
+  void queue_task(pair<int, string>);
+  pair<int, string> dequeue_task();
+  
+  void queue_result(pair<int, char *>);
+  pair<int, char *> dequeue_result();
 
-void queue_task(pair<int, string> s);
-pair<int, string> dequeue_task();
+  void destroy_thread_pool();
+  void * worker_thread();
+  char * read_file(char *);
 
-void queue_result(pair<int, char *> s);
-pair<int, char *> dequeue_result();
+  void lock_task_mutex();
+  void lock_result_mutex();
+  void unlock_task_mutex();
+  void unlock_result_mutex();
+  void wait_for_task();
+  void wait_for_result();
 
-void destroy_thread_pool();
-void * worker_thread(void * ptr);
-char * read_file(char * filepath);
+  static void * launch_worker(void * wtf)
+  {
+    return ((thread_pool *) wtf)->worker_thread();
+  }
+};

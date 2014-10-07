@@ -26,7 +26,7 @@ int initialize_server(string ip_address, int port)
   //PSEUDOCODE
  
   //Initialize the thread pool
-  initialize_thread_pool(THREAD_POOL_SIZE);
+  thread_pool pool(THREAD_POOL_SIZE);
   
   //Open a TCP listening connection
   // - create socket
@@ -59,7 +59,7 @@ int initialize_server(string ip_address, int port)
   //If running threads fail to terminate, kill them
 
   //Destroy the thread pool
-  destroy_thread_pool();
+  pool.destroy_thread_pool();
 
   return 0;
 }

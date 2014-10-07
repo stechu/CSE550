@@ -20,16 +20,18 @@ using namespace std;
 int basic_initialization_test()
 {
   //initialize the thread pool
-  initialize_thread_pool(THREAD_POOL_SIZE);
+  thread_pool t(THREAD_POOL_SIZE);
 
   //destroy the thread pool
-  destroy_thread_pool();
+  t.destroy_thread_pool();
 
   return 0;
 }
 
 int file_io_test()
 {
+  thread_pool t(THREAD_POOL_SIZE);
+
   //create a test file
   string TEST_FILE = "test_file.txt";
   ofstream test_file;
@@ -39,8 +41,10 @@ int file_io_test()
   test_file << file_content;
   test_file.close();
 
-  char * read_buffer = read_file((char *) TEST_FILE.c_str());
+  char * read_buffer = t.read_file((char *) TEST_FILE.c_str());
 
+  t.destroy_thread_pool();
+  
   if (strcmp(read_buffer, (char *) file_content.c_str()) == 0)
     {
       return 0;
@@ -53,10 +57,14 @@ int file_io_test()
 
 int bad_file_io_test()
 {
+  thread_pool t(THREAD_POOL_SIZE);
+
   //neglect to create a file and try and read a bad one
   string TEST_FILE = "bad_file_handle.txt";
-  char * read_buffer = read_file((char *) TEST_FILE.c_str());
+  char * read_buffer = t.read_file((char *) TEST_FILE.c_str());
   
+  t.destroy_thread_pool();
+
   if (read_buffer == NULL)
     {
       return 0;
@@ -80,7 +88,7 @@ int basic_file_test()
   test_file.close();
 
   //start the thread pool
-  initialize_thread_pool(THREAD_POOL_SIZE);
+  thread_pool t(THREAD_POOL_SIZE);
 
   int identifier = 1337;
   pair<int, string> request;
@@ -88,42 +96,32 @@ int basic_file_test()
   request.second = TEST_FILE;
 
   //queue the task in the thread pool
-  queue_task(request);
+  t.queue_task(request);
   
   //signal that a request made it to the task queue
   //pthread_cond_signal(&work_cond_var);
 
   //wait for a signal to come back
-  pthread_mutex_lock(&result_queue_mutex);
-  //pthread_cond_wait(&result_cond_var, &result_queue_mutex);
+  t.lock_result_mutex();
+  t.wait_for_result();
 
   //cout << "[Info] Got the signal, now attempting a dequeue of the result\n";
 
-  pthread_mutex_unlock(&result_queue_mutex);
-  
-  volatile int size = 0;
-  while (size < 1) //spin lock for now
-    {
-      size = (int) result_queue.size();
-      cout << size << "\n";
-    }
-  pthread_mutex_lock(&result_queue_mutex);
-
   //get the result from the queue
   pair<int, char*> result;
-  result = dequeue_result();
+  result = t.dequeue_result();
 
   cout << "[Info] Dequeued resulting pair...\n";
 
   //unlock the mutex
-  pthread_mutex_unlock(&result_queue_mutex);
+  t.unlock_result_mutex();
   
   //verify the result is correct
   assert(result.first == request.first);
   assert(strcmp(result.second, (char *) file_content.c_str()) == 0);
 
   //clean up
-  destroy_thread_pool();
+  t.destroy_thread_pool();
 
   return 0;
 }
