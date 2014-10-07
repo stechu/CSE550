@@ -10,13 +10,12 @@
 #include <queue>
 #include <pthread.h>
 
-using namespace std;
 
 class thread_pool
 {
 private:
-  queue< pair<int, string> > task_queue;   //task queue, holds [request identifier, filepath]
-  queue< pair<int, char *> > result_queue; //result queue, holds [request identifier, pointer to buffer]
+  std::queue< std::pair<int, std::string> > task_queue;   //task queue, holds [request identifier, filepath]
+  std::queue< std::pair<int, char *> > result_queue; //result queue, holds [request identifier, pointer to buffer]
 
   pthread_mutex_t task_queue_mutex;        //serializes access to the task queue
   pthread_mutex_t result_queue_mutex;      //serializes access to the result queue
@@ -26,10 +25,10 @@ private:
   pthread_cond_t result_cond_var;          //condition variable telling main thread if result is available
   bool exit_signal;                        //global flag indicating if threads should exit
   
-  vector<pthread_t> pthreads;              //bookkeeping to track the threads
+  std::vector<pthread_t> pthreads;              //bookkeeping to track the threads
 
-  pair<int, string> dequeue_task();        //dequeues a task - not atomic    
-  void queue_result(pair<int, char *>);    //queues a task - atomic
+  std::pair<int, std::string> dequeue_task();        //dequeues a task - not atomic    
+  void queue_result(std::pair<int, char *>);    //queues a task - atomic
 
   //worker function for each thread in the thread pool
   void * worker_thread();
@@ -45,10 +44,10 @@ public:
   thread_pool(int);                        
   
   //atomically queues a task for processing
-  void queue_task(pair<int, string>);      
+  void queue_task(std::pair<int, std::string>);      
   
   //dequeus a result - not atomic
-  pair<int, char *> dequeue_result();      
+  std::pair<int, char *> dequeue_result();      
 
   //destroys thread pool
   void destroy();
