@@ -37,4 +37,4 @@ debug: $(EXECUTABLE)
 	$(CC) $(CPPFLAGS) -DTEST=$(TEST) -c $<
 
 clean:
-	rm -f $(EXECUTABLE) *~ \#* *.o
+	rm -f $(EXECUTABLE) *~ \#* *.o *.txt

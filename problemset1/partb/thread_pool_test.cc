@@ -23,7 +23,7 @@ int basic_initialization_test()
   thread_pool t(THREAD_POOL_SIZE);
 
   //destroy the thread pool
-  t.destroy_thread_pool();
+  t.destroy();
 
   return 0;
 }
@@ -43,7 +43,7 @@ int file_io_test()
 
   char * read_buffer = t.read_file((char *) TEST_FILE.c_str());
 
-  t.destroy_thread_pool();
+  t.destroy();
   
   if (strcmp(read_buffer, (char *) file_content.c_str()) == 0)
     {
@@ -63,7 +63,7 @@ int bad_file_io_test()
   string TEST_FILE = "bad_file_handle.txt";
   char * read_buffer = t.read_file((char *) TEST_FILE.c_str());
   
-  t.destroy_thread_pool();
+  t.destroy();
 
   if (read_buffer == NULL)
     {
@@ -98,14 +98,9 @@ int basic_file_test()
   //queue the task in the thread pool
   t.queue_task(request);
   
-  //signal that a request made it to the task queue
-  //pthread_cond_signal(&work_cond_var);
-
   //wait for a signal to come back
   t.lock_result_mutex();
   t.wait_for_result();
-
-  //cout << "[Info] Got the signal, now attempting a dequeue of the result\n";
 
   //get the result from the queue
   pair<int, char*> result;
@@ -121,7 +116,93 @@ int basic_file_test()
   assert(strcmp(result.second, (char *) file_content.c_str()) == 0);
 
   //clean up
-  t.destroy_thread_pool();
+  t.destroy();
+
+  return 0;
+}
+
+int multi_file_test()
+{
+  thread_pool t(THREAD_POOL_SIZE);
+
+  //test that the correct identifiers come back in the event of multiple duplicate test files
+  string TEST_FILE_0 = "test_file_0.txt";
+  string TEST_FILE_1 = "test_file_1.txt";
+  
+  ofstream test_file_0;
+  ofstream test_file_1;
+  
+  string file_content_0 = "ABRACADABRA\n\n\t\n\t";
+  string file_content_1 = "DU\nDUHDUHDU\nDU\nDU\nDUHDUHDU\nDU\n";
+
+  test_file_0.open(TEST_FILE_0.c_str());
+  test_file_1.open(TEST_FILE_1.c_str());
+
+  test_file_0 << file_content_0;
+  test_file_1 << file_content_1;
+
+  test_file_0.close();
+  test_file_1.close();
+
+  //queue up some number of file requests mixed together
+  vector<int> requests_0;
+  vector<int> requests_1;
+
+  int num_requests = 50;
+
+  //enqueue all the requests
+  for (int i = 0; i < num_requests; i++)
+    {
+      pair <int, string> request;
+      request.first = i;
+      if (i % 2 == 0)
+	{
+	  request.second = TEST_FILE_0;
+	  requests_0.push_back(i);
+	}
+      else
+	{
+	  request.second = TEST_FILE_1;
+	  requests_1.push_back(i);
+	}
+      t.queue_task(request);
+    }
+
+  //dequeue or wait for requests to finish processing
+  pair <int, char *> result;
+
+  for (int i = 0; i < num_requests; i++)
+    { 
+      t.lock_result_mutex();
+      if (t.has_result())
+	{
+	  result = t.dequeue_result();
+	}
+      else
+	{
+	  //stimulate the threads
+	  t.lock_task_mutex();
+	  t.signal_task_queue();
+	  t.unlock_task_mutex();
+
+	  //wait for a result to come back
+	  t.wait_for_result();
+	  result = t.dequeue_result();
+	}
+      t.unlock_result_mutex();
+
+      int identifier = result.first;
+      if (identifier % 2 == 0)
+	{
+	  assert(strlen(result.second) > 0);
+	  assert(strcmp(result.second, (char *) file_content_0.c_str()) == 0);
+	}
+      else
+	{
+	  assert(strlen(result.second) > 0);
+	  assert(strcmp(result.second, (char *) file_content_1.c_str()) == 0);
+	}
+    }
 
   return 0;
 }
@@ -185,6 +266,19 @@ int run_tests()
   catch (int e)
     {
       cout << "[TEST] BASIC FILE TEST: FAILED\n";
+    }
+
+  try
+    {
+      result = multi_file_test();
+      if (result != 0)
+	cout << "[TEST] MULTI FILE TEST: FAILED\n";
+      else
+	cout << "[TEST] MULTI FILE TEST: PASSED\n";
+    }
+  catch (int e)
+    {
+      cout << "[TEST] MULTI FILE TEST: FAILED\n";
     }
 
   return 0;

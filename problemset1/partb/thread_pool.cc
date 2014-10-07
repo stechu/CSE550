@@ -18,7 +18,6 @@
 
 using namespace std;
 
-
 //########################################################################
 // thread pool initialization
 // - threads are created and launched into worker thread function
@@ -40,8 +39,6 @@ thread_pool::thread_pool(int num_threads)
   if(pthread_cond_init(&result_cond_var, NULL) < 0)
     cout << "[Info] Failed to initialize result condition variable...\n";
   
-  //  cout << "[Debug] Thread pool mutex initialization: SUCCESS\n";
-
   pthread_mutex_lock(&exit_mutex);
   for (int i = 0; i < num_threads; i++)
     {
@@ -53,13 +50,10 @@ thread_pool::thread_pool(int num_threads)
       
     }
   pthread_mutex_unlock(&exit_mutex);
-
-  cout << "[Debug] Thread pool thread creation: SUCCESS\n";
-
 }
 
 //########################################################################
-// External Facing Mutex Acquire/Unlock Functions
+// External Facing Mutex Acquire/Unlock/Wait Functions
 //########################################################################
 
 void thread_pool::lock_task_mutex()
@@ -78,22 +72,57 @@ void thread_pool::unlock_result_mutex()
 {
   pthread_mutex_unlock(&result_queue_mutex);
 }
+
 //result_queue_mutex must be acqired before calling this
 void thread_pool::wait_for_result()
 {
   pthread_cond_wait(&result_cond_var, &result_queue_mutex);
 }
+
 //task_queue_mutex must be acqired before calling this
 void thread_pool::wait_for_task() 
 {
   pthread_cond_wait(&task_cond_var, &task_queue_mutex);
 }
 
+//notify that there are new tasks waiting in the task queue
+void thread_pool::signal_task_queue()
+{
+  pthread_cond_broadcast(&task_cond_var);
+}
+
+//notify that there are new results waiting in the task queue
+void thread_pool::signal_result_queue()
+{
+  pthread_cond_broadcast(&result_cond_var);
+}
+
+//return if there are tasks in the queue - NOT ATOMIC
+bool thread_pool::has_task()
+{
+  bool task_flag;
+  task_flag = (task_queue.size() > 0) ? true : false;
+  return task_flag;
+}
+
+//return if there are results in the queue - NOT ATOMIC
+bool thread_pool::has_result()
+{
+  bool result_flag;
+  result_flag = (result_queue.size() > 0) ? true : false;
+  return result_flag;
+}
+
+//########################################################################
+// Task/Result Queueing Call Definitions
+//########################################################################
+
 //########################################################################
 // adds a task to the task queue
 // - argument is a pair containing [request identifier, filepath name]
-// - SYNCHRONIZED CALL
+// - CALL IS ATOMIC - do not acquire task_queue_mutex before call
 //########################################################################
+
 void thread_pool::queue_task(pair<int, string> s)
 {
   pthread_mutex_lock(&task_queue_mutex);
@@ -105,13 +134,12 @@ void thread_pool::queue_task(pair<int, string> s)
 //########################################################################
 // gets the task at the front of the queue
 // - should only be called from the thread_pool
-// - THIS IS NOT A PROTECTED REGION
-// - MUTEX SHOULD BE ACQUIRED BY CONDITION VARIABLE CHECK
 // - Throws an exception if not work is available
+// - THIS CALL IS NOT ATOMIC
 //########################################################################
+
 pair<int, string> thread_pool::dequeue_task()
 {
-  //pthread_mutex_lock(&task_queue_mutex);
   pair<int, string> task;
   if (task_queue.size() == 0)
     throw 42; //throw an exception if the task_queue is empty
@@ -120,21 +148,20 @@ pair<int, string> thread_pool::dequeue_task()
       task = task_queue.front();
       task_queue.pop();
     }
-  //pthread_mutex_unlock(&task_queue_mutex);
   return task;
 }
 
 //########################################################################
 // adds a worker result to the result queue
 // - should only be called from the thread_pool
-// - SYNCHRONIZED CALL
+// - CALL IS ATOMIC - result_queue_mutex must be freed before call
 //########################################################################
+
 void thread_pool::queue_result(pair<int, char*> s)
 {
   pthread_mutex_lock(&result_queue_mutex);
   result_queue.push(s);
   pthread_cond_broadcast(&result_cond_var);
-  cout << "Queue result has issued a broadcast\n";
   pthread_mutex_unlock(&result_queue_mutex);
 }
 
@@ -143,13 +170,13 @@ void thread_pool::queue_result(pair<int, char*> s)
 // - returns a pair containg [request identification, buffer pointer]
 // - a NULL buffer pointer is returned if filepath does not exist
 // - does not lock mutex, assumes caller holds mutex after signal
+// - THIS CALL IS NOT ATOMIC
 //########################################################################
+
 pair<int, char *> thread_pool::dequeue_result()
 {
-  //  pthread_mutex_lock(&result_queue_mutex);
   pair<int, char*> result = result_queue.front();
   result_queue.pop();
-  //pthread_mutex_unlock(&result_queue_mutex);
   return result;
 }
 
@@ -162,8 +189,6 @@ void * thread_pool::worker_thread()
   bool done = false;
   bool work_available = false; //hacked up flag that indicates if task is available
   pair<int, string> task;
-
-  //  cout << "[Info] Thread creation successful...\n";
 
   while (!done)
     {
@@ -187,8 +212,6 @@ void * thread_pool::worker_thread()
       if (!work_available)
 	{
 	  pthread_cond_wait(&task_cond_var, &task_queue_mutex);
-	  cout << "[Debug] Received a signal on the condition variable...\n";
-	  cout << "Length of task queue: " << task_queue.size() << "\n";
 	}
       pthread_mutex_unlock(&task_queue_mutex);
 
@@ -198,20 +221,14 @@ void * thread_pool::worker_thread()
 
       if (work_available == true)
 	{
-	  cout << "[Info] Got a filepath for reading: " << task.second << "\n";
-
 	  char * char_buffer = read_file((char *) task.second.c_str());
 
 	  pair<int, char*> result;
 	  result.first = task.first;
 	  result.second = char_buffer;
 
-	  cout << "[Info] Queueing result: " << result.second << "\n";
-
 	  //queue the result into the result queue
 	  queue_result(result);
-	  cout << "[Info] Result queue length: " << result_queue.size() << "\n";
-
 	}
 
       //##########################################################
@@ -226,6 +243,11 @@ void * thread_pool::worker_thread()
 
   return 0;
 }
+
+//########################################################################
+// reads the file from the given filepath input
+// - returns the entire file contents in a char *
+//########################################################################
 
 char * thread_pool::read_file(char * filepath)
 {
@@ -256,29 +278,30 @@ char * thread_pool::read_file(char * filepath)
 // - signals threads the exit worker thread
 // - releases mutexes and condition variables
 //########################################################################
-void thread_pool::destroy_thread_pool()
+void thread_pool::destroy()
 {
-  //kill all of the active threads by setting the 
+  //signal to all the threads to exit
   pthread_mutex_lock(&exit_mutex);
   exit_signal = true;
   pthread_mutex_unlock(&exit_mutex);
   
+  //broadcast a wake up signal for waiting threads to exit
   pthread_mutex_lock(&task_queue_mutex);
   pthread_cond_broadcast(&task_cond_var);
   pthread_mutex_unlock(&task_queue_mutex);
 
+  //thread join loop
   for (int i = 0; i < (int) pthreads.size(); i++)
     {
+      //attempt to join the target thread
       pthread_t target_thread = pthreads[i];
       pthread_join(target_thread, NULL);
-      //      cout << "[Debug] Thread exited and joined\n";
 
+      //signal to each of the threads to ensure they terminate
       pthread_mutex_lock(&task_queue_mutex);
       pthread_cond_broadcast(&task_cond_var);
       pthread_mutex_unlock(&task_queue_mutex);
     }
-
-  //  cout << "[Debug] Thread pool worker threads joined\n";
 
   //kill all of the active mutexes and condition variables
   pthread_mutex_destroy(&task_queue_mutex);
@@ -287,8 +310,6 @@ void thread_pool::destroy_thread_pool()
 
   pthread_cond_destroy(&task_cond_var);
   pthread_cond_destroy(&result_cond_var);
-
-  cout << "[Debug] Thread pool destroyed mutexes and condition variables: SUCCESS\n";
 
   //TODO: free any allocated memory
 }
