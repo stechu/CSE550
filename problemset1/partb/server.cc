@@ -172,6 +172,17 @@ int initialize_server(const char * ip_address, const char * port) {
   // 4 - listen for connections
   // 5 - accept connections
 
+  // load static resources
+  std::set<std::string> resources;
+  int page_num = reload_resources(resources);
+  if (page_num == 0) {
+    perror("[ERROR] serving folder does not contain any file. \n");
+    exit(EXIT_FAILURE);
+  } else {
+    fprintf(stdout, "[INFO] serving %d pages. \n", page_num);
+  }
+
+  
   // load up address structs
   memset(&hints, 0, sizeof(hints));
   hints.ai_family = AF_INET;        // IPv4, we are old fashioned
@@ -182,6 +193,7 @@ int initialize_server(const char * ip_address, const char * port) {
     fprintf(stderr, "getaddrinfo: %s \n", gai_strerror(status));
     exit(EXIT_FAILURE);
   }
+
 
   // loop through all the results and bind to the first we can
   for (p = servinfo; p != NULL; p = p->ai_next) {
@@ -221,16 +233,6 @@ int initialize_server(const char * ip_address, const char * port) {
     exit(EXIT_FAILURE);
   } else {
     fprintf(stdout, "[INFO] begin to listen on %d \n", server_socket);
-  }
-
-  // load static resources
-  std::set<std::string> resources;
-  int page_num = reload_resources(resources);
-  if (page_num == 0) {
-    perror("[ERROR] serving folder does not contain any file. \n");
-    exit(EXIT_FAILURE);
-  } else {
-    fprintf(stdout, "[INFO] serving %d pages. \n", page_num);
   }
 
   // event based connection handling
