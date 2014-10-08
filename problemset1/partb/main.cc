@@ -8,13 +8,15 @@
 #include <iostream>
 #include <string.h>
 #include <assert.h>
-#include "constants.hpp"
 #include <pthread.h>
 #include <vector>
-#include "server.hpp"
 #include <stdlib.h>
+
+#include "constants.hpp"
 #include "thread_pool_test.hpp"
 #include "server_test.hpp"
+#include "server.hpp"
+
 
 using namespace std;
 
@@ -78,7 +80,7 @@ int main(int argc, char * argv[])
   cout << "##################[INITIALIZING TEST CASES]#####################\n";
 
   run_thread_pool_tests();
-  run_server_tests();
+  //run_server_tests();
 
 #else
 
