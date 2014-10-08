@@ -8,7 +8,7 @@
 SERVER_EXECUTABLE=550server
 CLIENT_EXECUTABLE=550client
 CC=$(shell which g++)
-CPPFLAGS=-Wall -Wextra -g -std=c++11
+CPPFLAGS=-Wall -Wextra -g 
 CFLAGS=
 LDFLAGS=-lm -lpthread
 LDLIBS=
