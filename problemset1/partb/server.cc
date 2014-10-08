@@ -33,10 +33,10 @@
 #include "utilities.hpp"
 
 // SIGCHLD handler
-static void sigchld_hdl (int sig){
+static void sigchld_hdl(int sig){
   // Wait for all dead processes.
   // We use a non-blocking call to be sure this signal handler will not
-  // block if a child was cleaned up in another part of the program. 
+  // block if a child was cleaned up in another part of the program.
   while (waitpid(-1, NULL, WNOHANG) > 0) {
   }
 }
@@ -44,7 +44,7 @@ static void sigchld_hdl (int sig){
 
 // reload resources
 // return: number of files in resource folder
-int reload_resources (std::set<std::string> & resources){
+int reload_resources(std::set<std::string> & resources){
   struct dirent * de = NULL;
   DIR * d = NULL;
 
@@ -55,9 +55,9 @@ int reload_resources (std::set<std::string> & resources){
     return -1;
   }
 
-  while ((de = readdir(d)) != NULL){
+  while ((de = readdir(d)) != NULL) {
     std::string file_name(de->d_name);
-    if (file_name == "." || file_name == ".."){
+    if (file_name == "." || file_name == "..") {
       continue;
     }
     resources.insert(file_name);
@@ -70,9 +70,8 @@ int reload_resources (std::set<std::string> & resources){
 
 // serving web pages in blocking mode, a toy example
 // return - 0 if success
-int blocking_serv (const int socket_fd, int & request_id, 
-  std::map<int, std::pair<int, std::string> > & requests) {
-
+int blocking_serv(const int socket_fd, int & request_id,
+  std::map<int, std::pair<int, std::string> > & requests){
   // some variables
   struct sockaddr_storage their_addr;
   socklen_t addr_size = sizeof their_addr;
@@ -81,12 +80,12 @@ int blocking_serv (const int socket_fd, int & request_id,
   int numbytes = -1;
 
   // main accept loop
-  while (request_id<MAX_CONNECTIONS){
+  while (request_id<MAX_CONNECTIONS) {
     // 1. accept an connection
-    int new_fd = accept(socket_fd, 
-      (struct sockaddr *) & their_addr, 
-      &addr_size);
-    if (new_fd == -1){
+    int new_fd = accept(socket_fd,
+                        (struct sockaddr *) & their_addr,
+                        &addr_size);
+    if (new_fd == -1) {
       perror("[WARN] unable to accept.");
       continue;
     }
@@ -99,32 +98,32 @@ int blocking_serv (const int socket_fd, int & request_id,
     fprintf(stdout, "[DEBUG] Server: got connection from %s, \n", s);
 
     // 3. receive the request
-    if((numbytes = recv(new_fd, msg_buf, MAX_DATA_SIZE - 1, 0)) == -1){
+    if ((numbytes = recv(new_fd, msg_buf, MAX_DATA_SIZE - 1, 0)) == -1) {
       perror("[ERROR] error when receiving client request.");
       exit(EXIT_FAILURE);
     }
     msg_buf[numbytes] = '\0';
     fprintf(stdout, "[DEBUG] Server: receiving %s.", msg_buf);
-    
+
     // 4. send back requested page
     if (send(new_fd, "Hello, world!", 13, 0) == -1) {
         perror("[WARN] send error.");
     }
-    
-    close(new_fd);  
+
+    close(new_fd);
   }
   return 0;
 }
 
 // serving web pages in non-blocking mode
-int async_serv (const int socket_fd, int & request_id, 
-  std::map<int, std::pair<int, std::string> > & requests){
+int async_serv(const int socket_fd, 
+               int & request_id, 
+               std::map<int, std::pair<int, std::string> > & requests){
   return 0;
 }
 
 // main thread execution call
-int initialize_server (const char * ip_address, const char * port){
-
+int initialize_server(const char * ip_address, const char * port){
   // boilerplates
   int status;
   struct addrinfo hints, *servinfo, *p;
@@ -136,10 +135,10 @@ int initialize_server (const char * ip_address, const char * port){
 
   // Handle signals properly
   // 1 - SIGCHLD, reap zombie child process (if any)
-  // 2 - SIGPIPE, ignore it 
+  // 2 - SIGPIPE, ignore it
   // 3 - SIGINT or SIGTERM, a clean shutdown
-  
-  // Handle SIGCHLD 
+
+  // Handle SIGCHLD
   memset(&childact, 0, sizeof(childact));
   childact.sa_handler = sigchld_hdl;
   if (sigaction(SIGCHLD, &childact, 0)) {
@@ -151,7 +150,7 @@ int initialize_server (const char * ip_address, const char * port){
   memset(&pipeact, 0, sizeof(pipeact));
   pipeact.sa_handler = SIG_IGN;
   pipeact.sa_flags = 0;
-  if (sigaction(SIGPIPE, &pipeact, 0) == -1){
+  if (sigaction(SIGPIPE, &pipeact, 0) == -1) {
     perror("[ERROR] error on create SIGPIPE handler");
     exit(EXIT_FAILURE);
   }
@@ -160,8 +159,8 @@ int initialize_server (const char * ip_address, const char * port){
 
   // Initialize the thread pool
   thread_pool pool(THREAD_POOL_SIZE);
-  
-  //Open a TCP listening connection
+
+  // Open a TCP listening connection
   // 1 - load up address structs
   // 2 - create a listening socket
   // 3 - bind socket
@@ -174,27 +173,28 @@ int initialize_server (const char * ip_address, const char * port){
   hints.ai_socktype = SOCK_STREAM;  // TCP
   hints.ai_flags = AI_PASSIVE;      // fill in my IP for me
 
-  if ((status = getaddrinfo(NULL, port, &hints, &servinfo))!=0){
+  if ((status = getaddrinfo(NULL, port, &hints, &servinfo))!=0) {
     fprintf(stderr, "getaddrinfo: %s \n", gai_strerror(status));
     exit(EXIT_FAILURE);
   }
 
   // loop through all the results and bind to the first we can
-  for (p = servinfo; p != NULL; p = p->ai_next){
+  for (p = servinfo; p != NULL; p = p->ai_next) {
     // try to create a listening port
-    if ((server_socket = socket(servinfo->ai_family, servinfo->ai_socktype, servinfo->ai_protocol)) == -1){
+    if ((server_socket = socket(servinfo->ai_family, servinfo->ai_socktype, servinfo->ai_protocol)) == -1) {
       perror("[WARN] error at server:socket, try again.\n");
       continue;
     }
 
     // set socket option
-    if (setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) == -1) {
+    if (setsockopt(
+      server_socket, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) == -1) {
       perror("[ERROR] error at setsocket, abort. \n");
       exit(EXIT_FAILURE);
     }
 
     // bind the socket
-    if (bind(server_socket, p->ai_addr, p->ai_addrlen) == -1){
+    if (bind(server_socket, p->ai_addr, p->ai_addrlen) == -1) {
       close(server_socket);
       perror("[WARN] error at binding, try again.");
       continue;
@@ -210,8 +210,8 @@ int initialize_server (const char * ip_address, const char * port){
 
   freeaddrinfo(servinfo);
 
-  // listening 
-  if (listen(server_socket, BACK_LOG_SIZE) == -1){
+  // listening
+  if (listen(server_socket, BACK_LOG_SIZE) == -1) {
     perror("[ERROR] Fail to listen, aborted.");
     exit(EXIT_FAILURE);
   } else {
@@ -221,7 +221,7 @@ int initialize_server (const char * ip_address, const char * port){
   // load static resources
   std::set<std::string> resources;
   int page_num = reload_resources(resources);
-  if (page_num == 0){
+  if (page_num == 0) {
     perror("[ERROR] serving folder does not contain any file. \n");
     exit(EXIT_FAILURE);
   } else {
@@ -230,10 +230,10 @@ int initialize_server (const char * ip_address, const char * port){
 
   // event based connection handling
   int request_id = 0;                    // unique identifier for each request
-  std::map<int, std::pair<int, std::string> > requests;   // requests, key=request id, v=sock,url
+  std::map<int, std::pair<int, std::string> > requests;   // requests
   blocking_serv(server_socket, request_id, requests);
- 
-  //Destroy the thread pool
+
+  // Destroy the thread pool
   pool.destroy();
 
   return 0;
