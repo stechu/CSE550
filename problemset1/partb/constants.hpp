@@ -13,7 +13,7 @@
 // Server Settings
 //
 ///////////////////////////////////////////////////////////////////////////////
-#define THREAD_POOL_SIZE 2
+#define THREAD_POOL_SIZE 4
 #define IP_FIELD_DELIMITER "."
 #define IP_FIELDS 4
 #define MAX_PORT 65535

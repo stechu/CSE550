@@ -44,4 +44,4 @@ debug: $(SERVER_EXECUTABLE)
 	$(CC) $(CPPFLAGS) -DTEST=$(TEST) -c $<
 
 clean:
-	rm -f $(SERVER_EXECUTABLE) *~ \#* *.o *.txt
+	rm -f $(SERVER_EXECUTABLE) $(CLIENT_EXECUTABLE) *~ \#* *.o *.txt

@@ -106,8 +106,6 @@ int basic_file_test()
   pair<int, char*> result;
   result = t.dequeue_result();
 
-  cout << "[Info] Dequeued resulting pair...\n";
-
   //unlock the mutex
   t.unlock_result_mutex();
   
@@ -204,6 +202,8 @@ int multi_file_test()
 	}
     }
 
+  t.destroy();
+
   return 0;
 }
 
@@ -267,6 +267,8 @@ int run_thread_pool_tests()
     {
       cout << "[TEST] BASIC FILE TEST: FAILED\n";
     }
+
+  cout << "\n";
 
   try
     {
