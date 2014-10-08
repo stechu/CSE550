@@ -79,8 +79,8 @@ int main(int argc, char * argv[])
 #if (TEST == 1)
   cout << "##################[INITIALIZING TEST CASES]#####################\n";
 
-  run_thread_pool_tests();
-  //run_server_tests();
+  //run_thread_pool_tests();
+  run_server_tests();
 
 #else
 
