@@ -11,23 +11,16 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
+
 #include <cstring>
 #include <string>
 #include <vector>
-
+#include <cassert>
 
 #include "constants.hpp"
 #include "utilities.hpp"
 
-
-// client main
-int main (int argc, char *argv[]){
-  
-    if (argc != 2){
-        perror("Usage: client hostname. ");
-        exit(EXIT_FAILURE);
-    }
-
+void connect(const char * host, const char * port, const std::string url) {
     // boilerplates
     int sockfd, numbytes;
     char buf[MAX_DATA_SIZE];
@@ -35,19 +28,13 @@ int main (int argc, char *argv[]){
     int rv = -1;
     char s[INET6_ADDRSTRLEN];
 
-    // hardcoded request
-    static std::vector<std::string> urls;
-    urls.push_back("page1");
-    urls.push_back("page2");
-    urls.push_back("page3");
-
     memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
 
-    if ((rv = getaddrinfo(argv[1], SERVER_PORT, &hints, &servinfo)) != 0) {
+    if ((rv = getaddrinfo(host, port, &hints, &servinfo)) != 0) {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-        return 1;
+        exit(EXIT_FAILURE);
     }
 
     // loop through all the results and connect to the first we can
@@ -69,7 +56,7 @@ int main (int argc, char *argv[]){
 
     if (p == NULL) {
         fprintf(stderr, "client: failed to connect\n");
-        return 2;
+        exit(EXIT_FAILURE);
     }
 
     inet_ntop(p->ai_family, get_in_addr((struct sockaddr *)p->ai_addr),
@@ -78,16 +65,48 @@ int main (int argc, char *argv[]){
 
     freeaddrinfo(servinfo);     // all done with this structure
 
-    if ((numbytes = recv(sockfd, buf, MAX_DATA_SIZE-1, 0)) == -1) {
-        perror("recv");
-        exit(1);
+    // send request
+    size_t raw_size = url.size()+1;
+    assert(raw_size <= MAX_DATA_SIZE);
+    char raw_req_msg[MAX_DATA_SIZE];
+    strcpy(raw_req_msg, url.c_str());
+    printf("[INFO] client: sending %s \n", raw_req_msg);
+    if ((numbytes = send(sockfd, raw_req_msg, raw_size, 0)) == -1){
+        perror("[ERROR] error on sending req from client");
+        exit(EXIT_FAILURE);
     }
 
+    // receive content
+    if ((numbytes = recv(sockfd, buf, MAX_DATA_SIZE-1, 0)) == -1) {
+        perror("[ERROR] error on receiving from client");
+        exit(EXIT_FAILURE);
+    }
     buf[numbytes] = '\0';
+    printf("[INFO] client: received '%s'\n", buf);
 
-    printf("client: received '%s'\n", buf);
+    close(sockfd);  // close socket
+}
 
-    close(sockfd);
+// client main
+int main(int argc, char *argv[]) {
+    // check arguments
+    if (argc != 2) {
+        perror("Usage: client hostname. ");
+        exit(EXIT_FAILURE);
+    }
+
+   
+
+    // hardcoded request
+    static std::vector<std::string> urls;
+    urls.push_back("page1");
+    urls.push_back("page2");
+    urls.push_back("page3");
+
+    // connect to server
+    for (int i = 0; i < REQUEST_TIMES; i++) {
+        connect(argv[1], SERVER_PORT, urls[i%urls.size()]);
+    }
 
     return 0;
 }
