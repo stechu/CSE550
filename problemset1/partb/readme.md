@@ -1,6 +1,6 @@
 AMTED Server
 =============================================================
 
-#Dependencies:
-    * libevent
-        - Mac OS X: `brew install libevent`
+## Dependencies:
+* libevent
+    - Mac OS X: `brew install libevent`
