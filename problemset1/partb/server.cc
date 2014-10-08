@@ -22,11 +22,22 @@
 #include <errno.h>
 #include <set>
 #include <dirent.h>
+#include <signal.h>
 
 #include "constants.hpp"
 #include "thread_pool.hpp"
 #include "server.hpp"
 #include "utilities.hpp"
+
+/* SIGCHLD handler. */
+static void sigchld_hdl (int sig)
+{
+  /* Wait for all dead processes.
+   * We use a non-blocking call to be sure this signal handler will not
+   * block if a child was cleaned up in another part of the program. */
+  while (waitpid(-1, NULL, WNOHANG) > 0) {
+  }
+} 
 
 
 // reload resources
@@ -116,6 +127,24 @@ int initialize_server(const char * ip_address, const char * port)
   struct sockaddr_in socket_addr;
   int yes = 1;
   int server_socket = -1;
+  struct sigaction childact, pipeact;
+
+  //handle signals properly
+  memset(&childact, 0, sizeof(childact));
+  childact.sa_handler = sigchld_hdl;
+  if (sigaction(SIGCHLD, &childact, 0)) {
+    perror ("[ERROR] error on create SIGCHLD hanlder.");
+    exit(EXIT_FAILURE);
+  }
+
+  memset(&pipeact, 0, sizeof(pipeact));
+  pipeact.sa_handler = SIG_IGN;
+  pipeact.sa_flags = 0;
+  if(sigaction(SIGPIPE, &pipeact, 0) == -1){
+    perror("[ERROR] error on create SIGPIPE handler");
+    exit(EXIT_FAILURE);
+  }
+
 
   //Initialize the thread pool
   thread_pool pool(THREAD_POOL_SIZE);
