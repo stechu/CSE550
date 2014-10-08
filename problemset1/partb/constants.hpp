@@ -31,5 +31,6 @@ static const char * RESOURCE_PATH = "./testdata";
 //
 ///////////////////////////////////////////////////////////////////////////////
 static const int MAX_DATA_SIZE = 100;
+static const int REQUEST_TIMES = 10;
 
 #endif  // CONSTANTS_HPP

@@ -7,7 +7,7 @@
 #define SERVER_HPP
 
 #include <set>
-#include <iostream>
+#include <string>
 
 
 int initialize_server(const char * ip_address, const char * port);

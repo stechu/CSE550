@@ -26,6 +26,7 @@
 #include <iostream>
 #include <map>
 #include <set>
+#include <utility>
 
 #include "constants.hpp"
 #include "thread_pool.hpp"
@@ -67,11 +68,16 @@ int reload_resources(std::set<std::string> & resources){
   return resources.size();
 }
 
+// extract url from request
+std::string extract_url(const std::string request) {
+  return "wtf";
+}
+
 
 // serving web pages in blocking mode, a toy example
 // return - 0 if success
 int blocking_serv(const int socket_fd, int & request_id,
-  std::map<int, std::pair<int, std::string> > & requests){
+  std::map<int, std::pair<int, std::string> > & requests) {
   // some variables
   struct sockaddr_storage their_addr;
   socklen_t addr_size = sizeof their_addr;
@@ -80,7 +86,7 @@ int blocking_serv(const int socket_fd, int & request_id,
   int numbytes = -1;
 
   // main accept loop
-  while (request_id<MAX_CONNECTIONS) {
+  while (request_id < MAX_CONNECTIONS) {
     // 1. accept an connection
     int new_fd = accept(socket_fd,
                         (struct sockaddr *) & their_addr,
@@ -95,7 +101,7 @@ int blocking_serv(const int socket_fd, int & request_id,
       get_in_addr((struct sockaddr *)&their_addr),
       s,
       sizeof s);
-    fprintf(stdout, "[DEBUG] Server: got connection from %s, \n", s);
+    fprintf(stderr, "[DEBUG] Server: get connection from %s, \n", s);
 
     // 3. receive the request
     if ((numbytes = recv(new_fd, msg_buf, MAX_DATA_SIZE - 1, 0)) == -1) {
@@ -103,27 +109,26 @@ int blocking_serv(const int socket_fd, int & request_id,
       exit(EXIT_FAILURE);
     }
     msg_buf[numbytes] = '\0';
-    fprintf(stdout, "[DEBUG] Server: receiving %s.", msg_buf);
+    fprintf(stderr, "[DEBUG] Server: receiving %s. \n", msg_buf);
 
     // 4. send back requested page
     if (send(new_fd, "Hello, world!", 13, 0) == -1) {
         perror("[WARN] send error.");
     }
-
     close(new_fd);
   }
   return 0;
 }
 
 // serving web pages in non-blocking mode
-int async_serv(const int socket_fd, 
-               int & request_id, 
-               std::map<int, std::pair<int, std::string> > & requests){
+int async_serv(const int socket_fd,
+               int & request_id,
+               std::map<int, std::pair<int, std::string> > & requests) {
   return 0;
 }
 
 // main thread execution call
-int initialize_server(const char * ip_address, const char * port){
+int initialize_server(const char * ip_address, const char * port) {
   // boilerplates
   int status;
   struct addrinfo hints, *servinfo, *p;
@@ -158,7 +163,7 @@ int initialize_server(const char * ip_address, const char * port){
   // TODO: handle SIGINT and SIGTERM, a clean shutdown
 
   // Initialize the thread pool
-  thread_pool pool(THREAD_POOL_SIZE);
+  // thread_pool pool(THREAD_POOL_SIZE);
 
   // Open a TCP listening connection
   // 1 - load up address structs
@@ -188,7 +193,7 @@ int initialize_server(const char * ip_address, const char * port){
 
     // set socket option
     if (setsockopt(
-      server_socket, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) == -1) {
+      server_socket, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes)) == -1) {
       perror("[ERROR] error at setsocket, abort. \n");
       exit(EXIT_FAILURE);
     }
@@ -234,7 +239,7 @@ int initialize_server(const char * ip_address, const char * port){
   blocking_serv(server_socket, request_id, requests);
 
   // Destroy the thread pool
-  pool.destroy();
+  // pool.destroy();
 
   return 0;
 }
