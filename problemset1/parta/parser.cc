@@ -42,7 +42,7 @@ string trim(string input)
     }
   end_index = input.size() - count;
   assert(start_index <= end_index);
-  return input.substr(start_index, end_index);
+  return input.substr(start_index, end_index - start_index);
 }
 
 // vector<string> parse_commands(string raw_input)

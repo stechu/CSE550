@@ -55,7 +55,15 @@ int main()
       
       //parse line for commands
       vector<string> cmds = parse_commands(cmds_line);
-      
+
+#if (DEBUG)
+      cout << "Commands parsed:\n";
+      for (int i = 0; i < (int) cmds.size(); i++)
+	{
+	  cout << "<" << cmds[i] << ">" << "\n";
+	}
+#endif
+
       //fire off command processing
       fork_and_pipe_commands(cmds);
 
