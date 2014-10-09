@@ -45,6 +45,7 @@ using namespace std;
 #define INIT 1
 #define RECV 2
 #define PROC 3
+#define SEND 4
 
 // SIGCHLD handler
 static void sigchld_hdl(int sig){
@@ -119,8 +120,15 @@ int async_serv(const int socket_fd,
                int & request_id) {
   cout << "server listening socket: " << socket_fd << "\n";
 
+  int pipe_fds[2];
+  if (pipe2(pipe_fds, NULL) < 0)
+    {
+      cout << "Error: could not make pipe...\n";
+      return 0;
+    }
+
   //initialize the thread pool
-  thread_pool tpool(THREAD_POOL_SIZE, 0);
+  thread_pool tpool(THREAD_POOL_SIZE, pipe_fds[1]);
 
   // some variables
   struct sockaddr_storage their_addr;
@@ -129,7 +137,7 @@ int async_serv(const int socket_fd,
   char msg_buf[MAX_DATA_SIZE];
   int numbytes = -1;
 
-  struct pollfd ufds[MAX_CONNECTIONS];
+  struct pollfd ufds[MAX_CONNECTIONS + 1];
 
   // listening socket is ufds[0]
   ufds[0].fd = socket_fd;
@@ -150,21 +158,38 @@ int async_serv(const int socket_fd,
       ufds_socket[i] = -1;
     }
 
+  //add the read end of the self pipe
+  ufds[MAX_CONNECTIONS].fd = pipe_fds[0];
+  ufds[MAX_CONNECTIONS].events = POLLIN;
+  ufds[MAX_CONNECTIONS].revents = 0;
+
+  fcntl(pipe_fds[0], F_SETFL, O_NONBLOCK);
+
   vector<string> partial_filepaths(MAX_CONNECTIONS);
 
-  vector< pair<int, char*> > partial_sends(MAX_CONNECTIONS);
+  vector< pair< int, pair<int, char*> > > partial_sends(MAX_CONNECTIONS);
 
   // loop for event handling
   while(true){
     int new_fd = -1;
 
     // poll
-    poll(ufds, MAX_CONNECTIONS, 100);
+    poll(ufds, MAX_CONNECTIONS + 1, 100);
 
     int count = 0;
     
     // event handling
-    for(int i = 0; i < MAX_CONNECTIONS; i++){
+    for(int i = 0; i < MAX_CONNECTIONS + 1; i++){
+      if (i == MAX_CONNECTIONS + 1)
+	{
+	  char buf[1];
+	  while (read(pipe_fds[0], buf, 1))
+	    {
+	      cout << "Got signal: " << buf << "\n";
+	    } 
+	}
+      if (i == 0) cout << "Write fd = " << pipe_fds[1] << " Read fd = " << pipe_fds[0] << "\n"; 
+
       if (i == 0) { // if this is the listening socket
         if(ufds[0].revents & POLLIN){ // if the collection is available 
           count++;
@@ -204,6 +229,9 @@ int async_serv(const int socket_fd,
           states[k] = INIT;
 	  string temp("");
 	  partial_filepaths[k] = temp;
+
+	  //reset the events
+	  ufds[i].revents = 0;
         }
       } else if (states[i] == RECV) { // if this is active connection socket
         if(ufds[i].revents & POLLIN){
@@ -239,16 +267,33 @@ int async_serv(const int socket_fd,
 		  cout << "Appended partial file path..." << partial_filepaths[i] << "\n";
 		}
 	    }
-
-
-	  /*
-      	  msg_buf[numbytes] = '\0';
-      	  std::string url(msg_buf);
-      	  url = extract_url(url);
-	  */
-
+	  ufds[i].revents = 0;
 	}
-      }
+      } else if (states[i] == SEND && (ufds[i].revents & POLLIN))
+	{
+	  pair< int, pair< int, char* > > partial_send = partial_sends[i];
+	  
+	  int send_index = partial_send.first;
+	  int fd = partial_send.second.first;
+	  char * buffer = partial_send.second.second;
+	  char * send_ptr = partial_send.second.second + send_index;
+
+	  int sent_bytes = send(fd, send_ptr, sizeof(buffer) - send_index, 0);
+
+	  partial_send.first += sent_bytes;
+
+	  //if all the bytes are sent kill this connction
+	  if (partial_send.first >= sent_bytes)
+	    {
+	      close(fd);
+	      states[i] = EMPTY;
+	      ufds[i].fd = -1;
+	      ufds[i].events = 0;
+	    }
+	  ufds[i].revents = 0;
+	}
+      
+      
     }
   
 
@@ -265,6 +310,7 @@ int async_serv(const int socket_fd,
     //get the result data from the queue while results are available
     tpool.lock_result_mutex();
     
+    //get the results that are ready from the thread pool
     while (tpool.has_result())
     {
     	//dequeue the result from the queue
@@ -275,36 +321,25 @@ int async_serv(const int socket_fd,
 	int fd = result.first;
 	int bytes_sent = sizeof(result.second);
 
-	cout << "Sending the result " << result.second << "\n";
+	pair<int, pair<int, char *> > partial_send;
+	partial_send.first = 0;
+	partial_send.second = result;
 
-	//call the Beej's programming guide function to send the bytes
-	sendall(fd, result.second, &bytes_sent);
+	int state_index = -1;
+	for (int y = 0; y < MAX_CONNECTIONS; y++)
+	  {
+	    if (ufds[y].fd == fd)
+	      {
+		state_index = y;
+		break;
+	      }
+	  }
+	assert(state_index != -1);
 
-	//	assert(sizeof(result.second) == bytes_sent);
-
-	//close out the connection and remove it
-	close(fd);
-
-  // remove fd
-  int si = 0;
-	while(si < MAX_CONNECTIONS)
-  {
-    if(ufds[si].fd == fd){
-      break;
+	cout << "Set state for " << state_index << " to SEND\n";
+	states[state_index] = SEND;
     }
-    si++;
-  }
 
-  if(si == MAX_CONNECTIONS){
-    perror("fucked");
-    exit(EXIT_FAILURE);
-  }
-
-  ufds[si].fd = -1;
-  ufds[si].events = 0;
-  states[si] = EMPTY;
-
-    }
     tpool.unlock_result_mutex();
     
   }

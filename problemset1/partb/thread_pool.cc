@@ -286,7 +286,8 @@ char * thread_pool::read_file(char * filepath)
 void thread_pool::notify_self_pipe()
 {
   //write a byte to the pipe
-  //write(self_pipe_write_fd, "A", 1);
+  write(self_pipe_write_fd, "A", 1);
+  cout << "Sent a self-pipe signal... " << self_pipe_write_fd << "\n";
 }
 
 //########################################################################
