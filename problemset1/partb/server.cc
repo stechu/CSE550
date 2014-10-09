@@ -30,6 +30,7 @@
 #include <set>
 #include <utility>
 #include <cassert>
+#include <iostream>
 
 // local headers
 #include "constants.hpp"
@@ -37,6 +38,8 @@
 #include "server.hpp"
 #include "utilities.hpp"
 #include "bimap.hpp"
+
+using namespace std;
 
 
 // SIGCHLD handler
@@ -160,21 +163,20 @@ int async_serv(const int socket_fd,
 
   int ufds_size = 1;
 
-  // states for connection socket:
-  // 0 - empty
-  // 1 - receving
-  // 2 - processing
-  // 3 - sending
-  // 4 - close
-  // ------------------------------
-  // states for listening socket
-  // 0 - empty
-  // 1 - accepting
   int states[MAX_CONNECTIONS]; 
   memset(states, 0, sizeof(int) * MAX_CONNECTIONS);
 
   // make the socket non-blocking
   fcntl(socket_fd, F_SETFL, O_NONBLOCK);
+
+  bool active_connections[MAX_CONNECTIONS]; //holds a bit indicating if the connection is active
+  int ufds_socket[MAX_CONNECTIONS]; //holds the socket number for the ufds socket
+
+  for (int i = 0; i < MAX_CONNECTIONS; i++)
+    {
+      active_connections[i] = false;
+      ufds_socket[i] = -1;
+    }
 
   // loop for event handling
   while(true){
@@ -182,6 +184,63 @@ int async_serv(const int socket_fd,
 
     // poll
     poll(ufds, ufds_size, 100);
+    
+    //#########################################################
+    // event handling
+    //#########################################################
+
+    /*
+    for (int i = 0; i < MAX_CONNECTIONS; i++)
+      {
+	//special case which deals with incoming connections
+	if (i == 0)
+	  {
+	    if(ufds[0].revents & POLLIN){ // if the collection is available 
+
+	      //check if there are even any connection slots available
+	      int next_free_index = -1;
+	      for (int w = 1; w < MAX_CONNECTIONS; w++)
+		next_free_index = (!active_connections[w]) ? w : next_free_index;
+
+	      new_fd = accept(socket_fd, (struct sockaddr *) & their_addr, &addr_size);
+	      if (new_fd == -1)
+		{
+		  cout << "Error: failed to accept\n";
+		  continue;
+		}
+	      if (fcntl(new_fd, F_SETFL, O_NONBLOCK) == -1)
+		{
+		  cout << "Error: failed to fcntl\n";
+		  continue;
+		}
+	      
+	      //set the ufds parameters
+	      assert(next_free_index > 0);
+	      active_connections[next_free_index] = true;
+	      ufds_socket[next_free_index] = new_fd;	      
+	      ufds[next_free_index].fd = new_fd;
+	      ufds[next_free_index].events = POLLIN;
+	    }
+	  }
+	else
+	  {
+	    if (ufds[i].revents & POLLIN)
+	      {
+		assert(active_connections[i]);
+		numbytes = recv(new_fd, msg_buf, MAX_DATA_SIZE - 1, 0);
+
+		msg_buf[numbytes] = '\0';
+		std::string url(msg_buf);
+
+		//queue the task into the thread pool
+		std::pair<int, std::string> task;
+		task.first = ufds[i].fd;
+		task.second = url;
+		tpool.queue_task(task);
+	      }
+	  }
+      }
+    */
     
     // event handling
     for(int i = ufds_size-1; i >= 0; i--){
@@ -201,13 +260,18 @@ int async_serv(const int socket_fd,
             continue;
           };
           ufds_push_back(ufds, ufds_size, new_fd, POLLIN, socket_ufds_map);
-          states[ufds_size] = 1;
+
+	  //	  int ufds_index = socket_ufds_map.get_left(new_fd);
+	  //cout << "Set state of ufds_index " << ufds_index << " to receiving\n";
+          states[ufds_size-1] = 1; //find the index and set the state
         }
       } else { // if this is the connection socket
         if(ufds[i].revents & POLLIN){
           if (states[i] == 1) { // if it is receiving
             numbytes = recv(new_fd, msg_buf, MAX_DATA_SIZE - 1, 0);
+
             if(numbytes == -1){
+	      cout << "State of revents " << (ufds[i].revents) << "\n";
               perror("[WARN] error on receiving request. \n");
               ufds_remove(ufds, ufds_size, i, socket_ufds_map);
               continue;
@@ -215,9 +279,7 @@ int async_serv(const int socket_fd,
             msg_buf[numbytes] = '\0';
             std::string url(msg_buf);
             url = extract_url(url);
-            //TODO: validate url
-            //TODO: 
-
+         
 	    //queue the task into the thread pool
 	    std::pair<int, std::string> task;
 	    task.first = ufds[i].fd;
@@ -225,6 +287,10 @@ int async_serv(const int socket_fd,
 	    tpool.queue_task(task);
           } 
           else {
+	    std::cout << "For connection " << i << ": state is " << states[i] << "\n";
+	    for (int i = 0; i < MAX_CONNECTIONS; i++)
+	      cout << states[i] << " ";
+	    cout << "\n";
             perror("[ERROR] should not reach here.");
             exit(EXIT_FAILURE);
           }
@@ -232,6 +298,7 @@ int async_serv(const int socket_fd,
         
       }
     }
+    
 
     //get the result data from the queue while results are available
     tpool.lock_result_mutex();
@@ -250,9 +317,16 @@ int async_serv(const int socket_fd,
 	sendall(fd, result.second, &bytes_sent);
 	assert(sizeof(result.second) == bytes_sent);
 
-	//remove the associated file descriptor and close it's connection
-	int key = socket_ufds_map.get_right(fd);
-	ufds_remove(ufds, ufds_size, key, socket_ufds_map);	
+	//mark the socket at the ufds index for closing
+	for (int i = 1; i < MAX_CONNECTIONS; i++)
+	  {
+	    if (ufds_socket[i] == fd)
+	      {
+		close(fd);
+		ufds_socket[i] = -1;
+		active_connections[i] = false;
+	      }
+	  }
     }
 
     tpool.unlock_result_mutex();
