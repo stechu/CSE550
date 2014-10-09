@@ -30,11 +30,19 @@
 #include <set>
 #include <utility>
 #include <cassert>
+#include <boost/bimap.hpp>
+#include <boost/bimap/unordered_set_of.hpp>
+#include <boost/bimap/list_of.hpp>
 
 #include "constants.hpp"
 #include "thread_pool.hpp"
 #include "server.hpp"
 #include "utilities.hpp"
+
+typedef boost::bimap<
+    boost::bimaps::unordered_set_of<int>,
+    boost::bimaps::unordered_set_of<int>,
+    boost::bimaps::list_of_relation> bm_type;
 
 // SIGCHLD handler
 static void sigchld_hdl(int sig){
@@ -105,37 +113,38 @@ int blocking_serv(const int socket_fd, int & request_id,
 void ufds_push_back(struct pollfd * ufds,
                     int & size,
                     const int sockfd,
-                    const short events) {
+                    const short events,
+                    bm_type bimap) {
   assert(size < MAX_CONNECTIONS);
   ufds[size].fd = sockfd;
   ufds[size].events = events;
+  bimap.left[sockfd] = size;
   size++;
 }
 
-void ufds_remove(struct pollfd * ufds, int & size, const int index) {
+void ufds_remove(struct pollfd * ufds,
+                 int & size,
+                 const int index,
+                 bm_type bimap) {
   assert(index < size);
   assert(index != 0);
+
+  // remove from map
+  bimap.left.erase(ufds[index].fd);
+
   for (int i = index+1; i < size; i++) {
     ufds[i-1] = ufds[i];
+    bimap.left[ufds[i-1].fd] = i - 1; 
   }
   size--;
 }
 
 
-int key(std::map<int, int> m, int val)
-{
-  //stub
-}
-
 // serving web pages in non-blocking mode
 int async_serv(const int socket_fd,
-               int & request_id
-               ) {
-
-  std::map<int,std::pair<int, std::string> > & requests
-  
+               int & request_id) {
   //key = socket fd, value = index of ufds
-  std::map<int, int> socket_ufds_map;
+  bm_type socket_ufds_map;
 
   //initialize the thread pool
   thread_pool tpool(THREAD_POOL_SIZE);
@@ -195,7 +204,7 @@ int async_serv(const int socket_fd,
             perror("[WARN] fail to fcntl. \n");
             continue;
           };
-          ufds_push_back(ufds, ufds_size, new_fd, POLLIN);
+          ufds_push_back(ufds, ufds_size, new_fd, POLLIN, socket_ufds_map);
           states[ufds_size] = 1;
         }
       } else { // if this is the connection socket
@@ -204,7 +213,7 @@ int async_serv(const int socket_fd,
             numbytes = recv(new_fd, msg_buf, MAX_DATA_SIZE - 1, 0);
             if(numbytes == -1){
               perror("[WARN] error on receiving request. \n");
-              ufds_remove(ufds, ufds_size, i);
+              ufds_remove(ufds, ufds_size, i, socket_ufds_map);
               continue;
             }
             msg_buf[numbytes] = '\0';
@@ -214,7 +223,7 @@ int async_serv(const int socket_fd,
             //TODO: 
 
 	    //queue the task into the thread pool
-	    std::pair<int, string> task;
+	    std::pair<int, std::string> task;
 	    task.first = 0;
 	    task.second = url;
 	    tpool.queue_task(task);
@@ -236,20 +245,20 @@ int async_serv(const int socket_fd,
     tpool.lock_result_mutex();
     
     while (tpool.has_result())
-      {
-	//dequeue the result from the queue
-	std::pair<int, char *> result;
-	result = dequeue_task();
+    {
+    	//dequeue the result from the queue
+    	std::pair<int, char *> result;
+    	result = dequeue_task();
 
-	//process the resulting char * from the thread pool
-	//TODO:
-      }
+    	//process the resulting char * from the thread pool
+    	//TODO:
+    }
 
     tpool.unlock_result_mutex();
   }
 
   // Destroy the thread pool when done
-  pool.destroy();
+  tpool.destroy();
 
   return 0;
 }
