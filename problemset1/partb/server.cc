@@ -30,19 +30,14 @@
 #include <set>
 #include <utility>
 #include <cassert>
-#include <boost/bimap.hpp>
-#include <boost/bimap/unordered_set_of.hpp>
-#include <boost/bimap/list_of.hpp>
 
+// local headers
 #include "constants.hpp"
 #include "thread_pool.hpp"
 #include "server.hpp"
 #include "utilities.hpp"
+#include "bimap.hpp"
 
-typedef boost::bimap<
-    boost::bimaps::unordered_set_of<int>,
-    boost::bimaps::unordered_set_of<int>,
-    boost::bimaps::list_of_relation> bm_type;
 
 // SIGCHLD handler
 static void sigchld_hdl(int sig){
@@ -114,27 +109,28 @@ void ufds_push_back(struct pollfd * ufds,
                     int & size,
                     const int sockfd,
                     const short events,
-                    bm_type bimap) {
+                    Bimap bimap) {
   assert(size < MAX_CONNECTIONS);
   ufds[size].fd = sockfd;
   ufds[size].events = events;
-  bimap.left[sockfd] = size;
+  bimap.add(sockfd, size);
   size++;
 }
 
 void ufds_remove(struct pollfd * ufds,
                  int & size,
                  const int index,
-                 bm_type bimap) {
+                 Bimap bimap) {
   assert(index < size);
   assert(index != 0);
 
   // remove from map
-  bimap.left.erase(ufds[index].fd);
+  bimap.remove_from_left(ufds[index].fd);
 
   for (int i = index+1; i < size; i++) {
     ufds[i-1] = ufds[i];
-    bimap.left[ufds[i-1].fd] = i - 1; 
+    bimap.remove_from_right(i-1);
+    bimap.add(ufds[i-1].fd, i-1); 
   }
   size--;
 }
@@ -144,7 +140,7 @@ void ufds_remove(struct pollfd * ufds,
 int async_serv(const int socket_fd,
                int & request_id) {
   //key = socket fd, value = index of ufds
-  bm_type socket_ufds_map;
+  Bimap socket_ufds_map;
 
   //initialize the thread pool
   thread_pool tpool(THREAD_POOL_SIZE);
