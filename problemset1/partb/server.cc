@@ -216,6 +216,7 @@ int async_serv(const int socket_fd,
       	  url = extract_url(url);
 
           //change the state
+	  cout << "State transition to PROC for " << i << " with filepath " << url << "\n";
           states[i] = PROC;
       	  
       	  //queue the task into the thread pool
@@ -223,7 +224,7 @@ int async_serv(const int socket_fd,
       	  task.first = ufds[i].fd;
       	  task.second = url;
       	  tpool.queue_task(task);
-	      }
+	}
       }
     }
   
@@ -249,7 +250,9 @@ int async_serv(const int socket_fd,
 
 	//get file descriptor
 	int fd = result.first;
-	int bytes_sent;
+	int bytes_sent = sizeof(result.second);
+
+	cout << "Sending the result " << result.second << "\n";
 
 	//call the Beej's programming guide function to send the bytes
 	sendall(fd, result.second, &bytes_sent);

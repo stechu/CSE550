@@ -4,6 +4,9 @@
 // shared utility methods.
 //#############################################################################
 #include "utilities.hpp"
+#include <iostream>
+
+using namespace std;
 
 // get sockaddr, IPv4 or IPv6:
 void * get_in_addr(struct sockaddr *sa)
@@ -26,6 +29,8 @@ int sendall(int s, char *buf, int *len)
     if (n == -1) { break; }
     total += n;
     bytesleft -= n;
+
+    cout << "!@#$%^@#%!@#$%@#$%@# Sent " << n<< " bytes \n";
   }
   *len = total; // return number actually sent here
   return n==-1?-1:0; // return -1 on failure, 0 on success
