@@ -180,6 +180,7 @@ int async_serv(const int socket_fd,
     
     // event handling
     for(int i = 0; i < MAX_CONNECTIONS + 1; i++){
+
       if ((i == MAX_CONNECTIONS) && (ufds[i].revents & POLLIN))
 	{
 	  cout << "Attempting to trigger self pipe\n";
@@ -194,10 +195,13 @@ int async_serv(const int socket_fd,
 	    continue;
 	  
 	  cout << "Got signal: " << buf << "\n";
+
 	
 	  ufds[i].revents = 0;
 	}
-      else if (i == 0) { // if this is the listening socket
+
+      if (i == 0) { // if this is the listening socket
+
         if(ufds[0].revents & POLLIN){ // if the collection is available 
           count++;
 	        cout << "Number of connection events: " << count << "\n";
@@ -240,8 +244,11 @@ int async_serv(const int socket_fd,
 	  //reset the events
 	  ufds[i].revents = 0;
         }
-      } else if (states[i] == RECV) { // if this is active connection socket
-        if(ufds[i].revents & POLLIN){
+      } 
+      else if (states[i] == RECV) { // if this is active connection socket
+        cout << "attempt a receive\n";
+
+	if(ufds[i].revents & POLLIN){
 	  count++;
 	  int fd = ufds[i].fd; //get the file descriptor 
 	  numbytes = recv(fd, msg_buf, MAX_DATA_SIZE - 1, 0);
@@ -263,8 +270,12 @@ int async_serv(const int socket_fd,
 		  //queue the task into the thread pool
 		  std::pair<int, std::string> task;
 		  task.first = ufds[i].fd;
-		  
+	    		  
+	
 		  task.second = partial_filepaths[i];
+
+		  cout << "queued task: " << task.first << " " << task.second << "\n";
+
 		  tpool.queue_task(task);
 		  break;
 		}
@@ -278,20 +289,29 @@ int async_serv(const int socket_fd,
       } //else if (states[i] == SEND && (ufds[i].revents & POLLIN))
       else if (states[i] == SEND)
 	{
+	  cout << "attempted a send for " << i << "\n";
+	  
 	  pair< int, pair< int, char* > > partial_send = partial_sends[i];
+
+	  cout << "got the partial send value..\n";
 
 	  int send_index = partial_send.first;
 	  int fd = partial_send.second.first;
+	  
 	  char * buffer = partial_send.second.second;
-	  char * send_ptr = partial_send.second.second + send_index;
 
-	  cout << "Sending partial buffer " << buffer << "\n";
+	  char * send_ptr = buffer + send_index;
 
 	  int sent_bytes = send(fd, send_ptr, sizeof(buffer) - send_index, 0);
 
 	  if (sent_bytes < 0)
-	    continue;
-
+	    {
+	      cout << "didnt send anything so need to trigger again\n";
+	      tpool.lock_self_pipe_mutex();
+	      write(pipe_fds[1], "a", 1);
+	      tpool.unlock_self_pipe_mutex();
+	      continue;
+	    }
 	  partial_send.first += sent_bytes;
 
 	  //if all the bytes are sent kill this connction
@@ -301,6 +321,15 @@ int async_serv(const int socket_fd,
 	      states[i] = EMPTY;
 	      ufds[i].fd = -1;
 	      ufds[i].events = 0;
+	      cout << "sent the data now closing the connection\n";
+	    }
+	  else
+	    {
+	      //not done sending so self pipe again
+	      cout << "didnt send everything so need to trigger again\n";
+	      tpool.lock_self_pipe_mutex();
+	      write(pipe_fds[1], "a", 1);
+	      tpool.unlock_self_pipe_mutex();
 	    }
 	  ufds[i].revents = 0;
 	}
@@ -308,7 +337,6 @@ int async_serv(const int socket_fd,
       
     }
   
-
     // state transition
     for (int i = 1; i < MAX_CONNECTIONS; ++i)
       {
@@ -333,9 +361,7 @@ int async_serv(const int socket_fd,
 	int fd = result.first;
 	int bytes_sent = sizeof(result.second);
 
-	pair<int, pair<int, char *> > partial_send;
-	partial_send.first = 0;
-	partial_send.second = result;
+	assert(result.first > 0);
 
 	int state_index = -1;
 	for (int y = 0; y < MAX_CONNECTIONS; y++)
@@ -343,10 +369,30 @@ int async_serv(const int socket_fd,
 	    if (ufds[y].fd == fd)
 	      {
 		state_index = y;
+	       
 		break;
 	      }
 	  }
 	assert(state_index != -1);
+
+	if (result.second == NULL)
+	  {
+	    close(fd);
+	    ufds[state_index].fd = -1;
+	    ufds[state_index].events = 0;
+	    ufds[state_index].revents = 0;
+	    states[state_index] = EMPTY;
+	    continue;
+	  }
+
+	//if you get a NULL character
+
+	pair<int, pair<int, char *> > partial_send;
+	partial_send.first = 0;
+	partial_send.second.first = result.first;
+	partial_send.second.second = result.second;
+
+	partial_sends[state_index] = partial_send;
 
 	cout << "Set state for " << state_index << " to SEND for \n";
 	states[state_index] = SEND;
@@ -358,6 +404,8 @@ int async_serv(const int socket_fd,
 
   // Destroy the thread pool when done
   tpool.destroy();
+  close(pipe_fds[0]);
+  close(pipe_fds[1]);
 
   return 0;
 }
