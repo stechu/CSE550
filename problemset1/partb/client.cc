@@ -88,14 +88,7 @@ void connect(const char * host, const char * port, const std::string url) {
 }
 
 // client main
-int main(int argc, char *argv[]) {
-    // check arguments
-    if (argc != 2) {
-        perror("Usage: client hostname. ");
-        exit(EXIT_FAILURE);
-    }
-
-   
+int main() {
 
     // hardcoded request
     static std::vector<std::string> urls;

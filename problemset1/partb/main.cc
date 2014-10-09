@@ -74,7 +74,7 @@ int validate_ip(string ip_address)
 //#################################################################################
 //main method
 //#################################################################################
-int main(int argc, char * argv[])
+int main()
 {
 #if (TEST == 1)
   cout << "##################[INITIALIZING TEST CASES]#####################\n";
@@ -84,15 +84,9 @@ int main(int argc, char * argv[])
 
 #else
 
-  //validate we got enough arguments
-  if (argc != 3)
-    {
-      cout << "Fatal: server550 expects 2 arguments - <Server IP Address> <Server Port>\n";
-      return -1;
-    }
 
-  string ip_address(argv[1]);
-  string server_port(argv[2]);
+  string ip_address(SERVER_IP);
+  string server_port(SERVER_PORT);
 
   //validate arguments
   if (validate_ip(ip_address) != 0)
@@ -101,7 +95,7 @@ int main(int argc, char * argv[])
     return -1;
 
   //call the server initialization function
-  initialize_server(ip_address.c_str(), server_port.c_str());
+  initialize_server(SERVER_IP, SERVER_PORT);
 
   return 0;
 
