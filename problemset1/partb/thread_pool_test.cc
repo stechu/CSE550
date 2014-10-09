@@ -20,7 +20,7 @@ using namespace std;
 int basic_initialization_test()
 {
   //initialize the thread pool
-  thread_pool t(THREAD_POOL_SIZE);
+  thread_pool t(THREAD_POOL_SIZE, 1);
 
   //destroy the thread pool
   t.destroy();
@@ -30,7 +30,7 @@ int basic_initialization_test()
 
 int file_io_test()
 {
-  thread_pool t(THREAD_POOL_SIZE);
+  thread_pool t(THREAD_POOL_SIZE, 1);
 
   //create a test file
   string TEST_FILE = "test_file.txt";
@@ -57,7 +57,7 @@ int file_io_test()
 
 int bad_file_io_test()
 {
-  thread_pool t(THREAD_POOL_SIZE);
+  thread_pool t(THREAD_POOL_SIZE, 1);
 
   //neglect to create a file and try and read a bad one
   string TEST_FILE = "bad_file_handle.txt";
@@ -88,7 +88,7 @@ int basic_file_test()
   test_file.close();
 
   //start the thread pool
-  thread_pool t(THREAD_POOL_SIZE);
+  thread_pool t(THREAD_POOL_SIZE, 1);
 
   int identifier = 1337;
   pair<int, string> request;
@@ -121,7 +121,7 @@ int basic_file_test()
 
 int multi_file_test()
 {
-  thread_pool t(THREAD_POOL_SIZE);
+  thread_pool t(THREAD_POOL_SIZE, 1);
 
   //test that the correct identifiers come back in the event of multiple duplicate test files
   string TEST_FILE_0 = "test_file_0.txt";

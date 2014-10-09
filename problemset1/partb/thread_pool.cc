@@ -23,10 +23,11 @@ using namespace std;
 // - threads are created and launched into worker thread function
 // - bookkeeping so that threads can be cleaned up later on termination
 //########################################################################
-thread_pool::thread_pool(int num_threads)
+thread_pool::thread_pool(int num_threads, int self_pipe_fd)
 {
   exit_signal = false;
 
+  //initiliazations for the mutex and condition variables
   if(pthread_mutex_init(&task_queue_mutex, NULL) < 0)
     cout << "[Info] Failed to initialize task queue mutex...\n";
   if(pthread_mutex_init(&result_queue_mutex, NULL) < 0)
@@ -39,6 +40,9 @@ thread_pool::thread_pool(int num_threads)
   if(pthread_cond_init(&result_cond_var, NULL) < 0)
     cout << "[Info] Failed to initialize result condition variable...\n";
   
+  self_pipe_write_fd = self_pipe_fd;
+
+  //create the pthreads for the pool and launch them into the workers
   pthread_mutex_lock(&exit_mutex);
   for (int i = 0; i < num_threads; i++)
     {
@@ -46,8 +50,6 @@ thread_pool::thread_pool(int num_threads)
       pthread_create(&new_thread, NULL, thread_pool::launch_worker, this);
 
       pthreads.push_back(new_thread);
-      //TODO: set the pthread stack, and memory parameter sizes
-      
     }
   pthread_mutex_unlock(&exit_mutex);
 }
@@ -162,6 +164,7 @@ void thread_pool::queue_result(pair<int, char*> s)
   pthread_mutex_lock(&result_queue_mutex);
   result_queue.push(s);
   pthread_cond_broadcast(&result_cond_var);
+  this.notify_self_pipe();
   pthread_mutex_unlock(&result_queue_mutex);
 }
 
@@ -273,6 +276,15 @@ char * thread_pool::read_file(char * filepath)
 }
 
 //########################################################################
+// writes a byte to the self-pipe to notify main thread
+//########################################################################
+void thread_pool::notify_self_pipe()
+{
+  //write a byte to the pipe
+  write(self_pipe_write_fd, "A", 1);
+}
+
+//########################################################################
 // destroys the thread pool
 // - allows threads to terminate before joining
 // - signals threads the exit worker thread
@@ -311,5 +323,4 @@ void thread_pool::destroy()
   pthread_cond_destroy(&task_cond_var);
   pthread_cond_destroy(&result_cond_var);
 
-  //TODO: free any allocated memory
 }
