@@ -155,7 +155,7 @@ int async_serv(const int socket_fd,
     int new_fd = -1;
 
     // poll
-    poll(ufds, MAX_CONNECTIONS, 10000);
+    poll(ufds, MAX_CONNECTIONS, 100);
 
     int count = 0;
     
@@ -196,6 +196,7 @@ int async_serv(const int socket_fd,
             exit(EXIT_FAILURE);
           }
           ufds[k].fd = new_fd;
+          ufds[k].events = POLLIN;
           states[k] = INIT;
 	        cout << "Set state of index " << k << " to " << states[k] << "\n";
         }
@@ -230,11 +231,11 @@ int async_serv(const int socket_fd,
     // state transition
     for (int i = 1; i < MAX_CONNECTIONS; ++i)
       {
-	//cout << "State of index " << i << " = " << states[i] << "\n";
-	if(states[i] == INIT){
-	  states[i] = RECV;
-	  cout << "Transitioned connection " << i << " to state RECV\n";
-	}
+      	//cout << "State of index " << i << " = " << states[i] << "\n";
+      	if(states[i] == INIT){
+      	  states[i] = RECV;
+      	  cout << "Transitioned connection " << i << " to state RECV\n";
+      	}
       }
     
     //get the result data from the queue while results are available
