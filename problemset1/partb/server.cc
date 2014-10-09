@@ -135,7 +135,13 @@ void ufds_remove(struct pollfd * ufds,
     bimap.remove_from_right(i-1);
     bimap.add(ufds[i-1].fd, i-1); 
   }
+
+  //clear
+  ufds[size].fd = -1;
+  ufds[size].events = 0;
+  ufds[size].revents = 0;
   size--;
+
 }
 
 
