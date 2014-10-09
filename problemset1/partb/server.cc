@@ -142,8 +142,6 @@ int async_serv(const int socket_fd,
   //key = socket fd, value = index of ufds
   Bimap socket_ufds_map;
 
-  std::vector< std::pair< std::pair<int, int>, char *> > active_buffers;
-
   //initialize the thread pool
   thread_pool tpool(THREAD_POOL_SIZE, 0);
 
@@ -222,7 +220,7 @@ int async_serv(const int socket_fd,
 
 	    //queue the task into the thread pool
 	    std::pair<int, std::string> task;
-	    task.first = 0;
+	    task.first = ufds[i].fd;
 	    task.second = url;
 	    tpool.queue_task(task);
           } 
@@ -248,10 +246,13 @@ int async_serv(const int socket_fd,
 	int fd = result.first;
 	int bytes_sent;
 
-	//call the Beej's programming guide function
+	//call the Beej's programming guide function to send the bytes
 	sendall(fd, result.second, &bytes_sent);
-
 	assert(sizeof(result.second) == bytes_sent);
+
+	//remove the associated file descriptor and close it's connection
+	int key = socket_ufds_map.get_right(fd);
+	ufds_remove(ufds, ufds_size, key, socket_ufds_map);	
     }
 
     tpool.unlock_result_mutex();
