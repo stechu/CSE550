@@ -204,8 +204,9 @@ void * thread_pool::worker_thread()
       pthread_mutex_lock(&task_queue_mutex);
       try
 	{
-	  task = dequeue_task();
-	  work_available = true;
+	  work_available = has_task();
+	  if (work_available)
+	    task = dequeue_task();
 	  //TODO: put assertions here
 	}
       catch (int e)
@@ -215,6 +216,9 @@ void * thread_pool::worker_thread()
       if (!work_available)
 	{
 	  pthread_cond_wait(&task_cond_var, &task_queue_mutex);
+	  work_available = has_task();
+	  if (work_available)
+	    task = dequeue_task();
 	}
       pthread_mutex_unlock(&task_queue_mutex);
 

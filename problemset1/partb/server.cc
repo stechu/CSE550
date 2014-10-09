@@ -316,18 +316,13 @@ int async_serv(const int socket_fd,
 
 	//call the Beej's programming guide function to send the bytes
 	sendall(fd, result.second, &bytes_sent);
+
 	//	assert(sizeof(result.second) == bytes_sent);
 
-	//mark the socket at the ufds index for closing
-	for (int i = 1; i < MAX_CONNECTIONS; i++)
-	  {
-	    if (ufds_socket[i] == fd)
-	      {
-		close(fd);
-		ufds_socket[i] = -1;
-		active_connections[i] = false;
-	      }
-	  }
+	//close out the connection and remove it
+	close(fd);
+
+	ufds_remove(ufds, ufds_size, i, socket_ufds_map);
     }
 
     tpool.unlock_result_mutex();
