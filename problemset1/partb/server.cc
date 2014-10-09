@@ -41,6 +41,9 @@
 
 using namespace std;
 
+#define EMPTY 0
+#define INIT 1
+#define RECV 2
 
 // SIGCHLD handler
 static void sigchld_hdl(int sig){
@@ -108,50 +111,12 @@ int blocking_serv(const int socket_fd, int & request_id,
   return 0;
 }
 
-void ufds_push_back(struct pollfd * ufds,
-                    int & size,
-                    const int sockfd,
-                    const short events,
-                    Bimap bimap) {
-  assert(size < MAX_CONNECTIONS);
-  ufds[size].fd = sockfd;
-  ufds[size].events = events;
-  bimap.add(sockfd, size);
-  size++;
-}
-
-void ufds_remove(struct pollfd * ufds,
-                 int & size,
-                 const int index,
-                 Bimap bimap) {
-  assert(index < size);
-  assert(index != 0);
-
-  // remove from map
-  bimap.remove_from_left(ufds[index].fd);
-
-  for (int i = index+1; i < size; i++) {
-    ufds[i-1] = ufds[i];
-    bimap.remove_from_right(i-1);
-    bimap.add(ufds[i-1].fd, i-1); 
-  }
-
-  //clear
-  ufds[size].fd = -1;
-  ufds[size].events = 0;
-  ufds[size].revents = 0;
-  size--;
-
-}
 
 
 // serving web pages in non-blocking mode
 int async_serv(const int socket_fd,
                int & request_id) {
   cout << "server listening socket: " << socket_fd << "\n";
-
-  //key = socket fd, value = index of ufds
-  Bimap socket_ufds_map;
 
   //initialize the thread pool
   thread_pool tpool(THREAD_POOL_SIZE, 0);
@@ -168,8 +133,6 @@ int async_serv(const int socket_fd,
   // listening socket is ufds[0]
   ufds[0].fd = socket_fd;
   ufds[0].events = POLLIN;
-
-  int ufds_size = 1;
 
   int states[MAX_CONNECTIONS]; 
   memset(states, 0, sizeof(int) * MAX_CONNECTIONS);
@@ -191,67 +154,10 @@ int async_serv(const int socket_fd,
     int new_fd = -1;
 
     // poll
-    poll(ufds, ufds_size, 100);
-    
-    //#########################################################
-    // event handling
-    //#########################################################
-
-    /*
-    for (int i = 0; i < MAX_CONNECTIONS; i++)
-      {
-	//special case which deals with incoming connections
-	if (i == 0)
-	  {
-	    if(ufds[0].revents & POLLIN){ // if the collection is available 
-
-	      //check if there are even any connection slots available
-	      int next_free_index = -1;
-	      for (int w = 1; w < MAX_CONNECTIONS; w++)
-		next_free_index = (!active_connections[w]) ? w : next_free_index;
-
-	      new_fd = accept(socket_fd, (struct sockaddr *) & their_addr, &addr_size);
-	      if (new_fd == -1)
-		{
-		  cout << "Error: failed to accept\n";
-		  continue;
-		}
-	      if (fcntl(new_fd, F_SETFL, O_NONBLOCK) == -1)
-		{
-		  cout << "Error: failed to fcntl\n";
-		  continue;
-		}
-	      
-	      //set the ufds parameters
-	      assert(next_free_index > 0);
-	      active_connections[next_free_index] = true;
-	      ufds_socket[next_free_index] = new_fd;	      
-	      ufds[next_free_index].fd = new_fd;
-	      ufds[next_free_index].events = POLLIN;
-	    }
-	  }
-	else
-	  {
-	    if (ufds[i].revents & POLLIN)
-	      {
-		assert(active_connections[i]);
-		numbytes = recv(new_fd, msg_buf, MAX_DATA_SIZE - 1, 0);
-
-		msg_buf[numbytes] = '\0';
-		std::string url(msg_buf);
-
-		//queue the task into the thread pool
-		std::pair<int, std::string> task;
-		task.first = ufds[i].fd;
-		task.second = url;
-		tpool.queue_task(task);
-	      }
-	  }
-      }
-    */
+    poll(ufds, MAX_CONNECTIONS, 100);
     
     // event handling
-    for(int i = ufds_size-1; i >= 0; i--){
+    for(int i = 0; i < MAX_CONNECTIONS; i++){
       if (i == 0) { // if this is the listening socket
         if(ufds[0].revents & POLLIN){ // if the collection is available 
           // get the new socket descriptor
@@ -267,45 +173,60 @@ int async_serv(const int socket_fd,
             perror("[WARN] fail to fcntl. \n");
             continue;
           };
-          ufds_push_back(ufds, ufds_size, new_fd, POLLIN, socket_ufds_map);
+          
+          //find the correct place
+          int k = 2;
+          while(k < MAX_CONNECTIONS){
+            if(states[k] == EMPTY){
+              break;
+            }
+            k++;
+          }
 
-	  //	  int ufds_index = socket_ufds_map.get_left(new_fd);
-	  //cout << "Set state of ufds_index " << ufds_index << " to receiving\n";
-          states[ufds_size-1] = 1; //find the index and set the state
+          if(k == MAX_CONNECTIONS){
+            perror("exceed maximum connections. \n");
+            exit(EXIT_FAILURE);
+          }
+
+          states[k] = INIT;
         }
-      } else { // if this is the connection socket
+      } else if (states[i] == RECV) { // if this is active connection socket
         if(ufds[i].revents & POLLIN){
-          if (states[i] == 1) { // if it is receiving
-	    int fd = ufds[i].fd; //get the file descriptor based on the ufds index
+	          int fd = ufds[i].fd; //get the file descriptor based on the ufds index
             numbytes = recv(fd, msg_buf, MAX_DATA_SIZE - 1, 0);
 
             if(numbytes == -1){
-	      cout << "State of revents " << (ufds[i].revents) << "\n";
+	            cout << "State of revents " << (ufds[i].revents) << "\n";
               perror("[WARN] error on receiving request. \n");
-	      
-              ufds_remove(ufds, ufds_size, i, socket_ufds_map);
-              continue;
+	            continue;
             }
             msg_buf[numbytes] = '\0';
             std::string url(msg_buf);
             url = extract_url(url);
          
-	    //queue the task into the thread pool
-	    std::pair<int, std::string> task;
-	    task.first = ufds[i].fd;
-	    task.second = url;
-	    tpool.queue_task(task);
-          } 
-          else {
-	    std::cout << "For connection " << i << ": state is " << states[i] << "\n";
-	    for (int i = 0; i < MAX_CONNECTIONS; i++)
-	      cout << states[i] << " ";
-	    cout << "\n";
-            perror("[ERROR] should not reach here.");
-            exit(EXIT_FAILURE);
+  	    //queue the task into the thread pool
+  	    std::pair<int, std::string> task;
+  	    task.first = ufds[i].fd;
+  	    task.second = url;
+  	    tpool.queue_task(task);
+            } 
+            else {
+  	    std::cout << "For connection " << i << ": state is " << states[i] << "\n";
+  	    for (int i = 0; i < MAX_CONNECTIONS; i++)
+  	      cout << states[i] << " ";
+  	    cout << "\n";
+              perror("[ERROR] should not reach here.");
+              exit(EXIT_FAILURE);
+            }
           }
-        }
-        
+      }
+    }
+
+    // state transition
+    for (int i = 0; i < MAX_CONNECTIONS; ++i)
+    {
+      if(states[i] == INIT){
+        states[i] = RECV;
       }
     }
     
@@ -330,11 +251,25 @@ int async_serv(const int socket_fd,
 	//close out the connection and remove it
 	close(fd);
 
-	int index = socket_ufds_map.get_right(fd);
-	cout << "Got index; " << index << " + socket# : " << fd << "\n";
-
-	ufds_remove(ufds, ufds_size, socket_ufds_map.get_right(fd), socket_ufds_map);
+  // remove fd
+  int si = 0;
+	while(si < MAX_CONNECTIONS)
+  {
+    if(ufds[si].fd == fd){
+      break;
     }
+    si++;
+  }
+
+  if(si == MAX_CONNECTIONS){
+    perror("fucked");
+    exit(EXIT_FAILURE);
+  }
+
+  ufds[si].fd = -1;
+  ufds[si].events = 0;
+  states[si] = EMPTY;
+
 
     tpool.unlock_result_mutex();
   }

@@ -12,6 +12,7 @@ class Bimap{
         int remove_from_left(int);
         int remove_from_right(int);
         size_t size();
+        void debug_print();
     private:
         std::map<int, int> left;
         std::map<int, int> right;
