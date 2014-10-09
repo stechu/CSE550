@@ -5,3 +5,12 @@ Email: vlee2@uw.edu
 Name: Shumo Chu
 SID:
 Email: chushumo@uw.edu
+
+Part A
+Our shell should work for all basic commands
+
+Part B
+Our server thread pool works correctly.
+Our server works should be able to handle asynchronous send, receive, processing, and socket connects for at least sequential connections.
+We did not have time to do stress tests with multiple concurrent clients operating at full line rate
+We do not handle graceful shutdown
