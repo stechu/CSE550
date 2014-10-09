@@ -37,7 +37,6 @@
 #include "thread_pool.hpp"
 #include "server.hpp"
 #include "utilities.hpp"
-#include "bimap.hpp"
 
 using namespace std;
 
