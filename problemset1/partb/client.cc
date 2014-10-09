@@ -99,7 +99,7 @@ int main(int argc, char *argv[]) {
 
     // hardcoded request
     static std::vector<std::string> urls;
-    urls.push_back("derp.txt");
+    urls.push_back("derp.txt\n");
     //    urls.push_back("server.cc");
     //urls.push_back("client.cc");
 

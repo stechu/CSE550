@@ -150,6 +150,10 @@ int async_serv(const int socket_fd,
       ufds_socket[i] = -1;
     }
 
+  vector<string> partial_filepaths(MAX_CONNECTIONS);
+
+  vector< pair<int, char*> > partial_sends(MAX_CONNECTIONS);
+
   // loop for event handling
   while(true){
     int new_fd = -1;
@@ -198,32 +202,51 @@ int async_serv(const int socket_fd,
           ufds[k].fd = new_fd;
           ufds[k].events = POLLIN;
           states[k] = INIT;
-	        cout << "Set state of index " << k << " to " << states[k] << "\n";
+	  string temp("");
+	  partial_filepaths[k] = temp;
         }
       } else if (states[i] == RECV) { // if this is active connection socket
         if(ufds[i].revents & POLLIN){
-	        count++;
-	        int fd = ufds[i].fd; //get the file descriptor 
-	        numbytes = recv(fd, msg_buf, MAX_DATA_SIZE - 1, 0);
-
-      	  if(numbytes == -1){
+	  count++;
+	  int fd = ufds[i].fd; //get the file descriptor 
+	  numbytes = recv(fd, msg_buf, MAX_DATA_SIZE - 1, 0);
+		
+	  if(numbytes == -1){
       	    cout << "State of revents " << (ufds[i].revents) << "\n";
       	    perror("[WARN] error on receiving request. \n");
       	    continue;
       	  }
+	  
+	  //append the partial file paths
+	  for (int p = 0; p < numbytes; p++)
+	    {
+	      if (msg_buf[p] == '\n')
+		{
+		  cout << "State transition to PROC for " << i << " with filepath #" << partial_filepaths[i] << "#\n";
+		  states[i] = PROC;
+
+		  //queue the task into the thread pool
+		  std::pair<int, std::string> task;
+		  task.first = ufds[i].fd;
+		  
+		  task.second = partial_filepaths[i];
+		  tpool.queue_task(task);
+		  break;
+		}
+	      else
+		{
+		  partial_filepaths[i] += (char) msg_buf[p];
+		  cout << "Appended partial file path..." << partial_filepaths[i] << "\n";
+		}
+	    }
+
+
+	  /*
       	  msg_buf[numbytes] = '\0';
       	  std::string url(msg_buf);
       	  url = extract_url(url);
+	  */
 
-          //change the state
-	  cout << "State transition to PROC for " << i << " with filepath " << url << "\n";
-          states[i] = PROC;
-      	  
-      	  //queue the task into the thread pool
-      	  std::pair<int, std::string> task;
-      	  task.first = ufds[i].fd;
-      	  task.second = url;
-      	  tpool.queue_task(task);
 	}
       }
     }
