@@ -170,7 +170,6 @@ int async_serv(const int socket_fd,
 
   // loop for event handling
   while(true){
-    int new_fd = -1;
 
     // poll
     poll(ufds, MAX_CONNECTIONS + 1, 100);
@@ -198,12 +197,12 @@ int async_serv(const int socket_fd,
 
       else if (i == 0) { // if this is the listening socket
 
-        if(ufds[0].revents & POLLIN){ // if the collection is available 
+	if(ufds[0].revents & POLLIN){ // if the collection is available 
           count++;
 	        cout << "Number of connection events: " << count << "\n";
 
 	        // get the new socket descriptor
-          new_fd = accept(socket_fd,
+          int new_fd = accept(socket_fd,
                           (struct sockaddr *) & their_addr,
                           &addr_size);
           if (new_fd == -1) {
@@ -215,8 +214,6 @@ int async_serv(const int socket_fd,
             perror("[WARN] fail to fcntl. \n");
             continue;
           };
-
-	        cout << "Acepted connection on server...\n";
           
           //find the correct place
           int k = 2;
@@ -236,6 +233,8 @@ int async_serv(const int socket_fd,
           states[k] = INIT;
 	  string temp("");
 	  partial_filepaths[k] = temp;
+	  
+	  cout<<"[DEBUG] accepted connection, put it in "<< k <<" ,fd "<<new_fd<<"\n";	  
 
 	  //reset the events
 	  ufds[i].revents = 0;
