@@ -117,7 +117,6 @@ int blocking_serv(const int socket_fd, int & request_id,
 // serving web pages in non-blocking mode
 int async_serv(const int socket_fd,
                int & request_id) {
-  cout << "server listening socket: " << socket_fd << "\n";
 
   int pipe_fds[2];
   if (pipe2(pipe_fds, NULL) < 0)
@@ -181,7 +180,6 @@ int async_serv(const int socket_fd,
 
       if ((i == MAX_CONNECTIONS) && (ufds[i].revents & POLLIN))
 	{
-	  cout << "Attempting to trigger self pipe\n";
 	  char buf[5];
 	  
 	  int status = -1;
@@ -199,9 +197,8 @@ int async_serv(const int socket_fd,
 
 	if(ufds[0].revents & POLLIN){ // if the collection is available 
           count++;
-	        cout << "Number of connection events: " << count << "\n";
-
-	        // get the new socket descriptor
+	  
+	  // get the new socket descriptor
           int new_fd = accept(socket_fd,
                           (struct sockaddr *) & their_addr,
                           &addr_size);
@@ -234,8 +231,6 @@ int async_serv(const int socket_fd,
 	  string temp("");
 	  partial_filepaths[k] = temp;
 	  
-	  cout<<"[DEBUG] accepted connection, put it in "<< k <<" ,fd "<<new_fd<<"\n";	  
-
 	  //reset the events
 	  ufds[i].revents = 0;
         }
@@ -247,7 +242,6 @@ int async_serv(const int socket_fd,
 	  numbytes = recv(fd, msg_buf, MAX_DATA_SIZE - 1, 0);
 		
 	  if(numbytes == -1){
-      	    cout << "State of revents " << (ufds[i].revents) << "\n";
       	    perror("[WARN] error on receiving request. \n");
       	    continue;
       	  }
@@ -257,7 +251,6 @@ int async_serv(const int socket_fd,
 	    {
 	      if (msg_buf[p] == '\n')
 		{
-		  cout << "State transition to PROC for " << i << " with filepath #" << partial_filepaths[i] << "#\n";
 		  states[i] = PROC;
 
 		  //queue the task into the thread pool
@@ -265,8 +258,6 @@ int async_serv(const int socket_fd,
 		  task.first = ufds[i].fd;
 	    		  
       		  task.second = partial_filepaths[i];
-
-		  cout << "queued task: " << task.first << " " << task.second << "\n";
 
 		  tpool.queue_task(task);
 		  break;
@@ -309,7 +300,6 @@ int async_serv(const int socket_fd,
 	      ufds[i].fd = -1;
 	      ufds[i].events = 0;
 	  
-	      cout << "GREAT SUCCESS FOR FILE " << i << "\n";
 	    }
 	  else
 	    {
@@ -327,10 +317,8 @@ int async_serv(const int socket_fd,
     // state transition
     for (int i = 1; i < MAX_CONNECTIONS; ++i)
       {
-      	//cout << "State of index " << i << " = " << states[i] << "\n";
       	if(states[i] == INIT){
       	  states[i] = RECV;
-      	  cout << "Transitioned connection " << i << " to state RECV\n";
       	}
       }
     
@@ -381,7 +369,6 @@ int async_serv(const int socket_fd,
 
 	partial_sends[state_index] = partial_send;
 
-	cout << "Set state for " << state_index << " to SEND for \n";
 	states[state_index] = SEND;
     }
 

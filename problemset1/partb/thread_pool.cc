@@ -302,7 +302,6 @@ void thread_pool::notify_self_pipe()
   pthread_mutex_lock(&self_pipe_mutex);
   write(self_pipe_write_fd, "A", 1);
   pthread_mutex_unlock(&self_pipe_mutex);
-  cout << "Sent a self-pipe signal... " << self_pipe_write_fd << "\n";
 }
 
 //########################################################################
