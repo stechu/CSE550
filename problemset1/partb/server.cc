@@ -192,14 +192,11 @@ int async_serv(const int socket_fd,
 
 	  if (status < 0)
 	    continue;
-	  
-	  cout << "Got signal: " << buf << "\n";
 
-	
 	  ufds[i].revents = 0;
 	}
 
-      if (i == 0) { // if this is the listening socket
+      else if (i == 0) { // if this is the listening socket
 
         if(ufds[0].revents & POLLIN){ // if the collection is available 
           count++;
@@ -245,8 +242,6 @@ int async_serv(const int socket_fd,
         }
       } 
       else if (states[i] == RECV) { // if this is active connection socket
-        cout << "attempt a receive\n";
-
 	if(ufds[i].revents & POLLIN){
 	  count++;
 	  int fd = ufds[i].fd; //get the file descriptor 
@@ -270,8 +265,7 @@ int async_serv(const int socket_fd,
 		  std::pair<int, std::string> task;
 		  task.first = ufds[i].fd;
 	    		  
-	
-		  task.second = partial_filepaths[i];
+      		  task.second = partial_filepaths[i];
 
 		  cout << "queued task: " << task.first << " " << task.second << "\n";
 
@@ -286,13 +280,9 @@ int async_serv(const int socket_fd,
 	  ufds[i].revents = 0;
 	}
       } //else if (states[i] == SEND && (ufds[i].revents & POLLIN))
-      else if (states[i] == SEND)
-	{
-	  cout << "attempted a send for " << i << "\n";
-	  
+	else if (states[i] == SEND)
+	{	  
 	  pair< int, pair< int, char* > > partial_send = partial_sends[i];
-
-	  cout << "got the partial send value..\n";
 
 	  int send_index = partial_send.first;
 	  int fd = partial_send.second.first;
@@ -305,7 +295,6 @@ int async_serv(const int socket_fd,
 
 	  if (sent_bytes < 0)
 	    {
-	      cout << "didnt send anything so need to trigger again\n";
 	      tpool.lock_self_pipe_mutex();
 	      write(pipe_fds[1], "a", 1);
 	      tpool.unlock_self_pipe_mutex();
@@ -320,12 +309,12 @@ int async_serv(const int socket_fd,
 	      states[i] = EMPTY;
 	      ufds[i].fd = -1;
 	      ufds[i].events = 0;
-	      cout << "sent the data now closing the connection\n";
+	  
+	      cout << "GREAT SUCCESS FOR FILE " << i << "\n";
 	    }
 	  else
 	    {
 	      //not done sending so self pipe again
-	      cout << "didnt send everything so need to trigger again\n";
 	      tpool.lock_self_pipe_mutex();
 	      write(pipe_fds[1], "a", 1);
 	      tpool.unlock_self_pipe_mutex();

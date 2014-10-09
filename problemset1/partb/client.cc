@@ -99,9 +99,9 @@ int main(int argc, char *argv[]) {
 
     // hardcoded request
     static std::vector<std::string> urls;
-    urls.push_back("derp.txt\n");
-    //    urls.push_back("server.cc");
-    //urls.push_back("client.cc");
+    urls.push_back("main.cc\n");
+    urls.push_back("server.cc");
+    urls.push_back("client.cc");
 
     // connect to server
     for (int i = 0; i < REQUEST_TIMES; i++) {
