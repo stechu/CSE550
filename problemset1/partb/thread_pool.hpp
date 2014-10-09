@@ -27,6 +27,8 @@ private:
   pthread_cond_t result_cond_var;          //condition variable telling main thread if result is available
   bool exit_signal;                        //global flag indicating if threads should exit
   
+  int self_pipe_write_fd;
+
   std::vector<pthread_t> pthreads;              //bookkeeping to track the threads
 
   std::pair<int, std::string> dequeue_task();        //dequeues a task - not atomic    
@@ -41,9 +43,12 @@ private:
     return ((thread_pool *) wtf)->worker_thread();
   }
 
+  //writes a byte to the self-pipe
+  void notify_self_pipe();
+
 public:
   //thread pool constructor
-  thread_pool(int);                        
+  thread_pool(int, int);                        
   
   //atomically queues a task for processing
   void queue_task(std::pair<int, std::string>);      
