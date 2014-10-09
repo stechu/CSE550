@@ -7,6 +7,7 @@
 #include <string>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <queue>
 #include <pthread.h>
 #include "thread_pool.hpp"
