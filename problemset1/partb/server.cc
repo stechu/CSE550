@@ -142,6 +142,8 @@ void ufds_remove(struct pollfd * ufds,
 // serving web pages in non-blocking mode
 int async_serv(const int socket_fd,
                int & request_id) {
+  cout << "server listening socket: " << socket_fd << "\n";
+
   //key = socket fd, value = index of ufds
   Bimap socket_ufds_map;
 
@@ -322,7 +324,10 @@ int async_serv(const int socket_fd,
 	//close out the connection and remove it
 	close(fd);
 
-	ufds_remove(ufds, ufds_size, i, socket_ufds_map);
+	int index = socket_ufds_map.get_right(fd);
+	cout << "Got index; " << index << " + socket# : " << fd << "\n";
+
+	ufds_remove(ufds, ufds_size, socket_ufds_map.get_right(fd), socket_ufds_map);
     }
 
     tpool.unlock_result_mutex();
