@@ -6,11 +6,11 @@
 class Bimap{
     public:
         Bimap();
-        int add(int a, int b); //returns -1 if add is not succesful
-        int get_right(int a);
-        int get_left(int b);
-        int remove_from_left(int a);
-        int remove_from_right(int b);
+        int add(int, int); //returns -1 if add is not succesful
+        int get_right(int);
+        int get_left(int);
+        int remove_from_left(int);
+        int remove_from_right(int);
         size_t size();
     private:
         std::map<int, int> left;

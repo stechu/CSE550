@@ -164,7 +164,7 @@ void thread_pool::queue_result(pair<int, char*> s)
   pthread_mutex_lock(&result_queue_mutex);
   result_queue.push(s);
   pthread_cond_broadcast(&result_cond_var);
-  this.notify_self_pipe();
+  notify_self_pipe();
   pthread_mutex_unlock(&result_queue_mutex);
 }
 

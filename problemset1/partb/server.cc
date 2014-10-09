@@ -143,7 +143,7 @@ int async_serv(const int socket_fd,
   Bimap socket_ufds_map;
 
   //initialize the thread pool
-  thread_pool tpool(THREAD_POOL_SIZE);
+  thread_pool tpool(THREAD_POOL_SIZE, 0);
 
   // some variables
   struct sockaddr_storage their_addr;
@@ -244,7 +244,7 @@ int async_serv(const int socket_fd,
     {
     	//dequeue the result from the queue
     	std::pair<int, char *> result;
-    	result = dequeue_task();
+    	result = tpool.dequeue_result();
 
     	//process the resulting char * from the thread pool
     	//TODO:
