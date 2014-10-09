@@ -122,10 +122,24 @@ void ufds_remove(struct pollfd * ufds, int & size, const int index) {
 }
 
 
+int key(std::map<int, int> m, int val)
+{
+  //stub
+}
+
 // serving web pages in non-blocking mode
 int async_serv(const int socket_fd,
-               int & request_id,
-               std::map<int,std ::pair<int, std::string> > & requests) {
+               int & request_id
+               ) {
+
+  std::map<int,std::pair<int, std::string> > & requests
+  
+  //key = socket fd, value = index of ufds
+  std::map<int, int> socket_ufds_map;
+
+  //initialize the thread pool
+  thread_pool tpool(THREAD_POOL_SIZE);
+
   // some variables
   struct sockaddr_storage their_addr;
   socklen_t addr_size = sizeof their_addr;
@@ -198,6 +212,12 @@ int async_serv(const int socket_fd,
             url = extract_url(url);
             //TODO: validate url
             //TODO: 
+
+	    //queue the task into the thread pool
+	    std::pair<int, string> task;
+	    task.first = 0;
+	    task.second = url;
+	    tpool.queue_task(task);
           } 
           else {
             perror("[ERROR] should not reach here.");
@@ -211,7 +231,25 @@ int async_serv(const int socket_fd,
     // sending logic
     // get the content from the ready queue
     // handle partial send
+
+    //get the result data from the queue while results are available
+    tpool.lock_result_mutex();
+    
+    while (tpool.has_result())
+      {
+	//dequeue the result from the queue
+	std::pair<int, char *> result;
+	result = dequeue_task();
+
+	//process the resulting char * from the thread pool
+	//TODO:
+      }
+
+    tpool.unlock_result_mutex();
   }
+
+  // Destroy the thread pool when done
+  pool.destroy();
 
   return 0;
 }
@@ -318,8 +356,6 @@ int initialize_server(const char * ip_address, const char * port) {
   std::map<int, std::pair<int, std::string> > requests;   // requests
   blocking_serv(server_socket, request_id, requests);
 
-  // Destroy the thread pool
-  // pool.destroy();
 
   return 0;
 }
