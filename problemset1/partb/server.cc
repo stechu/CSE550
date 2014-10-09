@@ -44,6 +44,7 @@ using namespace std;
 #define EMPTY 0
 #define INIT 1
 #define RECV 2
+#define PROC 3
 
 // SIGCHLD handler
 static void sigchld_hdl(int sig){
@@ -163,10 +164,9 @@ int async_serv(const int socket_fd,
       if (i == 0) { // if this is the listening socket
         if(ufds[0].revents & POLLIN){ // if the collection is available 
           count++;
+	        cout << "Number of connection events: " << count << "\n";
 
-	  cout << "Number of connection events: " << count << "\n";
-
-	  // get the new socket descriptor
+	        // get the new socket descriptor
           new_fd = accept(socket_fd,
                           (struct sockaddr *) & their_addr,
                           &addr_size);
@@ -180,7 +180,7 @@ int async_serv(const int socket_fd,
             continue;
           };
 
-	  cout << "Acepted connection on server...\n";
+	        cout << "Acepted connection on server...\n";
           
           //find the correct place
           int k = 2;
@@ -195,48 +195,34 @@ int async_serv(const int socket_fd,
             perror("exceed maximum connections. \n");
             exit(EXIT_FAILURE);
           }
-
+          ufds[k].fd = new_fd;
           states[k] = INIT;
-	  cout << "Set state of index " << k << " to " << states[k] << "\n";
+	        cout << "Set state of index " << k << " to " << states[k] << "\n";
         }
-      } else if (states[i] == RECV) { // if this is active connection socket	  
-	//        if(ufds[i].revents & POLLIN){
-	if (| ufds[i])
-	  {  
-	    count++;
+      } else if (states[i] == RECV) { // if this is active connection socket
+        if(ufds[i].revents & POLLIN){
+	        count++;
+	        int fd = ufds[i].fd; //get the file descriptor 
+	        numbytes = recv(fd, msg_buf, MAX_DATA_SIZE - 1, 0);
 
-	  int fd = ufds[i].fd; //get the file descriptor based on the ufds index
-	  numbytes = recv(fd, msg_buf, MAX_DATA_SIZE - 1, 0);
-	  
-	  if(numbytes == -1){
-	    cout << "State of revents " << (ufds[i].revents) << "\n";
-	    perror("[WARN] error on receiving request. \n");
-	    continue;
-	  }
-	  msg_buf[numbytes] = '\0';
-	  std::string url(msg_buf);
-	  url = extract_url(url);
-	  
-	  //queue the task into the thread pool
-	  std::pair<int, std::string> task;
-	  task.first = ufds[i].fd;
-	  task.second = url;
-	  tpool.queue_task(task);
-	} 
-	else
-	  {
-	    //	    cout << "Didn't execute things...\n";
-	  }
-	/*
-	else {
-	  std::cout << "For connection " << i << ": state is " << states[i] << "\n";
-	  for (int i = 0; i < MAX_CONNECTIONS; i++)
-	    cout << states[i] << " ";
-	  cout << "\n";
-	  perror("[ERROR] should not reach here.");
-	  exit(EXIT_FAILURE);
-	}
-	*/
+      	  if(numbytes == -1){
+      	    cout << "State of revents " << (ufds[i].revents) << "\n";
+      	    perror("[WARN] error on receiving request. \n");
+      	    continue;
+      	  }
+      	  msg_buf[numbytes] = '\0';
+      	  std::string url(msg_buf);
+      	  url = extract_url(url);
+
+          //change the state
+          states[i] = PROC;
+      	  
+      	  //queue the task into the thread pool
+      	  std::pair<int, std::string> task;
+      	  task.first = ufds[i].fd;
+      	  task.second = url;
+      	  tpool.queue_task(task);
+	      }
       }
     }
   
