@@ -18,6 +18,8 @@
 #include <errno.h>
 #include <dirent.h>
 #include <signal.h>
+#include <sys/poll.h>
+#include <sys/fcntl.h>
 
 // CPP headers
 #include <string>
@@ -27,6 +29,7 @@
 #include <map>
 #include <set>
 #include <utility>
+#include <cassert>
 
 #include "constants.hpp"
 #include "thread_pool.hpp"
@@ -42,35 +45,14 @@ static void sigchld_hdl(int sig){
   }
 }
 
-
-// reload resources
-// return: number of files in resource folder
-int reload_resources(std::set<std::string> & resources){
-  struct dirent * de = NULL;
-  DIR * d = NULL;
-
-  resources.clear();
-
-  d = opendir(RESOURCE_PATH);
-  if (d == NULL) {
-    return -1;
-  }
-
-  while ((de = readdir(d)) != NULL) {
-    std::string file_name(de->d_name);
-    if (file_name == "." || file_name == "..") {
-      continue;
-    }
-    resources.insert(file_name);
-  }
-
-  closedir(d);
-  return resources.size();
-}
-
 // extract url from request
 std::string extract_url(const std::string request) {
-  return "wtf";
+  for (size_t i = 0; i < request.size(); i++) {
+    if (request[i] == '\n') {
+      return request.substr(0, i);
+    }
+  }
+  return request;
 }
 
 
@@ -120,10 +102,117 @@ int blocking_serv(const int socket_fd, int & request_id,
   return 0;
 }
 
+void ufds_push_back(struct pollfd * ufds,
+                    int & size,
+                    const int sockfd,
+                    const short events) {
+  assert(size < MAX_CONNECTIONS);
+  ufds[size].fd = sockfd;
+  ufds[size].events = events;
+  size++;
+}
+
+void ufds_remove(struct pollfd * ufds, int & size, const int index) {
+  assert(index < size);
+  assert(index != 0);
+  for (int i = index+1; i < size; i++) {
+    ufds[i-1] = ufds[i];
+  }
+  size--;
+}
+
+
 // serving web pages in non-blocking mode
 int async_serv(const int socket_fd,
                int & request_id,
-               std::map<int, std::pair<int, std::string> > & requests) {
+               std::map<int,std ::pair<int, std::string> > & requests) {
+  // some variables
+  struct sockaddr_storage their_addr;
+  socklen_t addr_size = sizeof their_addr;
+  char s[INET6_ADDRSTRLEN];
+  char msg_buf[MAX_DATA_SIZE];
+  int numbytes = -1;
+
+  struct pollfd ufds[MAX_CONNECTIONS];
+
+  // listening socket is ufds[0]
+  ufds[0].fd = socket_fd;
+  ufds[0].events = POLLIN;
+
+  int ufds_size = 1;
+
+  // states for connection socket:
+  // 0 - empty
+  // 1 - receving
+  // 2 - processing
+  // 3 - sending
+  // 4 - close
+  // ------------------------------
+  // states for listening socket
+  // 0 - empty
+  // 1 - accepting
+  int states[MAX_CONNECTIONS]; 
+  memset(states, 0, sizeof(int) * MAX_CONNECTIONS);
+
+  // make the socket non-blocking
+  fcntl(socket_fd, F_SETFL, O_NONBLOCK);
+
+  // loop for event handling
+  while(true){
+    int new_fd = -1;
+
+    // poll
+    poll(ufds, ufds_size, 100);
+    
+    // event handling
+    for(int i = ufds_size-1; i >= 0; i--){
+      if (i == 0) { // if this is the listening socket
+        if(ufds[0].revents & POLLIN){ // if the collection is available 
+          // get the new socket descriptor
+          new_fd = accept(socket_fd,
+                          (struct sockaddr *) & their_addr,
+                          &addr_size);
+          if (new_fd == -1) {
+            //stab
+            perror("[WARN] fail to accept. \n");
+            continue;
+          }
+          if(fcntl(new_fd, F_SETFL, O_NONBLOCK) == -1){
+            perror("[WARN] fail to fcntl. \n");
+            continue;
+          };
+          ufds_push_back(ufds, ufds_size, new_fd, POLLIN);
+          states[ufds_size] = 1;
+        }
+      } else { // if this is the connection socket
+        if(ufds[i].revents & POLLIN){
+          if (states[i] == 1) { // if it is receiving
+            numbytes = recv(new_fd, msg_buf, MAX_DATA_SIZE - 1, 0);
+            if(numbytes == -1){
+              perror("[WARN] error on receiving request. \n");
+              ufds_remove(ufds, ufds_size, i);
+              continue;
+            }
+            msg_buf[numbytes] = '\0';
+            std::string url(msg_buf);
+            url = extract_url(url);
+            //TODO: validate url
+            //TODO: 
+          } 
+          else {
+            perror("[ERROR] should not reach here.");
+            exit(EXIT_FAILURE);
+          }
+        }
+        
+      }
+    }
+
+    // sending logic
+    // get the content from the ready queue
+    // handle partial send
+  }
+
   return 0;
 }
 
@@ -172,17 +261,6 @@ int initialize_server(const char * ip_address, const char * port) {
   // 4 - listen for connections
   // 5 - accept connections
 
-  // load static resources
-  std::set<std::string> resources;
-  int page_num = reload_resources(resources);
-  if (page_num == 0) {
-    perror("[ERROR] serving folder does not contain any file. \n");
-    exit(EXIT_FAILURE);
-  } else {
-    fprintf(stdout, "[INFO] serving %d pages. \n", page_num);
-  }
-
-  
   // load up address structs
   memset(&hints, 0, sizeof(hints));
   hints.ai_family = AF_INET;        // IPv4, we are old fashioned

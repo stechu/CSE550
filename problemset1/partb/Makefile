@@ -20,7 +20,7 @@ CLIENT_OBJS=$(subst .cc,.o,$(CLIENT_SRCS))
 TEST_OBJS=$(subst .cc,.o,$(TEST_SRCS))
 INCLUDES=
 DEBUGGER=$(shell which valgrind)
-TEST=1
+TEST=0
 
 all: $(SERVER_EXECUTABLE) $(CLIENT_EXECUTABLE)
 

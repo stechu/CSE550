@@ -22,7 +22,7 @@
 static const int BACK_LOG_SIZE = 16;
 static const char * SERVER_IP = "127.0.0.1";
 static const char * SERVER_PORT = "9000";
-static const int MAX_CONNECTIONS = 10;
+static const int MAX_CONNECTIONS = 65;  //this includes the listening socket
 static const char * RESOURCE_PATH = "./testdata";
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -30,7 +30,7 @@ static const char * RESOURCE_PATH = "./testdata";
 // Client Settings
 //
 ///////////////////////////////////////////////////////////////////////////////
-static const int MAX_DATA_SIZE = 100;
+static const int MAX_DATA_SIZE = 254;
 static const int REQUEST_TIMES = 10;
 
 #endif  // CONSTANTS_HPP
