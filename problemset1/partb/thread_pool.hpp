@@ -22,6 +22,7 @@ private:
   pthread_mutex_t task_queue_mutex;        //serializes access to the task queue
   pthread_mutex_t result_queue_mutex;      //serializes access to the result queue
   pthread_mutex_t exit_mutex;              //synchronizes writes to the exit status for correct termination
+  pthread_mutex_t self_pipe_mutex;        //mutex to self-pipe
 
   pthread_cond_t task_cond_var;            //condition variable for worker threads waiting for work
   pthread_cond_t result_cond_var;          //condition variable telling main thread if result is available
@@ -65,6 +66,8 @@ public:
   void lock_result_mutex();
   void unlock_task_mutex();
   void unlock_result_mutex();
+  void lock_self_pipe_mutex();
+  void unlock_self_pipe_mutex();
   void wait_for_task();
   void wait_for_result();
   bool has_task();

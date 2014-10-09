@@ -180,17 +180,24 @@ int async_serv(const int socket_fd,
     
     // event handling
     for(int i = 0; i < MAX_CONNECTIONS + 1; i++){
-      if (i == MAX_CONNECTIONS + 1)
+      if ((i == MAX_CONNECTIONS) && (ufds[i].revents & POLLIN))
 	{
-	  char buf[1];
-	  while (read(pipe_fds[0], buf, 1))
-	    {
-	      cout << "Got signal: " << buf << "\n";
-	    } 
-	}
-      if (i == 0) cout << "Write fd = " << pipe_fds[1] << " Read fd = " << pipe_fds[0] << "\n"; 
+	  cout << "Attempting to trigger self pipe\n";
+	  char buf[5];
+	  
+	  int status = -1;
+	  tpool.lock_self_pipe_mutex();
+	  status = read(pipe_fds[0], buf, sizeof(buf));
+	  tpool.unlock_self_pipe_mutex();
 
-      if (i == 0) { // if this is the listening socket
+	  if (status < 0)
+	    continue;
+	  
+	  cout << "Got signal: " << buf << "\n";
+	
+	  ufds[i].revents = 0;
+	}
+      else if (i == 0) { // if this is the listening socket
         if(ufds[0].revents & POLLIN){ // if the collection is available 
           count++;
 	        cout << "Number of connection events: " << count << "\n";
@@ -264,21 +271,26 @@ int async_serv(const int socket_fd,
 	      else
 		{
 		  partial_filepaths[i] += (char) msg_buf[p];
-		  cout << "Appended partial file path..." << partial_filepaths[i] << "\n";
 		}
 	    }
 	  ufds[i].revents = 0;
 	}
-      } else if (states[i] == SEND && (ufds[i].revents & POLLIN))
+      } //else if (states[i] == SEND && (ufds[i].revents & POLLIN))
+      else if (states[i] == SEND)
 	{
 	  pair< int, pair< int, char* > > partial_send = partial_sends[i];
-	  
+
 	  int send_index = partial_send.first;
 	  int fd = partial_send.second.first;
 	  char * buffer = partial_send.second.second;
 	  char * send_ptr = partial_send.second.second + send_index;
 
+	  cout << "Sending partial buffer " << buffer << "\n";
+
 	  int sent_bytes = send(fd, send_ptr, sizeof(buffer) - send_index, 0);
+
+	  if (sent_bytes < 0)
+	    continue;
 
 	  partial_send.first += sent_bytes;
 
@@ -336,7 +348,7 @@ int async_serv(const int socket_fd,
 	  }
 	assert(state_index != -1);
 
-	cout << "Set state for " << state_index << " to SEND\n";
+	cout << "Set state for " << state_index << " to SEND for \n";
 	states[state_index] = SEND;
     }
 

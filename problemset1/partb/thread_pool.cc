@@ -35,6 +35,8 @@ thread_pool::thread_pool(int num_threads, int self_pipe_fd)
     cout << "[Info] Failed to initialize result queue mutex...\n";
   if(pthread_mutex_init(&exit_mutex, NULL) < 0)
     cout << "[Info] Failed to initialize exit mutex...\n";
+  if(pthread_mutex_init(&self_pipe_mutex, NULL) < 0)
+    cout << "goddamnit \n";
 
   if (pthread_cond_init(&task_cond_var, NULL) < 0)
     cout << "[Info] Failed to initialize work condition variable...\n";
@@ -74,6 +76,16 @@ void thread_pool::unlock_task_mutex()
 void thread_pool::unlock_result_mutex()
 {
   pthread_mutex_unlock(&result_queue_mutex);
+}
+
+void thread_pool::lock_self_pipe_mutex()
+{
+  pthread_mutex_lock(&self_pipe_mutex);
+}
+
+void thread_pool::unlock_self_pipe_mutex()
+{
+  pthread_mutex_unlock(&self_pipe_mutex);
 }
 
 //result_queue_mutex must be acqired before calling this
@@ -286,7 +298,9 @@ char * thread_pool::read_file(char * filepath)
 void thread_pool::notify_self_pipe()
 {
   //write a byte to the pipe
+  pthread_mutex_lock(&self_pipe_mutex);
   write(self_pipe_write_fd, "A", 1);
+  pthread_mutex_unlock(&self_pipe_mutex);
   cout << "Sent a self-pipe signal... " << self_pipe_write_fd << "\n";
 }
 
@@ -325,6 +339,7 @@ void thread_pool::destroy()
   pthread_mutex_destroy(&task_queue_mutex);
   pthread_mutex_destroy(&result_queue_mutex);
   pthread_mutex_destroy(&exit_mutex);
+  pthread_mutex_destroy(&self_pipe_mutex);
 
   pthread_cond_destroy(&task_cond_var);
   pthread_cond_destroy(&result_cond_var);
