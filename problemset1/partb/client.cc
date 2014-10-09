@@ -98,7 +98,7 @@ int main() {
 
     // connect to server
     for (int i = 0; i < REQUEST_TIMES; i++) {
-        connect(argv[1], SERVER_PORT, urls[i%urls.size()]);
+        connect(SERVER_IP, SERVER_PORT, urls[i%urls.size()]);
     }
 
     return 0;
