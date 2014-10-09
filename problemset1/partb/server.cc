@@ -142,6 +142,8 @@ int async_serv(const int socket_fd,
   //key = socket fd, value = index of ufds
   Bimap socket_ufds_map;
 
+  std::vector< std::pair< std::pair<int, int>, char *> > active_buffers;
+
   //initialize the thread pool
   thread_pool tpool(THREAD_POOL_SIZE, 0);
 
@@ -233,10 +235,6 @@ int async_serv(const int socket_fd,
       }
     }
 
-    // sending logic
-    // get the content from the ready queue
-    // handle partial send
-
     //get the result data from the queue while results are available
     tpool.lock_result_mutex();
     
@@ -246,8 +244,14 @@ int async_serv(const int socket_fd,
     	std::pair<int, char *> result;
     	result = tpool.dequeue_result();
 
-    	//process the resulting char * from the thread pool
-    	//TODO:
+	//get file descriptor
+	int fd = result.first;
+	int bytes_sent;
+
+	//call the Beej's programming guide function
+	sendall(fd, result.second, &bytes_sent);
+
+	assert(sizeof(result.second) == bytes_sent);
     }
 
     tpool.unlock_result_mutex();
@@ -359,8 +363,8 @@ int initialize_server(const char * ip_address, const char * port) {
   // event based connection handling
   int request_id = 0;                    // unique identifier for each request
   std::map<int, std::pair<int, std::string> > requests;   // requests
-  blocking_serv(server_socket, request_id, requests);
-
+  //blocking_serv(server_socket, request_id, requests);
+  async_serv(server_socket, request_id);
 
   return 0;
 }

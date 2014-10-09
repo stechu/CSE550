@@ -16,4 +16,6 @@
 // get sockaddr, IPv4 or IPv6:
 void * get_in_addr(struct sockaddr *sa);
 
+int sendall(int s, char *buf, int *len);
+
 #endif // UTILITIES_HPP
