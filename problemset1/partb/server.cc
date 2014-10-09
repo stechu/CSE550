@@ -268,11 +268,13 @@ int async_serv(const int socket_fd,
       } else { // if this is the connection socket
         if(ufds[i].revents & POLLIN){
           if (states[i] == 1) { // if it is receiving
-            numbytes = recv(new_fd, msg_buf, MAX_DATA_SIZE - 1, 0);
+	    int fd = ufds[i].fd; //get the file descriptor based on the ufds index
+            numbytes = recv(fd, msg_buf, MAX_DATA_SIZE - 1, 0);
 
             if(numbytes == -1){
 	      cout << "State of revents " << (ufds[i].revents) << "\n";
               perror("[WARN] error on receiving request. \n");
+	      
               ufds_remove(ufds, ufds_size, i, socket_ufds_map);
               continue;
             }
@@ -299,7 +301,6 @@ int async_serv(const int socket_fd,
       }
     }
     
-
     //get the result data from the queue while results are available
     tpool.lock_result_mutex();
     
@@ -315,7 +316,7 @@ int async_serv(const int socket_fd,
 
 	//call the Beej's programming guide function to send the bytes
 	sendall(fd, result.second, &bytes_sent);
-	assert(sizeof(result.second) == bytes_sent);
+	//	assert(sizeof(result.second) == bytes_sent);
 
 	//mark the socket at the ufds index for closing
 	for (int i = 1; i < MAX_CONNECTIONS; i++)
