@@ -13,7 +13,8 @@ Part B
 Our server thread pool works correctly.
 Our server works should be able to handle asynchronous send, receive, processing, and socket connects for at least sequential connections.
 We did not have time to do stress tests with multiple concurrent clients operating at full line rate
-We do not handle graceful shutdown
+We do not handle graceful shutdown, we change the SIGPIPE action to ignore it but do not clean up properly
+We also kill zombie child processes
 
 ## Instructions to run
 1. run `make`
