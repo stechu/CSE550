@@ -20,7 +20,10 @@
 
 \section{Introduction}
 
-STUB
+In this document, we outlined our software implementation of the Paxos consensus protocol explained in TODO: ADD REFERENCE.
+We present a high level software architecture, justify our design decisions, and explain any simplfying assumptions that we make to our design.
+We then explain how to use our implementation, and any outstanding problems with our implementation.
+A quick discussion of any interesting tidbits we encounter concludes the document.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Paxos Protocol Summary
@@ -28,7 +31,39 @@ STUB
 
 \section{Paxos Protocol}
 
-STUB
+The Paxos protocol originally proposed by Lamport in TODO: ADD REFERENCE is a consensus protocol designed to make forward progress even in the face of arbitrary failures.
+We interpret consensus to be defined as the following constraints:
+
+\begin{enumerate}
+\item One and only one value may be chosen per Paxos instance
+\item The value must come from the set of proposals
+\item Only the chosen values can propagate to learners
+\end{enumerate}
+
+The Paxos protocol consists of three classes of members: proposers, acceptors, and learners.
+Proposers are defined as entities that present proposals to acceptors.
+Acceptors are defined as entities that are responsible for arbitrating whether a proposal is accepted or not.
+Finally, learners are defined as entities that are subscribed to a particular value that a consensus determines.
+
+In any Paxos instance, in order to tolerate node failure, multiple proposers and acceptors participate in a Paxos instance.
+A Paxos instance is resolved by the following a two phase protocol.
+
+In the first phase of the protocol, proposers create proposals with some associated monotonically increasing sequence number N. 
+The sequence number is always larger than any previous sequence number the proposer has issued. 
+A propose message is then sent to the set of acceptors with the sequence number chosen. 
+When an acceptor receives a propose message, it compares the sequence number of the proposal to all previous sequence numbers it has seen.
+If the sequence number received is less than any sequence number the acceptor has seen, the proposal is rejected and ignored.
+If the sequence number received by the acceptor is greater than or equal to the prior sequence numbers observed by the acceptor, it ``promises'' to reject all messages less than the sequence number received from that point forward.
+A response is issued with this ``promise'' to the original proposer.
+
+Meanwhile, the original proposer wait until it receives responses from a majority of the acceptors it initially issued proposals to with sequence number N.
+Once this occurs, the proposer issues another message with the value chosen for the proposal that was issued.
+An acceptor will accept the proposal and chosen value if the highest sequence number is sees is still N, and reject the message otherwise.
+Upon successful receipt of the accept message, messages are issued to all relevant learners with the value chosen and an accept message is issued to the original proposer.
+If an acceptor rejects the message, the message will be discarded and no response will be issued.
+A proposer knows its attempt to chose a value has failed if it does not receive responses from a majority of acceptors.
+
+If at the end of a single iteration of this protocol, no value is ultimately chosen, the procedure is repeated with a higher sequence number of each node until a value is eventually chosen.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Implementation Details
@@ -36,15 +71,33 @@ STUB
 
 \section{Paxos Implementation}
 
-STUB
+We assume the same assumptions about the distributed system model as originally proposed in the Paxos paper. Namely, we assume the following:
+
+\begin{enumerate}
+\item No Byzantine failures will occur.
+\item All entities in the distributed system operate asynchronously a arbitrary speed
+\item Any node that fails in the system will observe fail-stop behavior
+\item Messages at any phase during the protocol can be dropped, reordered, or duplicated
+\end{enumerate}
+
+\subsection{Simplifying Assumptions}
+
+We also make the following assumptions to simplify our implementation of the Paxos algorithm:
+
+\begin{enumerate}
+\item Any nodes that experience a failure will permanently be removed from the Paxos group and will not attempt recovery and restart
+\item Clients to the system will not intentionally behave maliciously
+\item Entities will not attempt to retransmit messages in the case of message loss or timeout
+\item Clients know which entities are part of the Paxos group
+\item The client-server communication channel is reliable
+\end{enumerate}
+
+TODO: figure out how to elect a leader
 
 \subsection{High Level Software Architecture}
 
 STUB
 
-\subsection{Simplifying Assumptions}
-
-STUB
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Instructions for Use
