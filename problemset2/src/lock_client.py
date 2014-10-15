@@ -57,7 +57,8 @@ client = lock_client()
 
 client.connect_to_server('localhost', 9000)
 
-cmd = ["lock", 45]
+cmd = command.command("lock 45")
+#cmd = ["lock", 45]
 client.send_command(cmd)
 
 rcmds = client.receive_command()
@@ -65,5 +66,5 @@ rcmd = pickle.loads(rcmds)
 
 print "Received " + str(rcmd)
 
-assert(rcmd[0] == "lock")
-assert(rcmd[1] == 45)
+assert(rcmd.my_command == command.COMMAND_TYPE.LOCK)
+assert(rcmd.my_lock_num == 45)

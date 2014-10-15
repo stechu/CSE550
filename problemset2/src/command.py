@@ -13,29 +13,23 @@ class COMMAND_TYPE():
     NONE = 2
 
 class command():
-    my_command = COMMAND_TYPE.NONE
-    my_lock_num = -1
-
+    
     def __init__(self, cmd_str):
         assert(type(cmd_str) == str)
         
-        cmd = cmd_str.strip(" \t\n")
-        cmd_fields = cmd.split(" ")
+        cmd_s = cmd_str.strip(" \t\n")
+        cmd_fields = cmd_s.split(" ")
 
         assert(len(cmd_fields) == 2)
 
-        command = cmd_fields[0]
-        lock_num = int(cmd_fields[1])
+        cmd = cmd_fields[0]
+        self.my_lock_num = int(cmd_fields[1])
 
-        if (command.lower() == LOCK_COMMAND):
-            my_command = COMMAND_TYPE.LOCK
-        elif (command.lower() == UNLOCK_COMMAND):
-            my_command = COMMAND_TYPE.UNLOCK
+        # determine if the command valid
+        if (cmd.lower() == LOCK_COMMAND.lower()):
+            self.my_command = COMMAND_TYPE.LOCK
+        elif (cmd.lower() == UNLOCK_COMMAND.lower()):
+            self.my_command = COMMAND_TYPE.UNLOCK
         else:
             assert(false)
 
-    def command(self):
-        return my_command
-
-    def lock_num(self):
-        return my_lock_num
