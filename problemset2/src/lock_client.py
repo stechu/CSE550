@@ -25,7 +25,7 @@ class lock_client:
     def connect_to_server(self, host, port):
         try:
             client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            client_socket.connect(('localhost', 9000))
+            client_socket.connect((host, port))
             self.CONNECTION_SOCKET = client_socket  # set the connection socket
         except Exception, e:
             print "Error: failed to open socket with error - " + str(e)
@@ -52,19 +52,3 @@ class lock_client:
     # Any clean up routines that should be executed
     def exit(self):
         self.CONNECTION_SOCKET.close()
-
-client = lock_client()
-
-client.connect_to_server('localhost', 9000)
-
-cmd = command.command("lock 45")
-#cmd = ["lock", 45]
-client.send_command(cmd)
-
-rcmds = client.receive_command()
-rcmd = pickle.loads(rcmds)
-
-print "Received " + str(rcmd)
-
-assert(rcmd.my_command == command.COMMAND_TYPE.LOCK)
-assert(rcmd.my_lock_num == 45)
