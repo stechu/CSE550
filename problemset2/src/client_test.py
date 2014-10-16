@@ -59,7 +59,7 @@ class lock_client_test(unittest.TestCase):
 
         connection_socket.send(server_recv_cmds)
 
-        # close the conneciton on the server
+        # close the connection on the server
         connection_socket.close()
 
         print "[Lock Client Test] Client issued command to server..."
