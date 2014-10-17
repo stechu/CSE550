@@ -20,24 +20,19 @@ import Queue
 import socket
 import threading
 
-########################################################
-# Paxos Server Class Definition
-########################################################
 
 class server:
-
-    ######################################################################
-    # Server constructor
-    # - host = hostname server is instantiated on
-    # - port = port number server will listen to
-    # - server_number = unique identifier of server in initial Paxos group
-    # - total_servers = total number of servers in initial Paxos group
-    ######################################################################
-
+    """
+    Server constructor
+    - host = hostname server is instantiated on
+    - port = port number server will listen to
+    - server_number = unique identifier of server in initial Paxos group
+    - total_servers = total number of servers in initial Paxos group
+    """
     def __init__(self, host, port, server_number, total_servers):
         self.request_queue = []      # initialize queue for request commands
-        self.active_connections = dict()  # initialize map of threads -> client connections
-        self.server_connections = []      # a list of server connection sockets to other servers
+        self.active_connections = dict()  # threads -> client connections
+        self.server_connections = []      # list of connection sockets to other servers
 
         # bring up the socket and initialize listening
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -46,7 +41,9 @@ class server:
         self.server_socket = server_socket
 
         # Initialize a listening server connection thread
-        self.listening_thread = threading.Thread(target=self.initialize_listening_thread, args = (host, port, server_socket))
+        self.listening_thread = threading.Thread(
+            target=self.initialize_listening_thread,
+            args=(host, port, server_socket))
 
         self.listening_thread.start()
 
@@ -59,7 +56,8 @@ class server:
         # Bring up the connections to the other servers
         # TODO
 
-        # track the server ID and total number of servers to partition proposal number set
+        # track the server ID and total number of servers to
+        # partition proposal number set
         self.server_number = server_number
         self.total_servers = total_servers
         self.host = host
@@ -69,25 +67,25 @@ class server:
         self.instance_resolutions = dict()
 
         self.DEBUG_TAG = "[" + str(host) + ":" + str(port) + "]"
-        
+
         self.exit_flag = 0
 
-    ########################################################
-    # Initializes a listening connection socket
-    ########################################################
-
     def initialize_listening_thread(self, host, port, server_socket):
-        
-        print "[Server] Server is online on " + str(host) + ":" + str(port) + "\n"
+        """
+        Initializes a listening connection socket
+        """
+        print "[Server] Server is online on " + str(host)
+        + ":" + str(port) + "\n"
 
         try:
             while (self.exit_flag == 0):
                 # listen for a connection and create a processing thread
                 (connection_socket, address) = server_socket.accept()
-            
+
                 # create a processing thread to handle connection
-                connection_thread = threading.Thread(target=self.processing_thread, args = (connection_socket))
-                
+                connection_thread = threading.Thread(
+                    target=self.processing_thread, args=(connection_socket))
+
                 # register thread and connnection
                 self.active_connections_lock.acquire()
                 self.active_connections[connection_thread] = connection_socket
@@ -95,8 +93,8 @@ class server:
 
                 # launch processing thread
                 connection_thread.start()
-
         except Exception, e:
+            print e
             pass
 
         # kill remaining threads and close their connections
@@ -105,13 +103,12 @@ class server:
         self.server_socket.close()
         # TODO
 
-    ########################################################
-    # Establish connections to other servers
-    # - connection_list - a list of pairs (hostname, port)
-    #   to other members of the Paxos group
-    ########################################################
-
     def establish_server_connections(self, connection_list):
+        """
+        Establish connections to other servers
+        - connection_list - a list of pairs (hostname, port)
+        to other members of the Paxos group
+        """
         for connection_pair in connection_list:
             host = connection_pair[0]
             port = connection_pair[1]
@@ -122,23 +119,21 @@ class server:
             self.server_connections.append(client_socket)
 
         print self.DEBUG_TAG + " established server connections...\n"
-        
-    ########################################################
-    # Process commands issued by client
-    # - use a state machine to determine where in the 
-    #   proposal stage you are
-    # - also process any accept or learn messages
-    ########################################################
 
     def processing_thread(self, connection_socket):
+        """
+        Process commands issued by client
+            - use a state machine to determine where in the
+              proposal stage you are
+            - also process any accept or learn messages
+        """
         print "[Server] Launched a processing thread...\n"
-        pass # STUB
-
-    ########################################################
-    # Server shutdown routines
-    ########################################################
+        pass    # STUB
 
     def terminate_server(self):
+        """
+        Server shutdown routine
+        """
         self.exit_flag = 1
 
         # wait for processing threads to complete
@@ -149,11 +144,11 @@ class server:
         # terminate the client sockets to other servers
         for sock in self.server_connections:
             sock.close()
-        
+
         # terminate the listening thread
         if (self.listening_thread.is_alive()):
             self.listening_thread.join()
 
         self.server_socket.close()
-  
+
         print "[Server] Terminated successfully...\n"

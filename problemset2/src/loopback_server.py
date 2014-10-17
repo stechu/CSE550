@@ -30,7 +30,7 @@ print "[Loopback Server] Initialized loopback server..."
 
 index = 0
 
-while (index < NUM_CONNECTIONS or (NUM_CONNECTIONS == -1)):    
+while (index < NUM_CONNECTIONS or (NUM_CONNECTIONS == -1)):
     print "[Loopback Server] Awaiting connections to server..."
 
     (connection_socket, connection_address) = server_socket.accept()
