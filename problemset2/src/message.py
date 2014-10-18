@@ -15,6 +15,8 @@ class MESSAGE_TYPE:
     ACCEPT_ACK = 3
     CLIENT = 4
     CLIENT_ACK = 5
+    LEARNER = 6
+    PREPARE_NACK = 7
 
 ########################################################################################
 # PREPARE - proposal mesasge; requires propoal, instance, and type
@@ -27,9 +29,9 @@ class MESSAGE_TYPE:
 # Message class for holding messages between Paxos servers and clients
 
 class message:
-    def __init__(self, type, proposal, instance, value, origin):
-        self.type = None
-        self.proposal = None
-        self.instance = None
-        self.value = None
-        self.origin = None
+    def __init__(self, msg_type, proposal, instance, value, origin):
+        self.msg_type = msg_type
+        self.proposal = proposal
+        self.instance = instance
+        self.value = value
+        self.origin = origin

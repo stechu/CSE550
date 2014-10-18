@@ -15,7 +15,7 @@ import command
 import cPickle as pickle
 
 
-class lock_client:
+class client:
 
     # Initializer for this client
     def __init__(self):
