@@ -20,20 +20,15 @@ import socket
 import multiprocessing
 from multiprocessing import Queue, Process, Lock
 
-########################################################
-# Paxos Server Class Definition
-########################################################
 
 class server:
-
-    ######################################################################
-    # Server constructor
-    # - host = hostname server is instantiated on
-    # - port = port number server will listen to
-    # - server_number = unique identifier of server in initial Paxos group
-    # - total_servers = total number of servers in initial Paxos group
-    ######################################################################
-
+    """
+    Server constructor
+    - host = hostname server is instantiated on
+    - port = port number server will listen to
+    - server_number = unique identifier of server in initial Paxos group
+    - total_servers = total number of servers in initial Paxos group
+    """
     def __init__(self, host, port, server_number, total_servers):
         self.host = host
         self.port = port
@@ -171,8 +166,8 @@ class server:
 
 '''
         self.request_queue = []      # initialize queue for request commands
-        self.active_connections = dict()  # initialize map of threads -> client connections
-        self.server_connections = []      # a list of server connection sockets to other servers
+        self.active_connections = dict()  # threads -> client connections
+        self.server_connections = []      # list of connection sockets to other servers
 
         # bring up the socket and initialize listening
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -181,7 +176,9 @@ class server:
         self.server_socket = server_socket
 
         # Initialize a listening server connection thread
-        self.listening_thread = threading.Thread(target=self.initialize_listening_thread, args = (host, port, server_socket))
+        self.listening_thread = threading.Thread(
+            target=self.initialize_listening_thread,
+            args=(host, port, server_socket))
 
         self.listening_thread.start()
 
@@ -194,7 +191,8 @@ class server:
         # Bring up the connections to the other servers
         # TODO
 
-        # track the server ID and total number of servers to partition proposal number set
+        # track the server ID and total number of servers to
+        # partition proposal number set
         self.server_number = server_number
         self.total_servers = total_servers
         self.host = host
@@ -204,7 +202,6 @@ class server:
         self.instance_resolutions = dict()
 
         self.DEBUG_TAG = "[" + str(host) + ":" + str(port) + "]"
-        
-        self.exit_flag = 0
 
+<<<<<<< HEAD
 '''

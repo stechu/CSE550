@@ -21,8 +21,11 @@ class client_test(unittest.TestCase):
         # instantiate a client
         self.client = client.client()
 
-    # Tests if connecting to the server works and that loopback works appropriately
     def test_client_connection_loopback(self):
+        """
+        Tests if connecting to the server works and that
+        loopback works appropriately
+        """
         # start up the test loopback server
         SERVER_HOSTNAME = 'localhost'
         SERVER_PORT = 9000
@@ -32,7 +35,7 @@ class client_test(unittest.TestCase):
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server_socket.bind((SERVER_HOSTNAME, SERVER_PORT))
         server_socket.listen(10)
-        
+
         print "[Lock Client Test] Launched server subprocess..."
 
         # connect to the initialized server socket
@@ -42,7 +45,7 @@ class client_test(unittest.TestCase):
         (connection_socket, connection_address) = server_socket.accept()
 
         print "[Lock Client Test] Client connected to server..."
-        
+
         # Client sends a command to server
         cmd_obj = command.command("lock 45")
         self.client.send_command(cmd_obj)
