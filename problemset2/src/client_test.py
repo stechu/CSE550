@@ -1,12 +1,12 @@
 #!/usr/bin/python
 
 #########################################################################
-# lock_client_test.py
+# client_test.py
 #
 # Unit test for lock client
 #########################################################################
 
-import lock_client
+import client
 import sys
 import os
 import unittest
@@ -16,10 +16,10 @@ import socket
 import subprocess
 import time
 
-class lock_client_test(unittest.TestCase):
+class client_test(unittest.TestCase):
     def setUp(self):
         # instantiate a client
-        self.client = lock_client.lock_client()
+        self.client = client.client()
 
     # Tests if connecting to the server works and that loopback works appropriately
     def test_client_connection_loopback(self):

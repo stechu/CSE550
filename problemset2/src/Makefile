@@ -1,11 +1,33 @@
-####################################################
-# Makefile for src director
-####################################################
+#####################################################################3
+# CSE 550 Autumn 2014
+#
+# Problem Set 1 Part A
+# Author: Vincent Lee
+#####################################################################3
 
-all: test
+EXECUTABLE=550shell
+CC=$(shell which g++)
+CPPFLAGS=-Wall -Wextra -g
+LDFLAGS=-lm -lreadline
+LDLIBS=
+SRCS=
+OBJS=$(subst .cc,.o,$(SRCS))
+INCLUDES=
+DEBUGGER=$(shell which valgrind)
 
-test:
-	python lock_client_test.py
+all: $(EXECUTABLE)
+
+$(EXECUTABLE): $(OBJS)
+	$(CC) $(CPPFLAGS) $(LDFLAGS) $(LDLIBS) -o $(EXECUTABLE) $(OBJS)
+
+debug: $(EXECUTABLE)
+	$(DEBUGGER) $(EXECUTABLE)
+
+%.o: %.cc
+	$(CC) $(CPPFLAGS) -c $<
+
+run: $(EXECUTABLE)
+	./$(EXECUTABLE) "ls | wc"
 
 clean:
-	rm -f *~ \#*
+	rm -f $(EXECUTABLE) *~ \#* *.o

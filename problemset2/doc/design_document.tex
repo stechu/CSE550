@@ -69,18 +69,25 @@ If at the end of a single iteration of this protocol, no value is ultimately cho
 % Implementation Details
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\section{Paxos Implementation}
+\section{Paxos Implementation of Lock Service}
+
+Our design leverages the Paxos algorithm to implement a the ordering of commands for a simple lock service.
+Issuable commands in this service are \bf{lock(x)} and \bf{unlock(x)} where \bf{x} is an integer.
+The end goal of this service is to provide consensus upon a series of commands in which locks are resolved in a valid order.
+The state machine in this service is defined to be the state of the locks and is replicated across servers for resilience to failure.
+Each instance of the Paxos protocol resolves exactly one command to be issued for that instance.
+Instances are numbered in monotonically increasing order and correlate to sequence in which the \bf{lock(x)} and \bf{unlock(x)} commands are issued.
+
+\subsection{Simplifying Assumptions}
 
 We assume the same assumptions about the distributed system model as originally proposed in the Paxos paper. Namely, we assume the following:
 
 \begin{enumerate}
 \item No Byzantine failures will occur.
-\item All entities in the distributed system operate asynchronously a arbitrary speed
+\item All entities in the distributed system operate asynchronously at arbitrary speed
 \item Any node that fails in the system will observe fail-stop behavior
 \item Messages at any phase during the protocol can be dropped, reordered, or duplicated
 \end{enumerate}
-
-\subsection{Simplifying Assumptions}
 
 We also make the following assumptions to simplify our implementation of the Paxos algorithm:
 
@@ -92,11 +99,61 @@ We also make the following assumptions to simplify our implementation of the Pax
 \item The client-server communication channel is reliable
 \end{enumerate}
 
+
 TODO: figure out how to elect a leader
+
+\subsection{Failure Mode Considerations}
+
+The following is a list of failure modes that our implementation of the lock service considers:
+
+\begin{enumerate}
+\item Upon a connection by the client, the Paxos member servicing the client requests promptly fails. 
+  We resolve this by tagging client requests with a unique identifier.
+  The unique identifier is used upon reconnecting to a new Paxos member to validate whether requests by the failed Paxos member were accepted.
+  If a command with the unique identifier appears in a previous resolution to an instance of Paxos, we know that the command has already been accepted and do not need to attempt to propose it again.
+  If the command identifier does not appear in the list of previously resolved Paxos instances, we know that the original proposal failed and must be proposed again.
+\end{enumerate}
 
 \subsection{High Level Software Architecture}
 
+We first note that it is necessary for each Paxos process to act as a proposer, acceptor, and learner as suggested by Lamport in ``Paxos Made Simple''.
+This is because there are multiple instances of Paxos that may be running and so new proposals must be attributed to instance numbers that have not yet been resolved.
+Proposers and learners in particular must reside on the same process because only learners are defined to learn the outcome on a Paxos instance.
+A proposer must know which instances of Paxos have been resolved so that it may make a proposal for an instance that has not been resolved and therefore must also be a learner.
+This architecture also eliminates the possibility that proposer's receive an accept request acknowledgement while learners may not due to catastrophic message losses.
+By making a process both an acceptor and a learner, it is guaranteed that both the acceptor and learner get a majority response or that both fail to get a majority response.
+
+
+\subsection{Implementation Details}
+
+\subsubsection{Server Initialization}
+
+We use a script to initialize each of our servers and bring our Paxos group online.
+Each server is initialized with a unique server identifier and the total number of servers.
+This is to allow each server to independently compute a mutually indepedent set of monotonically increasing proposals numbers and avoid collisions.
+We also provide each server with a list of other servers connections.
+These server connection channels are used to communicate messages between Paxos members and is an all-to-all network.
+To ensure safe bring up, we first initialize listening sockets on each server, then initialize the connections betwen servers.
+Each client connection on the server is treated the same way regardless if the origin is a another server process or a client process.
+To avoid port collision, listening socket numbers on each server are predefined.
+
+\subsubsection{Message Passing}
+
+A message data structure is used to contain the contents of any message traveling to and between the Paxos group members.
+The message type determines how the message should be interpreted; message types are: PREPARE, PREPARE_ACK, ACCEPT, ACCEPT_ACK, CLIENT, CLIENT_ACK.
+A explanation of each message type is below:
+\begin{itemize}
+\item PREPARE - indicates message is a prepare request from a proposer; holds the proposal number, instance number, and the origin server
+\item PREPARE_ACK - indicates message ia an acknowledgement or promise message for a proposer from an acceptor; holds a proposal number, and instance number
+\item ACCEPT - an accept request message; holds a proposal number, instance number, value, and origin
+\item ACCEPT_ACK - an accept acknowledgement; sends proposal number, instance number, and value
+\item CLIENT - indicates message came from client with a command request; contains value
+\item CLIENT_ACK - an acknowledgement message send to the client once command proposed has been accepted
+\end{itemize}
+
 STUB
+
+
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

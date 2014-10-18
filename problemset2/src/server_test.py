@@ -28,7 +28,7 @@ class server_test(unittest.TestCase):
 
     def tearDown(self):
         for i in range(0, len(self.servers)):
-            self.servers[i].exit = 1
+            self.servers[i].exit_flag = 1
         self.servers[i].exit_flag = 1
 
     def test_server_listen_initialize(self):

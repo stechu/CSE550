@@ -16,9 +16,9 @@
 
 import os
 import sys
-import Queue
 import socket
-import threading
+import multiprocessing
+from multiprocessing import Queue, Process, Lock
 
 ########################################################
 # Paxos Server Class Definition
@@ -35,6 +35,141 @@ class server:
     ######################################################################
 
     def __init__(self, host, port, server_number, total_servers):
+        self.host = host
+        self.port = port
+        self.server_number = server_number
+        self.total_servers = total_servers
+
+        # Communication queues for this server node
+        self.proposer_queue = Queue()  # message queue bound for the proposer process
+        self.acceptor_queue = Queue()  # message queue bound for the acceptor process
+        self.learner_queue = Queue()   # message queue bound for the leaner process
+
+        # Initialize queue locks
+        self.proposer_queue_lock = Lock()
+        self.acceptor_queue_lock = Lock()
+        self.learner_queue_lock = Lock()
+
+        # Fire up a listener process
+        listening_process = Process(target=initialize_listener, args=(host, port))
+        listening_process.start()
+        self.listening_process = listening_process
+
+
+    ######################################################################
+    # Initializes a listening process which routes listening connections
+    # - starts up a listening socket
+    # - messages on the listening socket are routed appropriately to the
+    #   relevant Paxos member
+    ######################################################################
+    
+    def initialize_listener(self, host, port):
+        
+        # bring up the listening socket
+        server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server_socket.bind((host, port))
+        server_socket.listen(30)
+
+        #TODO: set up graceful exit
+        done = 0
+
+        # while still alive, set up connections and put them on a listening process
+        while (done == 0):
+            
+            # connect to the socket
+            connection_socket, address = server_socket.accept()
+
+            # for each connection you accept, fire another process that blocks on receives
+            connection_process = Process(target=a, args=(connection_socket))
+
+            pass
+
+        
+    ######################################################################
+    # Handles data incoming on each connection socket
+    # - issues a blocking call to the receive function
+    # - expects to receive message class type objects after unpickling
+    ######################################################################
+
+    def connection_process(self, socket):
+        done = 0
+
+        try:
+            while (done == 0):
+                # receive the message
+                smsg = socket.recv()
+
+                # unpack the message data
+                msg = pickle.loads(smessage)
+
+                # switch on the message type
+                msg_type = msg.type
+                
+                # route the message to the appropriate process based on the message type
+                if (msg_type == message.MESSAGE_TYPE.PREPARE):
+                    self.acceptor_queue_lock.lock()
+                    self.acceptor_queue.put(msg)
+                    self.acceptor_queue_lock.unlock()
+                elif(msg_type == message.MESSAGE_TYPE.PREPARE_ACK):
+                    self.proposer_queue_lock.lock()
+                    self.proposer_queue.put(msg)
+                    self.proposer_queue_lock.unlock()
+                elif(msg_type == message.MESSAGE_TYPE.ACCEPT):
+                    self.acceptor_queue_lock.lock()
+                    self.acceptor_queue.put(msg)
+                    self.acceptor_queue_lock.unlock()
+                elif(msg_type == message.MESSAGE_TYPE.ACCEPT_ACK):
+                    self.proposer_queue_lock.lock()
+                    self.proposer_queue.put(msg)
+                    self.proposer_queue_lock.unlock()
+                elif(msg_type == message.MESSAGE_TYPE.CLIENT):
+                    self.proposer_queue_lock.lock()
+                    self.proposer_queue.put(msg)
+                    self.proposer_queue_lock.unlock()
+                elif(msg_type == message.MESSAGE_TYPE.CLIENT_ACK):
+                    assert(false) # the server should never receive this message type
+                else:
+                    assert(false) # the server should never get here
+
+        # if the socket closes, handle the disconnect exception and terminate
+        except Exception, e:
+            continue
+
+
+    ######################################################################
+    # Intializes a proposer process that acts as a proposer Paxos member
+    # - creates listening socket for client connections
+    # - initializes connections to other server connections
+    # - starts main loop for proposer which reads proposal requests off
+    #   a queue of requests
+    # - server_list is a list of pairs (host, port)
+    ######################################################################
+    def initialize_proposer(self, host, port, server_number, total_servers, server_list):
+
+        # create a request queue
+        request_queue = Queue()
+
+        # Initialize server connections unless it's to yourself
+        
+        for serv in total_servers:
+            assert(len(serv) == 2)
+            target_host = serv[0]
+            target_port = serv[1]
+
+            try:
+                connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                connection.connect((target_host, target_port))
+
+            except Exception, e:
+                print "Failed to connect to " + str(target_host) + ":" + str(target_port)
+                continue
+
+        pass
+
+
+# TODO:
+
+'''
         self.request_queue = []      # initialize queue for request commands
         self.active_connections = dict()  # initialize map of threads -> client connections
         self.server_connections = []      # a list of server connection sockets to other servers
@@ -72,88 +207,4 @@ class server:
         
         self.exit_flag = 0
 
-    ########################################################
-    # Initializes a listening connection socket
-    ########################################################
-
-    def initialize_listening_thread(self, host, port, server_socket):
-        
-        print "[Server] Server is online on " + str(host) + ":" + str(port) + "\n"
-
-        try:
-            while (self.exit_flag == 0):
-                # listen for a connection and create a processing thread
-                (connection_socket, address) = server_socket.accept()
-            
-                # create a processing thread to handle connection
-                connection_thread = threading.Thread(target=self.processing_thread, args = (connection_socket))
-                
-                # register thread and connnection
-                self.active_connections_lock.acquire()
-                self.active_connections[connection_thread] = connection_socket
-                self.active_connections_lock.release()
-
-                # launch processing thread
-                connection_thread.start()
-
-        except Exception, e:
-            pass
-
-        # kill remaining threads and close their connections
-        print "[Server] Terminating listening thread..."
-
-        self.server_socket.close()
-        # TODO
-
-    ########################################################
-    # Establish connections to other servers
-    # - connection_list - a list of pairs (hostname, port)
-    #   to other members of the Paxos group
-    ########################################################
-
-    def establish_server_connections(self, connection_list):
-        for connection_pair in connection_list:
-            host = connection_pair[0]
-            port = connection_pair[1]
-
-            client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            client_socket.connect((host, port))
-
-            self.server_connections.append(client_socket)
-
-        print self.DEBUG_TAG + " established server connections...\n"
-        
-    ########################################################
-    # Process commands issued by client
-    # - use a state machine to determine where in the 
-    #   proposal stage you are
-    # - also process any accept or learn messages
-    ########################################################
-
-    def processing_thread(self, connection_socket):
-        print "[Server] Launched a processing thread...\n"
-        pass # STUB
-
-    ########################################################
-    # Server shutdown routines
-    ########################################################
-
-    def terminate_server(self):
-        self.exit_flag = 1
-
-        # wait for processing threads to complete
-        for thread in self.active_connections.keys():
-            if thread.is_alive():
-                thread.join()
-
-        # terminate the client sockets to other servers
-        for sock in self.server_connections:
-            sock.close()
-        
-        # terminate the listening thread
-        if (self.listening_thread.is_alive()):
-            self.listening_thread.join()
-
-        self.server_socket.close()
-  
-        print "[Server] Terminated successfully...\n"
+'''
