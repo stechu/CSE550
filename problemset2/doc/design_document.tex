@@ -112,6 +112,11 @@ The following is a list of failure modes that our implementation of the lock ser
   The unique identifier is used upon reconnecting to a new Paxos member to validate whether requests by the failed Paxos member were accepted.
   If a command with the unique identifier appears in a previous resolution to an instance of Paxos, we know that the command has already been accepted and do not need to attempt to propose it again.
   If the command identifier does not appear in the list of previously resolved Paxos instances, we know that the original proposal failed and must be proposed again.
+\item Upon acquiring a lock, the client connection and the lock is orphaned. 
+  We do not handle this in our implementation as we assume that clients are well behaved and communication between the client and server is reliable
+\item Upon acquiring a lock, the server node dies and the lock is orphaned.
+  We consider allowing the client to reconnect to a different server node to complete execution of the lock sequence to free the lock.
+  Clients will issue a client identifier tag with each request allowing the server to authenticate if the client was the original holder of the lock.
 \end{enumerate}
 
 \subsection{High Level Software Architecture}
@@ -123,33 +128,65 @@ A proposer must know which instances of Paxos have been resolved so that it may 
 This architecture also eliminates the possibility that proposer's receive an accept request acknowledgement while learners may not due to catastrophic message losses.
 By making a process both an acceptor and a learner, it is guaranteed that both the acceptor and learner get a majority response or that both fail to get a majority response.
 
-
 \subsection{Implementation Details}
 
 \subsubsection{Server Initialization}
 
 We use a script to initialize each of our servers and bring our Paxos group online.
-Each server is initialized with a unique server identifier and the total number of servers.
-This is to allow each server to independently compute a mutually indepedent set of monotonically increasing proposals numbers and avoid collisions.
-We also provide each server with a list of other servers connections.
+Each server is initialized with a unique server identifier and a list of hostname and ports for all other servers in the Paxos group to establish communication channels.
+This is also to allow each server to independently compute a mutually indepedent set of monotonically increasing proposals numbers and avoid proposal number collisions.
 These server connection channels are used to communicate messages between Paxos members and is an all-to-all network.
 To ensure safe bring up, we first initialize listening sockets on each server, then initialize the connections betwen servers.
-Each client connection on the server is treated the same way regardless if the origin is a another server process or a client process.
+Each server in addition to inter-server communication channel sockets, exposes a client facing server socket which are used exclusively by clients to connect to.
+This architecture decision was to simplify the message handling and control complexity that would have gone in to processing both client state and Paxos member states during the protocol.
 To avoid port collision, listening socket numbers on each server are predefined.
 
 \subsubsection{Message Passing}
 
 A message data structure is used to contain the contents of any message traveling to and between the Paxos group members.
-The message type determines how the message should be interpreted; message types are: PREPARE, PREPARE_ACK, ACCEPT, ACCEPT_ACK, CLIENT, CLIENT_ACK.
+The message type determines how the message should be interpreted; message types are: PREPARE, PREPARE\_ACK, ACCEPT, ACCEPT\_ACK, CLIENT, CLIENT\_ACK.
 A explanation of each message type is below:
 \begin{itemize}
 \item PREPARE - indicates message is a prepare request from a proposer; holds the proposal number, instance number, and the origin server
-\item PREPARE_ACK - indicates message ia an acknowledgement or promise message for a proposer from an acceptor; holds a proposal number, and instance number
+\item PREPARE\_ACK - indicates message ia an acknowledgement or promise message for a proposer from an acceptor; holds a proposal number, and instance number
 \item ACCEPT - an accept request message; holds a proposal number, instance number, value, and origin
-\item ACCEPT_ACK - an accept acknowledgement; sends proposal number, instance number, and value
+\item ACCEPT\_ACK - an accept acknowledgement; sends proposal number, instance number, and value
 \item CLIENT - indicates message came from client with a command request; contains value
-\item CLIENT_ACK - an acknowledgement message send to the client once command proposed has been accepted
+\item CLIENT\_ACK - an acknowledgement message send to the client once command proposed has been accepted
 \end{itemize}
+
+Each server runs two communication server channels.
+One server socket is dedicated to receiving and connecting to exclusively other servers
+A second server socket is dedicated to listening to client connections on the proposer process discussed later.
+To avoid port collisions, each server assumes that the port number supplied during initialization and the port number plus 1 are both allocated for that server.
+
+\begin{figure}
+\includegraphics[width=6in]{paxos_group_connections.jpg}
+\caption{Paxos Group Connections - each Paxos group member holds connections to clients and connections to communication to every other server in the Paxos group} 
+\end{figure}
+
+Once a command has been successfully added to an instance of Paxos, an acknowledgement message is sent to the client notifying the client that the lock was acquired. The connection then waits until a new command is issued by the client and repeats the processing or the client terminates the connection.
+
+\subsection{Process Architecture}
+
+A server contains one instance of each Paxos role: a proposer, an acceptor, and a learner.
+The proposer, acceptor, and learners run on separate processes for each instance of a server in order to operate asynchronously.
+Each process has a message queue which is fed with in-bound messages from other servers and client requests.
+A listening thread is initialized on the inter-server socket which receives messages and routes them
+The proposer process is responsible for opening a client facing socket which allows clients to connect to the service and send request messages.
+Proposers handle each connection in a blocking manner where the client connection will block until the requested command issued by the client makes it into an instance of Paxos.
+
+\begin{figure}
+\includegraphics[width=4in]{paxos_member_architecture.jpg}
+\caption{Process Architecture - message queues to learner, proposer, and acceptor are serialized and each put() on the message queue is atomic}
+\end{figure}
+
+
+\subsection{Lock Service Contention}
+
+Because the service for each client is blocking until the request is resolved, in the event of lock contention a client connection will simply wait until lock request has been processed.
+
+TODO: argue correctness?
 
 STUB
 
