@@ -79,7 +79,7 @@ class acceptor_test(unittest.TestCase):
     #  is received
     ###########################################################
 
-    def test_single_proposal(self):
+    def test_single_proposal_prepare(self):
 
         print "\n\n[Info] ##########[SINGLE PROPOSAL TEST]##########\n"
 
@@ -113,9 +113,9 @@ class acceptor_test(unittest.TestCase):
     #  if correct responses are received
     ###########################################################
 
-    def test_multiple_proposal(self):
+    def test_multiple_proposal_prepare(self):
 
-        print "\n\n[Info] ##########[MULTIPLE PROPOSER TEST]##########\n"
+        print "\n\n[Info] ##########[MULTIPLE PROPOSAL TEST]##########\n"
 
         # send and receive a valid proposal
         proposal = 1; instance = 0; client_id = 9
@@ -171,9 +171,156 @@ class acceptor_test(unittest.TestCase):
             assert(False) # a timeout should occur
         except Exception, e:
             pass
-        
+
         print "[Info] Fourth prepare request test successful..."
 
+        # send a higher number proposal just to make sure the proposer didn't die
+        # send and receive same numbered proposal
+        proposal = 11; instance = 0; client_id = 7
+        msg = message.message(message.MESSAGE_TYPE.PREPARE,
+                              proposal, instance, None, 'localhost', 9003, client_id)
+        self.message_socket.send(pickle.dumps(msg))
+
+        rmsg = pickle.loads(self.acceptor_connection.recv(1000))
+        assert(rmsg.msg_type == message.MESSAGE_TYPE.PREPARE_ACK)
+        assert(rmsg.proposal == proposal)
+        assert(rmsg.instance == instance)
+        assert(rmsg.client_id == client_id)
+        
+        print "[Info] Fifth prepare request successful..."
+
+    ###########################################################
+    # Test multiple instances
+    ###########################################################
+
+    def test_multiple_instance_prepare(self):
+        print "\n\n[Info] ##########[MULTIPLE INSTANCE PREAPRE TEST]##########\n"
+        
+        # send an initial instance number
+        proposal = 0; instance = 0; client_id = 7
+        msg = message.message(message.MESSAGE_TYPE.PREPARE,
+                              proposal, instance, None, 'localhost', 9003, client_id)
+        self.message_socket.send(pickle.dumps(msg))
+
+        rmsg = pickle.loads(self.acceptor_connection.recv(1000))
+        assert(rmsg.msg_type == message.MESSAGE_TYPE.PREPARE_ACK)
+        assert(rmsg.proposal == proposal)
+        assert(rmsg.instance == instance)
+        assert(rmsg.client_id == client_id)
+        
+        # send a higher number proposal
+        proposal = 5; instance = 0; client_id = 5
+        msg = message.message(message.MESSAGE_TYPE.PREPARE,
+                              proposal, instance, None, 'localhost', 9003, client_id)
+        self.message_socket.send(pickle.dumps(msg))
+
+        rmsg = pickle.loads(self.acceptor_connection.recv(1000))
+        assert(rmsg.msg_type == message.MESSAGE_TYPE.PREPARE_ACK)
+        assert(rmsg.proposal == proposal)
+        assert(rmsg.instance == instance)
+        assert(rmsg.client_id == client_id)
+
+        # send a different instance with lower proposal number
+        proposal = 1; instance = 2; client_id = 5
+        msg = message.message(message.MESSAGE_TYPE.PREPARE,
+                              proposal, instance, None, 'localhost', 9003, client_id)
+        self.message_socket.send(pickle.dumps(msg))
+
+        rmsg = pickle.loads(self.acceptor_connection.recv(1000))
+        assert(rmsg.msg_type == message.MESSAGE_TYPE.PREPARE_ACK)
+        assert(rmsg.proposal == proposal)
+        assert(rmsg.instance == instance)
+        assert(rmsg.client_id == client_id)
+
+        # send original instance with lower proposal number
+        proposal = 3; instance = 0; client_id = 5
+        msg = message.message(message.MESSAGE_TYPE.PREPARE,
+                              proposal, instance, None, 'localhost', 9003, client_id)
+        self.message_socket.send(pickle.dumps(msg))
+
+        self.acceptor_connection.settimeout(1.0)
+        try:
+            rmsg = pickle.loads(self.acceptor_connection.recv(1000))
+            assert(False)
+        except Exception, e:
+            pass
+        
+        # send to new instance with higher proposal number
+        proposal = 7; instance = 2; client_id = 5
+        msg = message.message(message.MESSAGE_TYPE.PREPARE,
+                              proposal, instance, None, 'localhost', 9003, client_id)
+        self.message_socket.send(pickle.dumps(msg))
+
+        rmsg = pickle.loads(self.acceptor_connection.recv(1000))
+        assert(rmsg.msg_type == message.MESSAGE_TYPE.PREPARE_ACK)
+        assert(rmsg.proposal == proposal)
+        assert(rmsg.instance == instance)
+        assert(rmsg.client_id == client_id)
+
+    ###########################################################
+    # Attempt to send single accept command
+    ###########################################################
+
+    def test_single_proposal_accept(self):
+
+        print "\n\n[Info] ##########[SINGLE PREPARE TEST]##########\n"
+
+        # craft the message
+        proposal = 0
+        instance = 1
+        client_id = 2
+
+        msg = message.message(message.MESSAGE_TYPE.ACCEPT, 
+                              proposal, instance, None, 'localhost', 9003, client_id)
+
+        self.message_socket.send(pickle.dumps(msg))
+
+        print "[Info] Sent a proposal to acceptor..."
+        
+        # get a response back from the paxos server
+        rmsgs = self.acceptor_connection.recv(1000)
+        rmsg = pickle.loads(rmsgs)
+        assert(isinstance(rmsg, message.message))
+
+        print "[Info] Received a response from server..."
+
+        assert(rmsg.msg_type == message.MESSAGE_TYPE.ACCEPT_ACK)
+        assert(rmsg.proposal == proposal)
+        assert(rmsg.instance == instance)
+        assert(rmsg.client_id == client_id)
+
+    ###########################################################
+    # Attempt prepare and then accept of same proposal number
+    ###########################################################
+
+    def test_single_prepare_accept(self):
+        
+        print "\n\n[Info] ##########[SINGLE PREPARE ACCEPT TEST]##########\n"
+
+        # send a prepare request
+        proposal = 5; instance = 1; client_id = 9
+        msg = message.message(message.MESSAGE_TYPE.PREPARE,
+                              proposal, instance, None, 'localhost', 9003, client_id)
+        self.message_socket.send(pickle.dumps(msg))
+
+        rmsg = pickle.loads(self.acceptor_connection.recv(1000))
+        assert(rmsg.msg_type == message.MESSAGE_TYPE.PREPARE_ACK)
+        assert(rmsg.proposal == proposal)
+        assert(rmsg.instance == instance)
+        assert(rmsg.client_id == client_id)
+        
+        # send an accept request
+        proposal = 5; instance = 1; client_id = 9
+        msg = message.message(message.MESSAGE_TYPE.ACCEPT,
+                              proposal, instance, None, 'localhost', 9003, client_id)
+        self.message_socket.send(pickle.dumps(msg))
+
+        rmsg = pickle.loads(self.acceptor_connection.recv(1000))
+        assert(rmsg.msg_type == message.MESSAGE_TYPE.ACCEPT_ACK)
+        assert(rmsg.proposal == proposal)
+        assert(rmsg.instance == instance)
+        assert(rmsg.client_id == client_id)
+        
 
     ###########################################################
     # Tear down infrastructure and exit

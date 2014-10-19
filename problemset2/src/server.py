@@ -514,8 +514,8 @@ class server:
                     instance_proposal_map[p_instance] = p_proposal
 
                 # check to see if the proposal number for th instance is high enough
-                if (p_proposal >= instance_proposal_map[p_instnce]):
-                    instance_proposal_map[p_instnace] = p_proposal
+                if (p_proposal >= instance_proposal_map[p_instance]):
+                    instance_proposal_map[p_instance] = p_proposal
                     rmsg = message.message(message.MESSAGE_TYPE.ACCEPT_ACK,
                                            p_proposal,
                                            p_instance,
