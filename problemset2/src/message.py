@@ -17,6 +17,7 @@ class MESSAGE_TYPE:
     CLIENT_ACK = 5
     LEARNER = 6
     PREPARE_NACK = 7
+    EXIT = 8
 
 ########################################################################################
 # PREPARE - proposal mesasge; requires propoal, instance, and type

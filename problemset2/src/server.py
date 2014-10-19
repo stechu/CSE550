@@ -20,6 +20,7 @@ import socket
 import multiprocessing
 from multiprocessing import Queue, Process, Lock
 import message
+import pickle
 
 class server:
     
@@ -40,6 +41,7 @@ class server:
         self.port = port
         self.server_number = server_number
         self.total_servers = total_servers
+        self.DEBUG_TAG = "[" + str(host) + ":" + str(port) + "]"
 
         # Communication queues for this server node
         self.proposer_queue = Queue()  # message queue bound for the proposer process
@@ -52,39 +54,54 @@ class server:
         self.learner_queue_lock = Lock()
 
         # Fire up a listener process
-        listening_process = Process(target=initialize_listener, args=(host, port))
+        listening_process = Process(target=self.initialize_listener, args=(host, port))
         listening_process.start()
         self.listening_process = listening_process
 
+        print self.DEBUG_TAG + " Initialized a listener process..."
+
+        print self.DEBUG_TAG + " Done bringing up Paxos member..."
 
     ######################################################################
     # Initializes a listening process which routes listening connections
     # - starts up a listening socket
     # - messages on the listening socket are routed appropriately to the
     #   relevant Paxos member
+    # - Handles the initialization of a process for all inter-server
+    #   communication
     ######################################################################
     
     def initialize_listener(self, host, port):
+        print self.DEBUG_TAG + " Starting listener on process " + str(os.getpid())
         
-        # bring up the listening socket
-        server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        server_socket.bind((host, port + 1)) # inter-server connections on port + 1
-        server_socket.listen(30)
+        try:
+            # bring up the listening socket
+            server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            server_socket.bind((host, int(port) + 1)) # inter-server connections on port + 1
+            server_socket.listen(30)
 
-        #TODO: set up graceful exit
-        done = 0
+            print self.DEBUG_TAG + " Opened inter_server socket on port " + str(port + 1)
 
-        # while still alive, set up connections and put them on a listening process
-        # - these connections are internal server communication channels
-        while (done == 0):
+            #TODO: set up graceful exit
+            done = 0
+
+            # while still alive, set up connections and put them on a listening process
+            # - these connections are internal server communication channels
+            while (done == 0):
             
-            # connect to the socket
-            connection_socket, address = server_socket.accept()
+                # connect to the socket
+                connection_socket, address = server_socket.accept()
 
-            # for each connection you accept, fire another process that blocks on receives
-            connection_process = Process(target=a, args=(connection_socket))
+                # for each connection you accept, fire another process that blocks on receives
+                listening_process = Process(target=self.connection_process, args=(connection_socket,))
 
-        
+                # starts the connection process
+                listening_process.start()
+
+        except Exception, e:
+            print self.DEBUG_TAG + " ERROR - Error initializing listening process on port " + str(port + 1) + " - " + str(e)
+
     ######################################################################
     # Handles data incoming on each connection socket
     # - issues a blocking call to the receive function
@@ -94,47 +111,100 @@ class server:
     def connection_process(self, socket):
         done = 0
 
+        print self.DEBUG_TAG + " Connection handler initialized with PID " + str(os.getpid())
+
         try:
             while (done == 0):
                 # receive the message
-                smsg = socket.recv()
+                smsg = socket.recv(1000)
+
+                print self.DEBUG_TAG + " Received a message string: " + smsg
 
                 # unpack the message data
-                msg = pickle.loads(smessage)
+                msg = pickle.loads(smsg)
+
+                assert(isinstance(msg, message.message))
 
                 # switch on the message type
                 msg_type = msg.msg_type
                 
                 # route the message to the appropriate process based on the message type
                 if (msg_type == message.MESSAGE_TYPE.PREPARE):
+                    print self.DEBUG_TAG + " Got a prepare message."
                     self.acceptor_queue_lock.lock()
                     self.acceptor_queue.put(msg)
                     self.acceptor_queue_lock.unlock()
                 elif(msg_type == message.MESSAGE_TYPE.PREPARE_ACK):
+                    print self.DEBUG_TAG + " Got a prepare ACK message."
                     self.proposer_queue_lock.lock()
                     self.proposer_queue.put(msg)
                     self.proposer_queue_lock.unlock()
                 elif(msg_type == message.MESSAGE_TYPE.ACCEPT):
+                    print self.DEBUG_TAG + " Got an accept message."
                     self.acceptor_queue_lock.lock()
                     self.acceptor_queue.put(msg)
                     self.acceptor_queue_lock.unlock()
                 elif(msg_type == message.MESSAGE_TYPE.ACCEPT_ACK):
+                    print self.DEBUG_TAG + " Got a accept ACK message."
                     self.proposer_queue_lock.lock()
                     self.proposer_queue.put(msg)
                     self.proposer_queue_lock.unlock()
                 elif(msg_type == message.MESSAGE_TYPE.CLIENT):
+                    print self.DEBUG_TAG + " Got a client message."
                     self.proposer_queue_lock.lock()
                     self.proposer_queue.put(msg)
                     self.proposer_queue_lock.unlock()
                 elif(msg_type == message.MESSAGE_TYPE.CLIENT_ACK):
+                    print self.DEBUG_TAG + " Got a client ACK message."
                     assert(false) # the server should never receive this message type
+                elif(msg_type == message.MESSAGE_TYPE.EXIT):
+                    print self.DEBUG_TAG + " Got an exit message."
+                    self.proposer_queue.put(msg)
+                    self.acceptor_queue.put(msg)
+                    self.learner_queue.put(msg)
+                    done = 1
                 else:
+                    print self.DEBUG_TAG + " ERROR - Got a message which makes no sense."
                     assert(false) # the server should never get here
 
         # if the socket closes, handle the disconnect exception and terminate
         except Exception, e:
-            continue
+            print self.DEBUG_TAG + " ERROR - exception raised: " + str(e)
+            pass
 
+        # close the server socket
+        socket.close()
+
+    ######################################################################
+    # Initializes the Paxos members on different processes after starting
+    # the listening sockets
+    ######################################################################
+
+    def initialize_paxos(self, host, port, server_number, total_servers, server_list):
+        self.acceptor_process = launch_acceptor_process(self, host, port, server_number, total_servers, server_list)
+        self.proposer_process = launch_proposer_process(self, host, port, server_number, total_servers, server_list)
+
+    # abstract initialization processes for testing purposes
+    def launch_acceptor_process(self, host, port, server_number, total_servers, server_list):
+        # initialize the acceptor process
+        acceptor_process = Process(target=self.initialize_acceptor,
+                                   args=(host, port, server_number, total_servers, server_list))
+        acceptor_process.start()
+
+        print self.DEBUG_TAG + " Initialized proposer process..."
+
+        return acceptor_process
+
+    # abstract initialization processes for testing purposes
+    def launch_proposer_process(self, host, port, server_number, total_servers, server_list):
+        # initialize the proposer process
+        proposer_process = Process(target=self.initialize_proposer, 
+                                   args=(host, port, server_number, total_servers, server_list))
+        proposer_process.start()
+
+        print self.DEBUG_TAG + " Initialized acceptor process..."
+
+        return proposer_process
 
     ######################################################################
     # Intializes a proposer process that acts as a proposer Paxos member
@@ -160,9 +230,11 @@ class server:
             assert(len(serv) == 2)
             target_host = serv[0]
             target_port = serv[1]
+            assert((int(target_port) % 2) == 1)  # interserver ports are odd
 
             try:
                 connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                connection.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 connection.connect((target_host, target_port))
                 server_connections.append(connection)
             except Exception, e:
@@ -171,6 +243,7 @@ class server:
 
         # Open a client port and listen on port for connections
         client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         client_socket.bind((host, port))
         client_socket.listen(30)
 
@@ -357,6 +430,9 @@ class server:
     ######################################################################
 
     def initialize_acceptor(self, host, port, server_number, total_servers, server_list):
+
+        print (self.DEBUG_TAG + " Initializing acceptor process with PID " + str(os.getpid()))
+
         # open socket connections to each server with (hostname, port) pairs as keys
         server_connections = dict()
         for s in server_list:
@@ -364,11 +440,14 @@ class server:
             assert(len(s) == 2)
             target_host = s[0]
             target_port = s[1]
+            assert((int(target_port) % 2) == 1)  # inter-server ports are odd
 
             try:
                 connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                connection.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 connection.connect((target_host, target_port))
                 server_connections[(target_host, target_port)] = connection
+                print (self.DEBUG_TAG + " Established connection to server at " + target_host + ":" + str(target_port))
             except Exception, e:
                 print "Failed to connect to " + str(target_host) + ":" + str(target_port)
                 continue
@@ -376,13 +455,18 @@ class server:
         instance_proposal_map = dict()   # holds the highest promised sequence numbers per instance
         resolved_instances = []          # holds list of resolved instances
 
+        print (self.DEBUG_TAG + " Done initializing processes...")
+
         # Enter the proposal processing loop - dequeue message for this proposer and process them
         done = 0
 
+        # TODO: fix the case for 2 servers where a majority is two
         while (done == 0):
 
             # get a message of the queue
             msg = self.acceptor_queue.get()
+
+            print (self.DEBUG_TAG + " Received a message with type " + str(msg.msg_type))
 
             # switch based on the message type
             if (msg.msg_type == message.MESSAGE_TYPE.PREPARE):
@@ -445,10 +529,19 @@ class server:
                 r_instance = msg.instance
                 if (not r_instance in resolved_instances):
                     resolved_instances.append(r_instance)
+            # if you get an exit flag signal the done flag to break
+            elif (msg.msg_type == message.MESSAGE_TYPE.EXIT):
+                done = 1
             # should never get this far
             else:
                 assert(msg.msg_type == -1)
-    
+
+        print self.DEBUG_TAG + " Acceptor received exit message, shutting down acceptor..."
+
+        # shut down inter-server communication channels
+        for skey in server_connections.keys():
+            server_connections[skey].close()
+        
         # close while (done == 0)
     # close definition of acceptor
 
