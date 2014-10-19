@@ -129,29 +129,29 @@ class server:
                 # route the message to the appropriate process based on the message type
                 if (msg_type == message.MESSAGE_TYPE.PREPARE):
                     print self.DEBUG_TAG + " Got a prepare message."
-                    self.acceptor_queue_lock.lock()
+                    self.acceptor_queue_lock.acquire()
                     self.acceptor_queue.put(msg)
-                    self.acceptor_queue_lock.unlock()
+                    self.acceptor_queue_lock.release()
                 elif(msg_type == message.MESSAGE_TYPE.PREPARE_ACK):
                     print self.DEBUG_TAG + " Got a prepare ACK message."
-                    self.proposer_queue_lock.lock()
+                    self.proposer_queue_lock.acquire()
                     self.proposer_queue.put(msg)
-                    self.proposer_queue_lock.unlock()
+                    self.proposer_queue_lock.release()
                 elif(msg_type == message.MESSAGE_TYPE.ACCEPT):
                     print self.DEBUG_TAG + " Got an accept message."
-                    self.acceptor_queue_lock.lock()
+                    self.acceptor_queue_lock.acquire()
                     self.acceptor_queue.put(msg)
-                    self.acceptor_queue_lock.unlock()
+                    self.acceptor_queue_lock.release()
                 elif(msg_type == message.MESSAGE_TYPE.ACCEPT_ACK):
                     print self.DEBUG_TAG + " Got a accept ACK message."
-                    self.proposer_queue_lock.lock()
+                    self.proposer_queue_lock.acquire()
                     self.proposer_queue.put(msg)
-                    self.proposer_queue_lock.unlock()
+                    self.proposer_queue_lock.release()
                 elif(msg_type == message.MESSAGE_TYPE.CLIENT):
                     print self.DEBUG_TAG + " Got a client message."
-                    self.proposer_queue_lock.lock()
+                    self.proposer_queue_lock.acquire()
                     self.proposer_queue.put(msg)
-                    self.proposer_queue_lock.unlock()
+                    self.proposer_queue_lock.release()
                 elif(msg_type == message.MESSAGE_TYPE.CLIENT_ACK):
                     print self.DEBUG_TAG + " Got a client ACK message."
                     assert(false) # the server should never receive this message type
@@ -472,6 +472,7 @@ class server:
                 # extract the data fields
                 p_instance = msg.instance
                 p_proposal = msg.proposal
+                p_client_id = msg.client_id
 
                 # check if the instance has been resolved
                 if (p_instance in resolved_instances):
@@ -481,6 +482,7 @@ class server:
                 # check if we've ever received a proposal number for this instance
                 if (not p_instance in instance_proposal_map.keys()):
                     instance_proposal_map[p_instance] = 0
+                    print self.DEBUG_TAG + " Adding proposal number to map..."
 
                 # check to see if the proposal number for the instance is high enough
                 if (p_proposal >= instance_proposal_map[p_instance]):
@@ -488,11 +490,14 @@ class server:
                     rmsg = message.message(message.MESSAGE_TYPE.PREPARE_ACK,
                                            p_proposal,
                                            p_instance,
+                                           None,
                                            self.host,
-                                           self.port)
+                                           self.port,
+                                           p_client_id)
                     assert(server_connections[(msg.origin_host, msg.origin_port)] != None)
                     response_connection = server_connections[(msg.origin_host, msg.origin_port)]
                     response_connection.send(pickle.dumps(rmsg))
+                    print self.DEBUG_TAG + " Sent a prepare_ack in response to proposal..."
 
             # if the message type is an ACCEPT request
             elif(msg.msg_type == message.MESSAGE_TYPE.ACCEPT):
@@ -501,6 +506,7 @@ class server:
                 p_instance = msg.instance
                 p_value = msg.value
                 p_proposal = msg.proposal
+                p_client_id = msg.client_id
                 
                 if (p_instance in resolved_instances):
                     pass
@@ -515,9 +521,11 @@ class server:
                     instance_proposal_map[p_instnace] = p_proposal
                     rmsg = message.message(message.MESSAGE_TYPE.ACCEPT_ACK,
                                            p_proposal,
-                                           p_instnace,
+                                           p_instance,
+                                           None,
                                            self.host,
-                                           self.port)
+                                           self.port,
+                                           p_client_id)
                     assert(server_connections[(msg.origin_host, msg.origin_port)] != None)
                     response_connection = server_connections[(msg.origin_host, msg.origin_port)]
                     response_connection.send(pickle.dumps(rmsg))

@@ -18,6 +18,11 @@ from multiprocessing import Queue, Process, Lock
 
 class acceptor_test(unittest.TestCase):
 
+    ###########################################################
+    # Bring up just enough infrastructure to set up a test
+    #  acceptor and send it messages
+    ###########################################################
+
     def setUp(self):
 
         # Remote server message receive socket = 9003
@@ -36,15 +41,15 @@ class acceptor_test(unittest.TestCase):
 
         # start a test remote inter-server socket on 9003
         try:
-            self.test_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.test_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            self.test_socket.bind(('localhost', 9003))
-            self.test_socket.listen(5)
+            self.dummy_server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.dummy_server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            self.dummy_server_socket.bind(('localhost', 9003))
+            self.dummy_server_socket.listen(5)
         except Exception, e:
             os.system("lsof -n -i")
             os.system("ps -a")
             print "[Info] Failed to bind socket for dummy server: " + str(e)
-            self.test_socket.close()
+            self.dummy_server_socket.close()
             
             assert(False)
 
@@ -66,7 +71,7 @@ class acceptor_test(unittest.TestCase):
         print "[Info] Connected a dummy server message channel to Paxos server..."
 
         # accept the incoming connection that should have been made from 9001 to 9003
-        (self.acceptor_connection, acceptor_address) = self.test_socket.accept()
+        (self.acceptor_connection, acceptor_address) = self.dummy_server_socket.accept()
 
         print "[Info] Received test server connection to dummy server.."
         
@@ -75,7 +80,45 @@ class acceptor_test(unittest.TestCase):
     # Test acceptor for graceful bring up and exit
     ###########################################################
 
-    def test_exit(self):
+    #def test_bring_up(self):
+
+     #   pass
+
+    ###########################################################
+    # Issues a single proposal and tests if response is
+    #  is received
+    ###########################################################
+
+    def test_single_proposal(self):
+
+        # craft the message
+        proposal = 0
+        instance = 1
+        client_id = 2
+
+        msg = message.message(message.MESSAGE_TYPE.PREPARE, 
+                              proposal, instance, None, 'localhost', 9003, client_id)
+
+        self.message_socket.send(pickle.dumps(msg))
+
+        print "[Info] Sent a proposal to acceptor..."
+        
+        # get a response back from the paxos server
+        rmsgs = self.acceptor_connection.recv(1000)
+        rmsg = pickle.loads(rmsgs)
+        
+        print "[Info] Received a response from server..."
+
+        assert(rmsg.proposal == proposal)
+        assert(rmsg.instance == instance)
+        assert(rmsg.client_id == client_id)
+
+        
+    ###########################################################
+    # Tear down infrastructure and exit
+    ###########################################################
+
+    def tearDown(self):
 
         # shut down the acceptor by sending an exit message from 9003 to 9001
         msg = message.message(message.MESSAGE_TYPE.EXIT,
@@ -84,11 +127,10 @@ class acceptor_test(unittest.TestCase):
 
         print "[Info] Issued a shutdown message..."
 
-    def tearDown(self):
 
         # clean up the sockets
         self.message_socket.close()
-        self.test_socket.close()
+        self.dummy_server_socket.close()
         self.acceptor_connection.close()
 
         # attempt to join the processes
