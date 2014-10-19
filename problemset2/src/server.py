@@ -58,9 +58,7 @@ class server:
         listening_process.start()
         self.listening_process = listening_process
 
-        print self.DEBUG_TAG + " Initialized a listener process..."
-
-        print self.DEBUG_TAG + " Done bringing up Paxos member..."
+        #print self.DEBUG_TAG + " Done bringing up Paxos member..."
 
     ######################################################################
     # Initializes a listening process which routes listening connections
@@ -72,7 +70,7 @@ class server:
     ######################################################################
     
     def initialize_listener(self, host, port):
-        print self.DEBUG_TAG + " Starting listener on process " + str(os.getpid())
+        #print self.DEBUG_TAG + " Starting listener on process " + str(os.getpid())
         
         try:
             # bring up the listening socket
@@ -81,7 +79,7 @@ class server:
             server_socket.bind((host, int(port) + 1)) # inter-server connections on port + 1
             server_socket.listen(30)
 
-            print self.DEBUG_TAG + " Opened inter_server socket on port " + str(port + 1)
+            #print self.DEBUG_TAG + " Opened inter_server socket on port " + str(port + 1)
 
             #TODO: set up graceful exit
             done = 0
@@ -111,7 +109,7 @@ class server:
     def connection_process(self, socket):
         done = 0
 
-        print self.DEBUG_TAG + " Connection handler initialized with PID " + str(os.getpid())
+        #print self.DEBUG_TAG + " Connection handler initialized with PID " + str(os.getpid())
 
         try:
             while (done == 0):
@@ -189,7 +187,7 @@ class server:
                                    args=(host, port, server_number, total_servers, server_list))
         acceptor_process.start()
 
-        print self.DEBUG_TAG + " Initialized proposer process..."
+        #print self.DEBUG_TAG + " Initialized proposer process..."
 
         return acceptor_process
 
@@ -200,7 +198,7 @@ class server:
                                    args=(host, port, server_number, total_servers, server_list))
         proposer_process.start()
 
-        print self.DEBUG_TAG + " Initialized acceptor process..."
+        #print self.DEBUG_TAG + " Initialized acceptor process..."
 
         return proposer_process
 
@@ -429,7 +427,7 @@ class server:
 
     def initialize_acceptor(self, host, port, server_number, total_servers, server_list):
 
-        print (self.DEBUG_TAG + " Initializing acceptor process with PID " + str(os.getpid()))
+        #print (self.DEBUG_TAG + " Initializing acceptor process with PID " + str(os.getpid()))
 
         # open socket connections to each server with (hostname, port) pairs as keys
         server_connections = dict()
@@ -445,7 +443,7 @@ class server:
                 connection.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 connection.connect((target_host, target_port))
                 server_connections[(target_host, target_port)] = connection
-                print (self.DEBUG_TAG + " Established connection to server at " + target_host + ":" + str(target_port))
+                #print (self.DEBUG_TAG + " Established connection to server at " + target_host + ":" + str(target_port))
             except Exception, e:
                 print "Failed to connect to " + str(target_host) + ":" + str(target_port)
                 continue
@@ -453,7 +451,7 @@ class server:
         instance_proposal_map = dict()   # holds the highest promised sequence numbers per instance
         resolved_instances = []          # holds list of resolved instances
 
-        print (self.DEBUG_TAG + " Done initializing processes...")
+        #print (self.DEBUG_TAG + " Done initializing processes...")
 
         # Enter the proposal processing loop - dequeue message for this proposer and process them
         done = 0
@@ -464,7 +462,7 @@ class server:
             # get a message of the queue
             msg = self.acceptor_queue.get()
 
-            print (self.DEBUG_TAG + " Received a message with type " + str(msg.msg_type))
+            #print (self.DEBUG_TAG + " Received a message with type " + str(msg.msg_type))
 
             # switch based on the message type
             if (msg.msg_type == message.MESSAGE_TYPE.PREPARE):
@@ -482,7 +480,6 @@ class server:
                 # check if we've ever received a proposal number for this instance
                 if (not p_instance in instance_proposal_map.keys()):
                     instance_proposal_map[p_instance] = 0
-                    print self.DEBUG_TAG + " Adding proposal number to map..."
 
                 # check to see if the proposal number for the instance is high enough
                 if (p_proposal >= instance_proposal_map[p_instance]):
@@ -550,7 +547,6 @@ class server:
         except Exception, e:
             print self.DEBUG_TAG + " ERROR - failed to close server connection..."
 
-        print self.DEBUG_TAG + " Acceptor received exit message, shutting down acceptor..."
         
         # close while (done == 0)
     # close definition of acceptor
