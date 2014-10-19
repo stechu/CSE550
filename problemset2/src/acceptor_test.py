@@ -56,7 +56,7 @@ class acceptor_test(unittest.TestCase):
         print "[Info] Bound a dummy server port for the acceptor to connect to..."
 
         # initialize the acceptor which should initiate a connection to 9003
-        paxos_server.launch_acceptor_process('localhost', 9001, 0, 2, server_list)
+        acceptor_process = paxos_server.launch_acceptor_process('localhost', 9001, 0, 2, server_list)
 
         print "[Info] Initialized an acceptor instance.."
 
@@ -75,7 +75,6 @@ class acceptor_test(unittest.TestCase):
         # shut down the acceptor by sending an exit message from 9003 to 9001
         msg = message.message(message.MESSAGE_TYPE.EXIT,
                               None, None, None, 'localhost', 9003, None)
-        print "[Info] Pickled message: " + pickle.dumps(msg)
         message_socket.send(pickle.dumps(msg))
 
         print "[Info] Issued a shutdown message..."
@@ -86,10 +85,12 @@ class acceptor_test(unittest.TestCase):
 
         # attempt to join the processes
         try:
-            connection_process.join(1)
             acceptor_process.join(1)
         except Exception, e:
             assert(False)
+
+        # terminate the connection process
+        paxos_server.listening_process.terminate()
 
 if __name__ == '__main__':
     unittest.main()

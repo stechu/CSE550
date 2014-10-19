@@ -118,8 +118,6 @@ class server:
                 # receive the message
                 smsg = socket.recv(1000)
 
-                print self.DEBUG_TAG + " Received a message string: " + smsg
-
                 # unpack the message data
                 msg = pickle.loads(smsg)
 
@@ -536,11 +534,15 @@ class server:
             else:
                 assert(msg.msg_type == -1)
 
-        print self.DEBUG_TAG + " Acceptor received exit message, shutting down acceptor..."
-
         # shut down inter-server communication channels
-        for skey in server_connections.keys():
-            server_connections[skey].close()
+        try:
+            assert(len(server_connections.keys()) > 0)
+            for skey in server_connections.keys():
+                server_connections[skey].close()
+        except Exception, e:
+            print self.DEBUG_TAG + " ERROR - failed to close server connection..."
+
+        print self.DEBUG_TAG + " Acceptor received exit message, shutting down acceptor..."
         
         # close while (done == 0)
     # close definition of acceptor
