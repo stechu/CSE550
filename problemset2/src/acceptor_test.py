@@ -322,6 +322,136 @@ class acceptor_test(unittest.TestCase):
         assert(rmsg.client_id == client_id)
         
 
+    def test_multiple_prepare_accept(self):
+        # send a prepare request
+        proposal = 5; instance = 1; client_id = 9
+        msg = message.message(message.MESSAGE_TYPE.PREPARE,
+                              proposal, instance, None, 'localhost', 9003, client_id)
+        self.message_socket.send(pickle.dumps(msg))
+
+        rmsg = pickle.loads(self.acceptor_connection.recv(1000))
+        assert(rmsg.msg_type == message.MESSAGE_TYPE.PREPARE_ACK)
+        assert(rmsg.proposal == proposal)
+        assert(rmsg.instance == instance)
+        assert(rmsg.client_id == client_id)
+        
+        # send a prepare request
+        proposal = 9; instance = 3; client_id = 9
+        msg = message.message(message.MESSAGE_TYPE.PREPARE,
+                              proposal, instance, None, 'localhost', 9003, client_id)
+        self.message_socket.send(pickle.dumps(msg))
+
+        rmsg = pickle.loads(self.acceptor_connection.recv(1000))
+        assert(rmsg.msg_type == message.MESSAGE_TYPE.PREPARE_ACK)
+        assert(rmsg.proposal == proposal)
+        assert(rmsg.instance == instance)
+        assert(rmsg.client_id == client_id)
+        
+        # send a prepare request
+        proposal = 0; instance = 2; client_id = 9
+        msg = message.message(message.MESSAGE_TYPE.PREPARE,
+                              proposal, instance, None, 'localhost', 9003, client_id)
+        self.message_socket.send(pickle.dumps(msg))
+
+        rmsg = pickle.loads(self.acceptor_connection.recv(1000))
+        assert(rmsg.msg_type == message.MESSAGE_TYPE.PREPARE_ACK)
+        assert(rmsg.proposal == proposal)
+        assert(rmsg.instance == instance)
+        assert(rmsg.client_id == client_id)
+        
+        # send an accept request
+        proposal = 5; instance = 1; client_id = 9
+        msg = message.message(message.MESSAGE_TYPE.ACCEPT,
+                              proposal, instance, None, 'localhost', 9003, client_id)
+        self.message_socket.send(pickle.dumps(msg))
+
+        rmsg = pickle.loads(self.acceptor_connection.recv(1000))
+        assert(rmsg.msg_type == message.MESSAGE_TYPE.ACCEPT_ACK)
+        assert(rmsg.proposal == proposal)
+        assert(rmsg.instance == instance)
+        assert(rmsg.client_id == client_id)
+
+        # send a accept request
+        proposal = 9; instance = 3; client_id = 9
+        msg = message.message(message.MESSAGE_TYPE.ACCEPT,
+                              proposal, instance, None, 'localhost', 9003, client_id)
+        self.message_socket.send(pickle.dumps(msg))
+
+        rmsg = pickle.loads(self.acceptor_connection.recv(1000))
+        assert(rmsg.msg_type == message.MESSAGE_TYPE.ACCEPT_ACK)
+        assert(rmsg.proposal == proposal)
+        assert(rmsg.instance == instance)
+        assert(rmsg.client_id == client_id)
+        
+        # send a accept request
+        proposal = 0; instance = 2; client_id = 9
+        msg = message.message(message.MESSAGE_TYPE.ACCEPT,
+                              proposal, instance, None, 'localhost', 9003, client_id)
+        self.message_socket.send(pickle.dumps(msg))
+
+        rmsg = pickle.loads(self.acceptor_connection.recv(1000))
+        assert(rmsg.msg_type == message.MESSAGE_TYPE.ACCEPT_ACK)
+        assert(rmsg.proposal == proposal)
+        assert(rmsg.instance == instance)
+        assert(rmsg.client_id == client_id)
+
+    ###########################################################
+    # Test case where prepare goes through but another proposal
+    #  fires a high proposal before accept comes through
+    ###########################################################
+
+    def test_reject_accept_test(self):
+        print "\n\n[Info] ##########[SINGLE PREPARE ACCEPT TEST]##########\n"
+        
+        # send a prepare message
+        proposal = 6; instance = 0; client_id = 9
+        msg = message.message(message.MESSAGE_TYPE.PREPARE,
+                              proposal, instance, None, 'localhost', 9003, client_id)
+        self.message_socket.send(pickle.dumps(msg))
+
+        rmsg = pickle.loads(self.acceptor_connection.recv(1000))
+        assert(rmsg.msg_type == message.MESSAGE_TYPE.PREPARE_ACK)
+        assert(rmsg.proposal == proposal)
+        assert(rmsg.instance == instance)
+        assert(rmsg.client_id == client_id)
+
+        # send another prepare message with higher proposal number
+        proposal = 8; instance = 0; client_id = 13
+        msg = message.message(message.MESSAGE_TYPE.PREPARE,
+                              proposal, instance, None, 'localhost', 9003, client_id)
+        self.message_socket.send(pickle.dumps(msg))
+
+        rmsg = pickle.loads(self.acceptor_connection.recv(1000))
+        assert(rmsg.msg_type == message.MESSAGE_TYPE.PREPARE_ACK)
+        assert(rmsg.proposal == proposal)
+        assert(rmsg.instance == instance)
+        assert(rmsg.client_id == client_id)
+
+        # send an accept message which should get rejected
+        proposal = 6; instance = 0; client_id = 9
+        msg = message.message(message.MESSAGE_TYPE.ACCEPT,
+                              proposal, instance, None, 'localhost', 9003, client_id)
+        self.message_socket.send(pickle.dumps(msg))
+
+        self.acceptor_connection.settimeout(1.0)
+        try:
+            rmsg = pickle.loads(self.acceptor_connection.recv(1000))
+            assert(False)
+        except Exception, e:
+            pass
+        
+        # send an actual accept message which should get accepted
+        proposal = 8; instance = 0; client_id = 9
+        msg = message.message(message.MESSAGE_TYPE.ACCEPT,
+                              proposal, instance, None, 'localhost', 9003, client_id)
+        self.message_socket.send(pickle.dumps(msg))
+
+        rmsg = pickle.loads(self.acceptor_connection.recv(1000))
+        assert(rmsg.msg_type == message.MESSAGE_TYPE.ACCEPT_ACK)
+        assert(rmsg.proposal == proposal)
+        assert(rmsg.instance == instance)
+        assert(rmsg.client_id == client_id)
+
     ###########################################################
     # Tear down infrastructure and exit
     ###########################################################
