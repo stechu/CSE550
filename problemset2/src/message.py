@@ -27,11 +27,20 @@ class MESSAGE_TYPE:
 ########################################################################################
 
 # Message class for holding messages between Paxos servers and clients
+# - msg_type is one of above enum values
+# - proposal is proposal number
+# - instance is Paxos instance number
+# - value is proposed value or command
+# - origin_host is hostname of message origin
+# - origin_port is port number on origin host
+# - client_id is id number associated with this request
 
 class message:
-    def __init__(self, msg_type, proposal, instance, value, origin):
+    def __init__(self, msg_type, proposal, instance, value, origin_host, origin_port, client_id):
         self.msg_type = msg_type
         self.proposal = proposal
         self.instance = instance
         self.value = value
-        self.origin = origin
+        self.origin_host = origin_host
+        self.origin_port = origin_port
+        self.client_id = client_id

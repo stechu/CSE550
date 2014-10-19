@@ -229,7 +229,8 @@ class server:
                                               instance_proposal_numbers[proposal_instance],
                                               proposal_instance,
                                               None,
-                                              server_number)
+                                              self.host,
+                                              self.port)
 
                         # send the proposal to acceptors
                         for s_socket in server_connections:
@@ -278,7 +279,8 @@ class server:
                                                      instance_proposal_numbers[proposal_instance],
                                                      proposal_instance,
                                                      cmd,
-                                                     server_number)
+                                                     self.host,
+                                                     self.port)
 
                         # fire off the accept requests
                         for s_socket in server_connections:
@@ -309,6 +311,7 @@ class server:
                             # proposal was accepted
                             if (ack_count >= (int(total_servers/2) + 1)):
                                 state = DISTRIBUTE
+                                # TODO: add additional state for when the lock is requested but not available
 
                         except Exception, e:
                             # increment the proposal number
@@ -326,7 +329,8 @@ class server:
                                               instance_proposal_numbers[proposal_number],
                                               proposal_instance,
                                               cmd,
-                                              server_number)
+                                              self.host,
+                                              self.port)
 
                         # fire the messages to each server
                         for s_socket in server_connections:
@@ -345,3 +349,122 @@ class server:
         # close connection processing loop
     # close proposer process definition
 
+    ######################################################################
+    # Intializes an acceptor of the Paxos group
+    # - initializes connections to other server connections
+    # - starts a main loop which processes accept requests
+    # - server_list is a list of pairs (host, port)
+    ######################################################################
+
+    def initialize_acceptor(self, host, port, server_number, total_servers, server_list):
+        # open socket connections to each server with (hostname, port) pairs as keys
+        server_connections = dict()
+        for s in server_list:
+
+            assert(len(s) == 2)
+            target_host = s[0]
+            target_port = s[1]
+
+            try:
+                connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                connection.connect((target_host, target_port))
+                server_connections[(target_host, target_port)] = connection
+            except Exception, e:
+                print "Failed to connect to " + str(target_host) + ":" + str(target_port)
+                continue
+
+        instance_proposal_map = dict()   # holds the highest promised sequence numbers per instance
+        resolved_instances = []          # holds list of resolved instances
+
+        # Enter the proposal processing loop - dequeue message for this proposer and process them
+        done = 0
+
+        while (done == 0):
+
+            # get a message of the queue
+            msg = self.acceptor_queue.get()
+
+            # switch based on the message type
+            if (msg.msg_type == message.MESSAGE_TYPE.PREPARE):
+                
+                # extract the data fields
+                p_instance = msg.instance
+                p_proposal = msg.proposal
+
+                # check if the instance has been resolved
+                if (p_instance in resolved_instances):
+                    pass
+                    # TODO: send a PREPARE_NACK with the instance number
+
+                # check if we've ever received a proposal number for this instance
+                if (not p_instance in instance_proposal_map.keys()):
+                    instance_proposal_map[p_instance] = 0
+
+                # check to see if the proposal number for the instance is high enough
+                if (p_proposal >= instance_proposal_map[p_instance]):
+                    instance_proposal_map[p_instance] = p_proposal
+                    rmsg = message.message(message.MESSAGE_TYPE.PREPARE_ACK,
+                                           p_proposal,
+                                           p_instance,
+                                           self.host,
+                                           self.port)
+                    assert(server_connections[(msg.origin_host, msg.origin_port)] != None)
+                    response_connection = server_connections[(msg.origin_host, msg.origin_port)]
+                    response_connection.send(pickle.dumps(rmsg))
+
+            # if the message type is an ACCEPT request
+            elif(msg.msg_type == message.MESSAGE_TYPE.ACCEPT):
+                
+                # extract the data fields
+                p_instance = msg.instance
+                p_value = msg.value
+                p_proposal = msg.proposal
+                
+                if (p_instance in resolved_instances):
+                    pass
+                    # TODO: send an ACCEPT_NACK with resolved instance numbers
+
+                # check if we've ever received a proposal number for this instance
+                if (not p_instance in instance_proposal_map.keys()):
+                    instance_proposal_map[p_instance] = p_proposal
+
+                # check to see if the proposal number for th instance is high enough
+                if (p_proposal >= instance_proposal_map[p_instnce]):
+                    instance_proposal_map[p_instnace] = p_proposal
+                    rmsg = message.message(message.MESSAGE_TYPE.ACCEPT_ACK,
+                                           p_proposal,
+                                           p_instnace,
+                                           self.host,
+                                           self.port)
+                    assert(server_connections[(msg.origin_host, msg.origin_port)] != None)
+                    response_connection = server_connections[(msg.origin_host, msg.origin_port)]
+                    response_connection.send(pickle.dumps(rmsg))
+
+            # also subscribe to learner messages to determine the resolved instances
+            elif (msg.msg_type == message.MESSAGE_TYPE.LEARNER):
+                r_instance = msg.instance
+                if (not r_instance in resolved_instances):
+                    resolved_instances.append(r_instance)
+            # should never get this far
+            else:
+                assert(msg.msg_type == -1)
+    
+        # close while (done == 0)
+    # close definition of acceptor
+
+    ######################################################################
+    # Intializes a learner of the Paxos group
+    # - listens to learner messages to construct the command stream
+    # - TODO: issue a proposal via the proposer to determine missing 
+    #   instance resolutions
+    # - TODO: consider combining the proposer and learner into one process
+    #   information propagation is then easier to propose and resolve
+    ######################################################################
+
+    def initialize_learner(self, host, port, server_number, total_servers):
+
+        # TODO: on every round compute the last known state of the lock set
+
+        # TODO: when you get a message based on the lock state, put a new proposal on the proposer queue
+
+        pass
