@@ -10,6 +10,7 @@ all:
 	run
 test:
 	python client_test.py
+	python acceptor_test.py
 run: 
 	echo "TODO"
 clean:

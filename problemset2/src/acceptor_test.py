@@ -53,7 +53,7 @@ class acceptor_test(unittest.TestCase):
         self.server_list = [('localhost', 9003)]
 
         # initialize the acceptor which should initiate a connection to 9003
-        self.acceptor_process = self.paxos_server.launch_acceptor_process('localhost', 9001, 0, 2, self.server_list)
+        self.acceptor_process = self.paxos_server.launch_acceptor_process('localhost', 9000, 0, 2, self.server_list)
 
         # create a test socket to inject messages to the acceptor and connect to 9001
         self.message_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
