@@ -234,11 +234,11 @@ class server:
 
             try:
                 connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                Connection.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                connection.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 connection.connect((target_host, target_port))
                 server_connections.append(connection)
             except Exception, e:
-                print "Failed to connect to " + str(target_host) + ":" + str(target_port)
+                print "Failed to connect to " + str(target_host) + ":" + str(target_port) + " " + str(e)
                 continue
 
         print self.DEBUG_TAG + " Opening client socket on: " + str(self.port)
@@ -331,34 +331,40 @@ class server:
                         
                         try:
                             # listen to responses on the server message queue
-                            msg = self.proposer_queue.get(block=true, timeout=1)
-                            
-                            assert(isinstance(msg, message.message))
-                            assert(msg.instance != None)
-
-                            if (msg.msg_type == message.MESSAGE_TYPE.PREPARE_ACK and
-                                msg.instance == proposal_instance):
-                                ack_count += 1
-                            elif (msg.msg_type == message.MESSAGE_TYPE.ACCEPT_ACK):
-                                pass            # ignore these messages since they're leftover from previous rounds
-                            elif (msg.msg_type == message.MESSAGE_TYPE.EXIT):
-                                done = 1
-                                client_done = 1
-                            else:
-                                assert(False)   # should never get any other message type
-
-                            # if you get enough acks move to accept the proposal
-                            if (ack_count >= int(ack_count/2) + 1):
-                                state = ACCEPT
-                                ack_count = 0
+                            msg = self.proposer_queue.get(block=True, timeout=1)
 
                         # if an exception occurs and we're not done, consider the proposal failed
                         except Exception, e:
+
                             # increment the proposal number
                             instance_proposal_map[proposal_instance] += total_servers
 
                             # attempt another proposal round
                             state = READY
+                            
+                            continue
+                        
+                        assert(isinstance(msg, message.message))
+
+                        # if the message ia a prepare ack and matches your proposal/instance, increment ack count
+                        if (msg.msg_type == message.MESSAGE_TYPE.PREPARE_ACK):
+                            assert(msg.instance != None)
+                            if (msg.instance == proposal_instance):
+                                ack_count += 1
+                        elif (msg.msg_type == message.MESSAGE_TYPE.ACCEPT_ACK):
+                            pass            # ignore these messages since they're leftover from previous rounds
+                        elif (msg.msg_type == message.MESSAGE_TYPE.EXIT):
+                            print self.DEBUG_TAG + " Proposer got an exit message..."
+                            done = 1
+                            client_done = 1
+                            break
+                        else:
+                            assert(False)   # should never get any other message type
+
+                        # if you get enough acks move to accept the proposal
+                        if (ack_count >= int(total_servers/2) + 1):
+                            state = ACCEPT
+                            ack_count = 0
                             
                     # fire off the accept requests
                     elif (state == ACCEPT):

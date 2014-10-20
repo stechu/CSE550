@@ -41,6 +41,7 @@ class proposer_test(unittest.TestCase):
             self.dummy_server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self.dummy_server_socket.bind(('localhost', 9003))
             self.dummy_server_socket.listen(5)
+            print "[Info] Opened a dummy server socket on port 9003"
         except Exception, e:
             os.system("lsof -n -i")
             os.system("ps -a")
@@ -57,13 +58,13 @@ class proposer_test(unittest.TestCase):
         # initialize the proposer which should initiate a connection to 9003
         self.proposer_process = self.paxos_server.launch_proposer_process('localhost', 9000, 0, 2, self.server_list)
 
+        # accept the incoming connection that should have been made from 9001 to 9003
+        (self.proposer_connection, proposer_address) = self.dummy_server_socket.accept()
+
         # create a test socket to inject messages to the proposer and connect to 9001
         self.message_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.message_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.message_socket.connect(('localhost', 9001))
-
-        # accept the incoming connection that should have been made from 9001 to 9003
-        (self.proposer_connection, proposer_address) = self.dummy_server_socket.accept()
 
         # connect a client
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
