@@ -194,6 +194,7 @@ class server:
 
     # abstract initialization processes for testing purposes
     def launch_proposer_process(self, host, port, server_number, total_servers, server_list):
+
         # initialize the proposer process
         proposer_process = Process(target=self.initialize_proposer, 
                                    args=(host, port, server_number, total_servers, server_list))
@@ -334,7 +335,7 @@ class server:
                             msg = self.proposer_queue.get(block=True, timeout=1)
 
                         # if an exception occurs and we're not done, consider the proposal failed
-                        except Exception, e:
+                        except Queue.Empty as e:
 
                             # increment the proposal number
                             instance_proposal_map[proposal_instance] += total_servers
@@ -351,6 +352,7 @@ class server:
                             assert(msg.instance != None)
                             if (msg.instance == proposal_instance):
                                 ack_count += 1
+                                # TODO: MUST MAKE THIS ACK INCREMENT ROBUST AGAINST MESSAGE DUPLICATION
                         elif (msg.msg_type == message.MESSAGE_TYPE.ACCEPT_ACK):
                             pass            # ignore these messages since they're leftover from previous rounds
                         elif (msg.msg_type == message.MESSAGE_TYPE.EXIT):
@@ -362,7 +364,7 @@ class server:
                             assert(False)   # should never get any other message type
 
                         # if you get enough acks move to accept the proposal
-                        if (ack_count >= int(total_servers/2) + 1):
+                        if (ack_count >= int(len(server_list)/2) + 1):
                             state = ACCEPT
                             ack_count = 0
                             
@@ -377,7 +379,7 @@ class server:
                                                      proposal_instance,
                                                      cmd,
                                                      self.host,
-                                                     self.port.
+                                                     self.port,
                                                      c_msg.client_id)
 
                         # fire off the accept requests
@@ -394,35 +396,38 @@ class server:
                         print self.DEBUG_TAG + " Proposer in ACCEPTING state..."
 
                         try:
-                            msg = self.proposer_queue.get(block=true, timeout=1)
-
-                            assert(isinstance(msg, message.message))
-                            assert(msg.instance != None)
-
-                            # check messages on the queue for acks
-                            if (msg.msg_type == message.MESSAGE_TYPE.ACCEPT_ACK and
-                                msg.instance == proposal_instance):
-                                ack_count += 1
-                            elif (msg.msg_type == message.MESSAGE_TYPE.PREPARE_ACK):
-                                pass  #ignore leftover prepare ack messages
-                            elif (msg.msg_type == message.MESSAGE_TYPE.EXIT):
-                                client_done = 1
-                                done = 1
-                            else:
-                                assert(msg.msg_type == -1) # should never get here
-
-                            # proposal was accepted
-                            if (ack_count >= (int(total_servers/2) + 1)):
-                                state = BROADCAST
-                                # TODO: add additional state for when the lock is requested but not available
+                            msg = self.proposer_queue.get(block=True, timeout=1)
 
                         except Exception, e:
+                            print self.DEBUG_TAG + " Accepting phase timed out " + str(e)
+
                             # increment the proposal number
                             instance_proposal_map[proposal_instance] += total_servers
 
                             # attempt another proposal round
                             state = READY
                             ack_count = 0
+
+                        assert(isinstance(msg, message.message))
+
+                        # check messages on the queue for acks
+                        if (msg.msg_type == message.MESSAGE_TYPE.ACCEPT_ACK):
+                            assert(msg.instance != None)
+                            if (msg.instance == proposal_instance):
+                                ack_count += 1
+                            # TODO: make message receive robust against message duplication
+                        elif (msg.msg_type == message.MESSAGE_TYPE.PREPARE_ACK):
+                            pass  #ignore leftover prepare ack messages
+                        elif (msg.msg_type == message.MESSAGE_TYPE.EXIT):
+                            client_done = 1
+                            done = 1
+                        else:
+                            assert(msg.msg_type == -1) # should never get here
+
+                        # proposal was accepted
+                        if (ack_count >= (int(len(server_list)/2) + 1)):
+                            state = BROADCAST
+                            # TODO: add additional state for when the lock is requested but not available
 
                     # distribute messages to learners
                     elif (state == BROADCAST):
@@ -431,11 +436,12 @@ class server:
 
                         # craft the message for learners and fire them to all learners 
                         msg = message.message(message.MESSAGE_TYPE.LEARNER,
-                                              instance_proposal_map[proposal_number],
+                                              instance_proposal_map[proposal_instance],
                                               proposal_instance,
                                               cmd,
                                               self.host,
-                                              self.port)
+                                              self.port,
+                                              c_msg.client_id)
 
                         # fire the messages to each server
                         for s_socket in server_connections:
