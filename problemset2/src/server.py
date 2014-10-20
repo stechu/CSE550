@@ -104,6 +104,8 @@ class server:
         except Exception, e:
             print self.DEBUG_TAG + " ERROR - Error initializing listening process on port " + str(port + 1) + " - " + str(e)
 
+        server_socket.close()
+
     ######################################################################
     # Handles data incoming on each connection socket
     # - issues a blocking call to the receive function
