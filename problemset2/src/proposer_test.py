@@ -77,6 +77,9 @@ class proposer_test(unittest.TestCase):
     ###########################################################
 
     def test_bring_up(self):
+
+        print "\n##########[TEST BRING UP]##########\n\n"
+
         # fire a proposal to the server to get it to read messages
         cmd = command.command("lock 1")
 
@@ -96,6 +99,9 @@ class proposer_test(unittest.TestCase):
     ###########################################################
     
     def test_paxos_round(self):
+
+        print "\n##########[PAXOS ROUND]##########\n\n"
+
         client_id = random.randint(0, 1000)
 
         # fire a proposal to the server
@@ -146,7 +152,97 @@ class proposer_test(unittest.TestCase):
         assert(isinstance(rmsg.value, command.command))
         assert(rmsg.value.my_lock_num == 1)
         assert(rmsg.value.my_command == command.COMMAND_TYPE.LOCK)
-       
+
+    ###########################################################
+    # Test a timeouts and reissuing of prepare messages by
+    #  proposer
+    ###########################################################
+
+    def test_proposal_timeouts(self):
+
+        print "\n##########[TEST PROPOSAL TIMEOUTS]##########\n\n"
+
+        client_id = random.randint(0, 1000)
+
+        # fire a proposal to the server
+        cmd = command.command("lock 1")
+
+        msg = message.message(message.MESSAGE_TYPE.CLIENT,
+                              None, None, cmd, None, None, client_id)
+        self.client_socket.send(pickle.dumps(msg))
+
+        # get the prepare message
+        rmsg = pickle.loads(self.proposer_connection.recv(1000))
+        assert(isinstance(rmsg, message.message))
+        assert(rmsg.client_id == client_id)
+        assert(rmsg.msg_type == message.MESSAGE_TYPE.PREPARE)
+        assert(rmsg.proposal == self.paxos_server.server_number)
+        assert(rmsg.instance == 0)
+
+        # ignore it and get the next prepare message
+
+        # get the prepare message
+        rmsg = pickle.loads(self.proposer_connection.recv(1000))
+        assert(isinstance(rmsg, message.message))
+        assert(rmsg.client_id == client_id)
+        assert(rmsg.msg_type == message.MESSAGE_TYPE.PREPARE)
+        assert(rmsg.proposal == self.paxos_server.server_number + self.paxos_server.total_servers)
+        assert(rmsg.instance == 0)
+
+        # send back a response
+        msg = message.message(message.MESSAGE_TYPE.PREPARE_ACK,
+                              rmsg.proposal, rmsg.instance, None, 'localhost', 9003, rmsg.client_id)
+        self.message_socket.send(pickle.dumps(msg))
+
+        # get the accept message
+        rmsg = pickle.loads(self.proposer_connection.recv(1000))
+        assert(isinstance(rmsg, message.message))
+        assert(rmsg.client_id == client_id)
+        assert(rmsg.msg_type == message.MESSAGE_TYPE.ACCEPT)
+        assert(rmsg.proposal == self.paxos_server.server_number + self.paxos_server.total_servers)
+        assert(rmsg.instance == 0)
+        
+        # ignore the message and send it back to the proposing state
+        
+        # get the next prepare message
+
+        rmsg = pickle.loads(self.proposer_connection.recv(1000))
+        assert(isinstance(rmsg, message.message))
+        assert(rmsg.client_id == client_id)
+        assert(rmsg.msg_type == message.MESSAGE_TYPE.PREPARE)
+        assert(rmsg.proposal == self.paxos_server.server_number + 2 * self.paxos_server.total_servers)
+        assert(rmsg.instance == 0)
+        
+        # send back a response
+        msg = message.message(message.MESSAGE_TYPE.PREPARE_ACK,
+                              rmsg.proposal, rmsg.instance, None, 'localhost', 9003, rmsg.client_id)
+        self.message_socket.send(pickle.dumps(msg))
+                              
+        # get the accept message
+        rmsg = pickle.loads(self.proposer_connection.recv(1000))
+        assert(isinstance(rmsg, message.message))
+        assert(rmsg.client_id == client_id)
+        assert(rmsg.msg_type == message.MESSAGE_TYPE.ACCEPT)
+        assert(rmsg.proposal == self.paxos_server.server_number + 2 * self.paxos_server.total_servers)
+        assert(rmsg.instance == 0)
+        assert(isinstance(rmsg.value, command.command))
+        assert(rmsg.value.my_lock_num == 1)
+        assert(rmsg.value.my_command == command.COMMAND_TYPE.LOCK)
+
+        # send back the accept ack
+        msg = message.message(message.MESSAGE_TYPE.ACCEPT_ACK,
+                              rmsg.proposal, rmsg.instance, rmsg.value, 'localhost', 9003, rmsg.client_id)
+        self.message_socket.send(pickle.dumps(msg))
+
+        # get the broadcast messge
+        rmsg = pickle.loads(self.proposer_connection.recv(1000))
+        assert(isinstance(rmsg, message.message))
+        assert(rmsg.client_id == client_id)
+        assert(rmsg.msg_type == message.MESSAGE_TYPE.LEARNER)
+        assert(rmsg.proposal == self.paxos_server.server_number + 2 * self.paxos_server.total_servers)
+        assert(rmsg.instance == 0)
+
+
     ###########################################################
     # Tear down infrastructure and exit
     ###########################################################

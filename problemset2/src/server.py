@@ -278,23 +278,30 @@ class server:
             # client processing loop - service as many message from the client as needed until socket closed
             while (client_done == 0):
 
-                # receive the client command to propose
+                # receive the client command to propose - if you get an EOF exit gracefully
                 c_msgs = client_connection.recv(1000)
 
                 # unpack the message and get the command to propose from client
-                c_msg = pickle.loads(c_msgs)
+                try:
+                    c_msg = pickle.loads(c_msgs)
+                except EOFError, e:
+                    print c_msgs + " - " + str(e)
+                    client_done = 1
+                    done = 1
+                    break
+
                 assert(isinstance(c_msg, message.message))
                 cmd = c_msg.value
                 assert(isinstance(cmd, command.command))
                 assert(c_msg.msg_type == message.MESSAGE_TYPE.CLIENT)
 
+                # TODO: check if someone else has the lock, if they do go to a waiting state where you check the learner queue for instance resolutions
                 state = READY
 
                 ack_count = 0
 
                 # Paxos proposal phase if not IDLE
                 while (state != IDLE):
-
                     # fire off the proposal messages
                     if (state == READY):
 
@@ -334,9 +341,11 @@ class server:
                             # listen to responses on the server message queue
                             msg = self.proposer_queue.get(block=True, timeout=1)
 
-                        # if an exception occurs and we're not done, consider the proposal failed
-                        except Queue.Empty as e:
+                            # TODO: another timeout must be implemented here since a proposer can get constantly flooded with other messages to prevent this one from progressing
 
+                        # if an exception occurs and we're not done, consider the proposal failed
+                        except Exception as e:
+                            print str(e)
                             # increment the proposal number
                             instance_proposal_map[proposal_instance] += total_servers
 
@@ -447,6 +456,9 @@ class server:
                         for s_socket in server_connections:
                             s_socket.send(pickle.dumps(msg))
 
+                        # send an acknowledgement message to the client if we got the lock
+                        
+
                         # reset the state now that we finished
                         state = IDLE
                         ack_count = 0
@@ -454,6 +466,9 @@ class server:
                     # fail - should never get here
                     else:
                         assert(state == IDLE)
+
+                # by default always look at the learner message queue for resolved instances 
+                # TODO: abandon proposals and reset states appropriately when you get colliding instance acks
 
                 # close command processing loop
             # close while loop
