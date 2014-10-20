@@ -312,23 +312,38 @@ class server:
                     done = 1
                     break
 
+                # validate that you got a valid message with command payload
                 assert(isinstance(c_msg, message.message))
                 cmd = c_msg.value
                 assert(isinstance(cmd, command.command))
                 assert(c_msg.msg_type == message.MESSAGE_TYPE.CLIENT)
 
-                # TODO: check if the message is a lock message
-                # TODO: if you get a request for a held lock, block in a WAIT state
+                # if the lock you want is held, go to a waiting state
+                if (cmd.my_command == command.COMMAND_TYPE.LOCK and
+                    cmd.my_lock_num in lock_set):
+                    request_queue.put(cmd)
+                    state = WAIT
+                else:
+                    state = READY
 
-                # TODO: check if someone else has the lock, if they do go to a waiting state where you check the learner queue for instance resolutions
-                state = READY
-
+                # reset the ack count
                 ack_count = 0
 
                 # Paxos proposal phase if not IDLE
                 while (state != IDLE):
-                    # fire off the proposal messages
-                    if (state == READY):
+
+                    ###############################################################################
+                    # WAIT - until the lock becomes available
+                    ###############################################################################
+                    
+                    if (state == WAIT):
+                        # TODO: dequeue messages
+                        pass
+
+                    ###############################################################################
+                    # READY - node is ready to propose
+                    ###############################################################################
+                    elif (state == READY):
 
                         print self.DEBUG_TAG + " Proposer in READY state..."
                         
@@ -357,7 +372,9 @@ class server:
                         state = PROPOSING
                         ack_count = 0
 
-                    # wait for proposals to come back
+                    ###############################################################################
+                    # PROPOSING - wait for the proposals to come back
+                    ###############################################################################
                     elif (state == PROPOSING):
 
                         print self.DEBUG_TAG + " Proposer in PROPOSING state..."
@@ -402,7 +419,9 @@ class server:
                             state = ACCEPT
                             ack_count = 0
                             
-                    # fire off the accept requests
+                    ###############################################################################
+                    # ACCEPT - send the accept messages
+                    ###############################################################################
                     elif (state == ACCEPT):
 
                         print self.DEBUG_TAG + " Proposer in ACCEPT state..."
@@ -424,7 +443,9 @@ class server:
                         state = ACCEPTING
                         ack_count = 0
 
-                    # wait for messages to come back for accept
+                    ###############################################################################
+                    # ACCEPTING - wait for the accepting messages to come back
+                    ###############################################################################
                     elif (state == ACCEPTING):
                         
                         print self.DEBUG_TAG + " Proposer in ACCEPTING state..."
@@ -463,7 +484,9 @@ class server:
                             state = BROADCAST
                             # TODO: add additional state for when the lock is requested but not available
 
-                    # distribute messages to learners
+                    ###############################################################################
+                    # BROADCAST - distribute messages to all members with chosen value
+                    ###############################################################################
                     elif (state == BROADCAST):
                         
                         print self.DEBUG_TAG + " Proposer in BROADCAST state..."
@@ -488,8 +511,11 @@ class server:
                         state = IDLE
                         ack_count = 0
 
-                    # fail - should never get here
+                    ###############################################################################
+                    # Failure state
+                    ###############################################################################
                     else:
+                        assert(False)
                         assert(state == IDLE)
 
                 # by default always look at the learner message queue for resolved instances 
