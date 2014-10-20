@@ -266,7 +266,8 @@ class server:
         IDLE = 12        # no proposals in flight
         READY = 13       # state in which a proposal is ready for submission
         ACCEPT = 14      # state issuing accept requests
-        BROADCAST = 15  # send learner messages to propagate messages
+        BROADCAST = 15   # send learner messages to propagate messages
+        WAIT = 16        # waiting state for lock to become available
 
         state = IDLE
 
@@ -320,7 +321,7 @@ class server:
 
                 # if the lock you want is held, go to a waiting state
                 if (cmd.my_command == command.COMMAND_TYPE.LOCK and
-                    cmd.my_lock_num in lock_set):
+                    cmd.my_lock_num in self.lock_set):
                     request_queue.put(cmd)
                     state = WAIT
                 else:
