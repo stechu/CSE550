@@ -54,6 +54,9 @@ class server:
         self.acceptor_queue_lock = Lock()
         self.learner_queue_lock = Lock()
 
+        self.instance_resolutions = [] # set of known resolved instances
+        self.lock_set = []             # the set of (lock, client_ids) that are locked
+
         # Fire up a listener process
         listening_process = Process(target=self.initialize_listener, args=(host, port))
         listening_process.start()
@@ -217,7 +220,11 @@ class server:
 
     def initialize_proposer(self, host, port, server_number, total_servers, server_list):
 
-        # create a request queue
+        ######################################################################
+        # Data structure initializations
+        ######################################################################
+
+        # create a request queue for pending commands
         request_queue = Queue()
 
         # proposer port must be even
@@ -267,6 +274,12 @@ class server:
         proposal_instance = 0       # the instance this node is proposing for
         instance_proposal_map = dict()   # a mapping of instance -> current proposal number
 
+        ######################################################################
+        # Open connection to the client
+        # - accepts a client connection
+        # - processes the client requests until client is done
+        ######################################################################
+
         # Begin processing messages from the message queue
         while (done == 0):
 
@@ -274,6 +287,15 @@ class server:
             (client_connection, address) = client_socket.accept()
 
             client_done = 0
+
+            ######################################################################
+            # While the client still has messages it wants to issue
+            # - check the request queue for commands to propose first
+            # - get the messages from the client connection
+            # - check the lock set - if the lock you want is held, put the request
+            #   on the message request queue and spin in a WAIT state until you get
+            #   a lock release
+            ######################################################################
 
             # client processing loop - service as many message from the client as needed until socket closed
             while (client_done == 0):
@@ -294,6 +316,9 @@ class server:
                 cmd = c_msg.value
                 assert(isinstance(cmd, command.command))
                 assert(c_msg.msg_type == message.MESSAGE_TYPE.CLIENT)
+
+                # TODO: check if the message is a lock message
+                # TODO: if you get a request for a held lock, block in a WAIT state
 
                 # TODO: check if someone else has the lock, if they do go to a waiting state where you check the learner queue for instance resolutions
                 state = READY
