@@ -1,8 +1,10 @@
-\documentclass[11pt, onecolumn]{article}
+\documentclass{article}
 \usepackage[pdftex]{graphicx}
 \usepackage{wrapfig}
 \usepackage{enumerate}
 \usepackage{hyperref}
+\usepackage{fullpage}
+\usepackage{cite}
 
 \begin{document}
 
@@ -72,11 +74,11 @@ If at the end of a single iteration of this protocol, no value is ultimately cho
 \section{Paxos Implementation of Lock Service}
 
 Our design leverages the Paxos algorithm to implement a the ordering of commands for a simple lock service.
-Issuable commands in this service are \bf{lock(x)} and \bf{unlock(x)} where \bf{x} is an integer.
+Issuable commands in this service are $lock(x)$ and $unlock(x)$ where $x$ is an integer.
 The end goal of this service is to provide consensus upon a series of commands in which locks are resolved in a valid order.
 The state machine in this service is defined to be the state of the locks and is replicated across servers for resilience to failure.
 Each instance of the Paxos protocol resolves exactly one command to be issued for that instance.
-Instances are numbered in monotonically increasing order and correlate to sequence in which the \bf{lock(x)} and \bf{unlock(x)} commands are issued.
+Instances are numbered in monotonically increasing order and correlate to sequence in which the $lock(x)$ and $unlock(x)$ commands are issued.
 
 \subsection{Simplifying Assumptions}
 
@@ -97,8 +99,8 @@ We also make the following assumptions to simplify our implementation of the Pax
 \item Entities will not attempt to retransmit messages in the case of message loss or timeout
 \item Clients know which entities are part of the Paxos group
 \item The client-server communication channel is reliable
+\item Client requests made to a server are serviced one at a time - i.e. does not handle multiple concurrent client requests
 \end{enumerate}
-
 
 TODO: figure out how to elect a leader
 
@@ -161,6 +163,7 @@ A second server socket is dedicated to listening to client connections on the pr
 To avoid port collisions, each server assumes that the port number supplied during initialization and the port number plus 1 are both allocated for that server.
 
 \begin{figure}
+\centering
 \includegraphics[width=6in]{paxos_group_connections.jpg}
 \caption{Paxos Group Connections - each Paxos group member holds connections to clients and connections to communication to every other server in the Paxos group} 
 \end{figure}
@@ -177,10 +180,38 @@ The proposer process is responsible for opening a client facing socket which all
 Proposers handle each connection in a blocking manner where the client connection will block until the requested command issued by the client makes it into an instance of Paxos.
 
 \begin{figure}
+\centering
 \includegraphics[width=4in]{paxos_member_architecture.jpg}
 \caption{Process Architecture - message queues to learner, proposer, and acceptor are serialized and each put() on the message queue is atomic}
 \end{figure}
 
+\subsection{Proposer Finite State Machine}
+
+The proposer executes a finite state machine as summarized in Figure ~\ref{proposer_fsm}.
+
+\begin{figure}
+\centering
+\includegraphics[width=6in]{proposer_fsm.jpg}
+\caption{Proposer Finite State Machine}
+\label{proposer_fsm}
+\end{figure}
+
+State definitions:
+\begin{itemize}
+\item[IDLE] PROPOSER is waiting for client connection to issue a COMMAND to propose. 
+  Upon receiving a COMMAND to propose, a transition to READY is made.
+\item[READY] PROPOSER has received a message but no issue proposals to each ACCEPTOR in the Paxos group.
+  In this state, the PROPOSER issues PREPARE messages to each ACCEPTOR and unconditionally transitions to the PROPPOSING state.
+\item[PROPOSING] PROPOSER has issued PREPARE messages and is waiting for a majority of ACCEPTORS to response with a PREPARE ACK message.
+  In this state, if the PROPOSER does not receive a sufficient number of PREPARE ACK messages for its PREPARE request it transitions to the READY state and attempts another proposal.
+  If the PROPOSER gets a majority of responses, move to the ACCEPT state.
+\item[ACCEPT] PROPOSER has received a majority for proposal and issues an ACCEPT message with the COMMAND to each ACCEPTOR in the Paxos group. 
+  An unconditional transition to the ACCEPTING state occurs.
+\item[ACCEPTING] PROPOSER has issued ACCEPT requests. 
+  If an ACCEPT ACK message is received from a majority of ACCEPTORS, consider the proposal COMMAND chosen and advance to BROADCAST state.
+ If an insufficient number of ACCEPT ACK message are received after a given time, assume the ACCEPT attempt failed and transition to the READY state to attempt another round. 
+\item[BROADCAST] PROPOSER issues LEARNER messages to all Paxos learner members in the system notifying that the COMMAND for the INSTANCE has been chosen.
+\end{itemize}
 
 \subsection{Lock Service Contention}
 
