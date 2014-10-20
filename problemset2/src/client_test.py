@@ -15,6 +15,7 @@ import pickle
 import socket
 import subprocess
 import time
+import message
 
 class client_test(unittest.TestCase):
     def setUp(self):
@@ -47,41 +48,45 @@ class client_test(unittest.TestCase):
 
         print "[Lock Client Test] Client connected to server..."
 
+        client_id = 57
+
         # Client sends a command to server
         cmd_obj = command.command("lock 45")
-        self.client.send_command(cmd_obj)
+        self.client.send_command(cmd_obj, client_id)
 
         # Server receives and unpickles command
-        server_recv_cmds = connection_socket.recv(1024)
+        rmsgs = connection_socket.recv(1024)
 
-        server_recv_cmd = pickle.loads(server_recv_cmds)
+        rmsg = pickle.loads(rmsgs)
 
-        assert(server_recv_cmd.my_command == command.COMMAND_TYPE.LOCK)
-        assert(server_recv_cmd.my_lock_num == 45)
+        assert(isinstance(rmsg, message.message))
+        assert(rmsg.value.my_command == command.COMMAND_TYPE.LOCK)
+        assert(rmsg.value.my_lock_num == 45)
+        assert(rmsg.client_id == client_id)
+        assert(rmsg.msg_type == message.MESSAGE_TYPE.CLIENT)
 
         # loopback the data to the server
 
-        connection_socket.send(server_recv_cmds)
-
-        # close the connection on the server
-        connection_socket.close()
+        connection_socket.send(pickle.dumps(rmsg))
 
         print "[Lock Client Test] Client issued command to server..."
 
         # Client receives loopback data from server
-        recv_data = self.client.receive_command()
+        rmsgs = self.client.receive_message()
 
         print "[Lock Client Test] Client received loopback data from server..."
 
-        # Deserialize the data
-        recv_cmd_obj = pickle.loads(recv_data)
+        rmsg = pickle.loads(rmsgs)
+        assert(isinstance(rmsg, message.message))
+        assert(rmsg.value.my_command == command.COMMAND_TYPE.LOCK)
+        assert(rmsg.value.my_lock_num == 45)
+        assert(rmsg.client_id == client_id)
+        assert(rmsg.msg_type == message.MESSAGE_TYPE.CLIENT)
 
-        # Validate the same object came back
-        assert(recv_cmd_obj.my_command == command.COMMAND_TYPE.LOCK)
-        assert(recv_cmd_obj.my_lock_num == 45)
-
+        # Clean up
         self.client.exit()
         server_socket.close()
+        connection_socket.close()
 
 if __name__ == '__main__':
     unittest.main()

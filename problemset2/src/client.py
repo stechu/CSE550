@@ -13,7 +13,7 @@ import socket
 from constants import *
 import command
 import cPickle as pickle
-
+import message
 
 class client:
 
@@ -33,17 +33,18 @@ class client:
             exit(-1)
 
     # Sends the requested command to the server using pickle
-    def send_command(self, cmd):
-        # serialize the command object
-        serialized_command = pickle.dumps(cmd)
-
-        self.CONNECTION_SOCKET.send(serialized_command)
+    def send_command(self, cmd, client_id):
+        msg = message.message(message.MESSAGE_TYPE.CLIENT,
+                              None, None, cmd, 'localhost', 9000, client_id)
+        self.CONNECTION_SOCKET.send(pickle.dumps(msg))
 
     # Receive data from the server
-    def receive_command(self):
-        received_data = self.CONNECTION_SOCKET.recv(1024)
-
-        return received_data
+    def receive_message(self):
+        try:
+            rmsg = self.CONNECTION_SOCKET.recv(1024)
+        except Exception, e:
+            return None
+        return rmsg
 
     # Validate the command format
     def create_command(self, cmd_str):
