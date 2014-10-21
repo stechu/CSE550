@@ -64,13 +64,13 @@ If the sequence number received by the acceptor is greater than or equal to the 
 A response is issued with this ``promise'' to the original proposer.
 Meanwhile, the original proposer wait until it receives responses from a majority of the acceptors it initially issued proposals to with sequence number N.
 There are two cases at this stage of the protocol: the proposer gets messages from a majority of acceptors with a prepare acknowledgement for it's proposal number, 
-or the proposer gets messages from a majority of acceptors with a prepare not acknowledgement (prepare NACK), the highest value each acceptor has seen, and the value if any the acceptor has accepted for that proposal number.
-If the proposer gets a majority prepare NACK for a particular value, and proposal number, it means that the instance may have already been resolved.
-At this point the proposer will abandon its original proposal and proposal this new value it received from a majority of acceptors and the proposal number.
+or the proposer gets messages from a majority of acceptors with a prepare not acknowledgement (prepare NACK), the highest value each acceptor has accepted, and the value associated with this highest proposal number.
+If the proposer gets a majority of previously accepted values from the acceptors it means that the instance may have already been resolved.
+At this point the proposer will abandon its original proposal and propose this new value it received from a majority of acceptors and the proposal number.
 
 \subsection{Paxos Phase II}
 
-If a majority of messages are prepare NACKs with the same value, the proposer changes the value it wants to propose to that value and the proposal number to the number in the prepare NACK message.
+If a majority of messages are prepare NACKs with the same previously accepted value, the proposer changes the value it wants to propose to that value and the proposal number to the number in the prepare NACK message.
 Once this resolution occurs, the proposer issues an accept request with the proposal number and value.
 An acceptor will accept the proposal and chosen value if the highest sequence number is sees is still N, and reject the message otherwise.
 Upon successful receipt of the accept message, messages are issued to all relevant learners with the value chosen and an accept message is issued to the original proposer.
@@ -205,7 +205,7 @@ The process architecture in our implementation is shown in Figure ~\ref{paxos_me
 \centering
 \includegraphics[width=4in]{paxos_member_architecture.jpg}
 \caption{Process Architecture - message queues to learner, proposer, and acceptor are serialized and each put() on the message queue is atomic}
-\label{paxos_member|
+\label{paxos_member}
 \end{figure}
 
 \subsection{Proposer Finite State Machine}
@@ -267,21 +267,21 @@ Unless the server instance dies or is shutdown, the server never closes the clie
 
 All of our code can be found in the $\${ROOT_DIR}/src$ folder.
 The folder contains a number of unit test files which exercise different aspects of the design.
-Each unit test $\${unittest}$ can be executed by simply running $./\${unittest}$ in the $src$ directory.
+Each unit test $unittest$ can be executed by simply running $./unittest$ in the $src$ directory.
 
 Unit test files:
 \begin{itemize}
-\item [client_test.py] Tests if the client is able to send messages to a dummy server instance, and correctly processes the acknowledgement messages from the server. 
+\item [acceptor\_test.py] Tests if the client is able to send messages to a dummy server instance, and correctly processes the acknowledgement messages from the server. 
   The dummy server is configured to simply loopback the client request message as an acknowledgement.
-\item [acceptor_test.py] Exercises the acceptor process logic. 
+\item [acceptor\_test.py] Exercises the acceptor process logic. 
   Creates a dummy server instance for the Paxos acceptor to connect to and injects a sequence of messages into the acceptor process. 
   Response messages are validated and replied to where expected.
-\item [proposer_test.py] Exercises the proposer process logic.
+\item [proposer\_test.py] Exercises the proposer process logic.
   Creates a dummy server instane for the Paxos proposer to connect to and injects message sequnces to exercise the FSM.
   Response messages are validated and replied to where necessary.
-\item [integration_test.py] Tests basic bring up of a Paxos group with no failures.
+\item [integration\_test.py] Tests basic bring up of a Paxos group with no failures.
   Clients are connected to server instances to verify use cases under the absence of node failures.
-\item [failure_test.py] Tests if the Paxos group still operates correctly under the presence of node failures.
+\item [failure\_test.py] Tests if the Paxos group still operates correctly under the presence of node failures.
   Server nodes are brought down by terminating all process associated with that server node.
 \end{itemize}
 
