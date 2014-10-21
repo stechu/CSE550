@@ -43,29 +43,43 @@ We interpret consensus to be defined as the following constraints:
 \end{enumerate}
 
 The Paxos protocol consists of three classes of members: proposers, acceptors, and learners.
-Proposers are defined as entities that present proposals to acceptors.
-Acceptors are defined as entities that are responsible for arbitrating whether a proposal is accepted or not.
-Finally, learners are defined as entities that are subscribed to a particular value that a consensus determines.
+\begin{itemize}
+\item Proposers are defined as entities that present proposals to acceptors.
+\item Acceptors are defined as entities that are responsible for arbitrating whether a proposal is accepted or not.
+\item Learners are defined as entities that are subscribed to a particular value that a consensus determines.
+\end{itemize}
 
 In any Paxos instance, in order to tolerate node failure, multiple proposers and acceptors participate in a Paxos instance.
 A Paxos instance is resolved by the following a two phase protocol.
 
-In the first phase of the protocol, proposers create proposals with some associated monotonically increasing sequence number N. 
+\subsection{Paxos Phase I}
+
+In the first phase of the protocol, proposers create proposals with some associated monotonically increasing sequence number N and some instance number I. 
 The sequence number is always larger than any previous sequence number the proposer has issued. 
 A propose message is then sent to the set of acceptors with the sequence number chosen. 
 When an acceptor receives a propose message, it compares the sequence number of the proposal to all previous sequence numbers it has seen.
 If the sequence number received is less than any sequence number the acceptor has seen, the proposal is rejected and ignored.
+A response message with the highest proposal seen and the value accepted is sent to the proposer instead.
 If the sequence number received by the acceptor is greater than or equal to the prior sequence numbers observed by the acceptor, it ``promises'' to reject all messages less than the sequence number received from that point forward.
 A response is issued with this ``promise'' to the original proposer.
-
 Meanwhile, the original proposer wait until it receives responses from a majority of the acceptors it initially issued proposals to with sequence number N.
-Once this occurs, the proposer issues another message with the value chosen for the proposal that was issued.
+There are two cases at this stage of the protocol: the proposer gets messages from a majority of acceptors with a prepare acknowledgement for it's proposal number, 
+or the proposer gets messages from a majority of acceptors with a prepare not acknowledgement (prepare NACK), the highest value each acceptor has seen, and the value if any the acceptor has accepted for that proposal number.
+If the proposer gets a majority prepare NACK for a particular value, and proposal number, it means that the instance may have already been resolved.
+At this point the proposer will abandon its original proposal and proposal this new value it received from a majority of acceptors and the proposal number.
+
+\subsection{Paxos Phase II}
+
+If a majority of messages are prepare NACKs with the same value, the proposer changes the value it wants to propose to that value and the proposal number to the number in the prepare NACK message.
+Once this resolution occurs, the proposer issues an accept request with the proposal number and value.
 An acceptor will accept the proposal and chosen value if the highest sequence number is sees is still N, and reject the message otherwise.
 Upon successful receipt of the accept message, messages are issued to all relevant learners with the value chosen and an accept message is issued to the original proposer.
-If an acceptor rejects the message, the message will be discarded and no response will be issued.
+If an acceptor rejects the accept request, the message will be discarded and no response will be issued.
 A proposer knows its attempt to chose a value has failed if it does not receive responses from a majority of acceptors.
 
 If at the end of a single iteration of this protocol, no value is ultimately chosen, the procedure is repeated with a higher sequence number of each node until a value is eventually chosen.
+If the proposer is able to get a majority of accept requests, it knows that the Paxos instance has been resolved and moves on to the next one.
+If during the first phase, the proposer had to abandon the original value, it tries to propose this value again in the next Paxos instance.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Implementation Details
@@ -102,7 +116,10 @@ We also make the following assumptions to simplify our implementation of the Pax
 \item Client requests made to a server are serviced one at a time - i.e. does not handle multiple concurrent client requests
 \end{enumerate}
 
-TODO: figure out how to elect a leader
+Our implementation initializes each server with a different proposal number. 
+When proposing higher numbered proposals, the initial proposal number is incremented by the number of servers initially in the system, not the active number of servers in the Paxos group.
+This is to ensure strict partitioning of the proposals.
+As a consequence, we do not implement leader based Paxos since the possibility of a livelock situation is negligbly small.
 
 \subsection{Failure Mode Considerations}
 
@@ -239,6 +256,7 @@ If a proposer sees that the lock it wants is currently held, it will wait until 
 Once the requested operation finished, the server issues a message with type CLIENT ACK indicating to the client that the Paxos group successfully accepted the proposal.
 
 The client can then either disconnect from the server, or issue another command to be processed.
+Unless the server instance dies or is shutdown, the server never closes the client connection.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -247,7 +265,28 @@ The client can then either disconnect from the server, or issue another command 
 
 \section{How to Use Our Implementation}
 
-STUB
+All of our code can be found in the $\${ROOT_DIR}/src$ folder.
+The folder contains a number of unit test files which exercise different aspects of the design.
+Each unit test $\${unittest}$ can be executed by simply running $./\${unittest}$ in the $src$ directory.
+
+Unit test files:
+\begin{itemize}
+\item [client_test.py] Tests if the client is able to send messages to a dummy server instance, and correctly processes the acknowledgement messages from the server. 
+  The dummy server is configured to simply loopback the client request message as an acknowledgement.
+\item [acceptor_test.py] Exercises the acceptor process logic. 
+  Creates a dummy server instance for the Paxos acceptor to connect to and injects a sequence of messages into the acceptor process. 
+  Response messages are validated and replied to where expected.
+\item [proposer_test.py] Exercises the proposer process logic.
+  Creates a dummy server instane for the Paxos proposer to connect to and injects message sequnces to exercise the FSM.
+  Response messages are validated and replied to where necessary.
+\item [integration_test.py] Tests basic bring up of a Paxos group with no failures.
+  Clients are connected to server instances to verify use cases under the absence of node failures.
+\item [failure_test.py] Tests if the Paxos group still operates correctly under the presence of node failures.
+  Server nodes are brought down by terminating all process associated with that server node.
+\end{itemize}
+
+To run all tests, in the $src$ directory, issue $make test$.
+This should fire off each test case.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Known Issues
