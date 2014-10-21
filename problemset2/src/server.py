@@ -14,91 +14,87 @@
 #   servers
 ######################################################################
 
-import os
-import sys
+
 import socket
-import multiprocessing
 from multiprocessing import Queue, Process, Lock
 import message
+from message import MESSAGE_TYPE
 import pickle
 import command
 
-class server:
-    
-    ######################################################################
-    # Server constructor
-    # - host = hostname server is instantiated on
-    # - port = port number server will listen to
-    # - server_number = unique identifier of server in initial Paxos group
-    # - total_servers = total number of servers in initial Paxos group
-    ######################################################################
-    
-    def __init__(self, host, port, server_number, total_servers):
 
-        # enforce all ports are even such that odd ports can be inter-server communication ports
-        assert((int(port) % 2 == 0))   
+class server(object):
 
-        self.host = host
-        self.port = port
-        self.server_number = server_number
-        self.total_servers = total_servers
-        self.DEBUG_TAG = "[" + str(host) + ":" + str(port) + "]"
+    def __init__(self, server_id, server_list):
+        """
+            Server, a member of PAXOS group
+            - server_id = the index of the server in server_list
+            - server_list = list of servers in PAXOS group
+        """
+        assert len(server_list) > server_id
+        self.server_list = server_list
+        self.server_id = server_id
+        self.host = server_list[server_id].host
+        self.internal_port = server_list[server_id].internal_port
+        self.client_port = server_list[server_id].client_port
+        self.DEBUG_TAG = "[" + str(self.host) + "," + str(self.server_id) + "]"
 
         # Communication queues for this server node
-        self.proposer_queue = Queue()  # message queue bound for the proposer process
-        self.acceptor_queue = Queue()  # message queue bound for the acceptor process
-        self.learner_queue = Queue()   # message queue bound for the leaner process
+        self.proposer_queue = Queue()  # message queue for the proposer process
+        self.acceptor_queue = Queue()  # message queue for the acceptor process
 
         # Initialize queue locks
         self.proposer_queue_lock = Lock()
         self.acceptor_queue_lock = Lock()
-        self.learner_queue_lock = Lock()
 
-        self.instance_resolutions = [] # set of known resolved instances
-        self.lock_set = []             # the set of (lock, client_ids) that are locked
+        self.instance_resolutions = []  # resolved instances
+        self.lock_set = []              # (lock, client_ids) that are locked
 
         # Fire up a listener process
-        listening_process = Process(target=self.initialize_listener, args=(host, port))
+        listening_process = Process(
+            target=self.initialize_listener)
         listening_process.start()
         self.listening_process = listening_process
 
-        #print self.DEBUG_TAG + " Done bringing up Paxos member..."
+    def group_size(self):
+        """
+            Return the size of the paxos group
+        """
+        return len(self.server_list)
 
-    ######################################################################
-    # Initializes a listening process which routes listening connections
-    # - starts up a listening socket
-    # - messages on the listening socket are routed appropriately to the
-    #   relevant Paxos member
-    # - Handles the initialization of a process for all inter-server
-    #   communication
-    ######################################################################
-    
-    def initialize_listener(self, host, port):
-        #print self.DEBUG_TAG + " Starting listener on process " + str(os.getpid())
-
-        assert((port % 2) == 0)
-        
+    def initialize_listener(self):
+        """
+        Initializes a listening process which routes listening connections
+            - starts up a listening socket
+            - messages on the listening socket are routed appropriately to the
+              relevant Paxos member
+            - Handles the initialization of a process for all inter-server
+             communication
+        """
         try:
             # bring up the listening socket
             server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            server_socket.bind((host, int(port) + 1)) # inter-server connections on port + 1
-            server_socket.listen(30)
 
-            print self.DEBUG_TAG + " Opened inter_server socket on port " + str(port + 1)
+            # inter-server connections on port + 1
+            server_socket.bind(self.host, self.internal_port)
+            server_socket.listen(30)
 
             #TODO: set up graceful exit
             done = 0
 
-            # while still alive, set up connections and put them on a listening process
+            # while still alive,
+            # set up connections and put them on a listening process
             # - these connections are internal server communication channels
             while (done == 0):
-            
+
                 # connect to the socket
                 connection_socket, address = server_socket.accept()
 
-                # for each connection you accept, fire another process that blocks on receives
-                listening_process = Process(target=self.connection_process, args=(connection_socket,))
+                # for each connection you accept,
+                # fire another process that blocks on receives
+                listening_process = Process(
+                    target=self.connection_process, args=(connection_socket,))
 
                 # starts the connection process
                 listening_process.start()
@@ -107,8 +103,6 @@ class server:
 
         except Exception, e:
             print self.DEBUG_TAG + " ERROR - Error initializing listening process on port " + str(port + 1) + " - " + str(e)
-            assert(False)
-
         server_socket.close()
 
     ######################################################################
@@ -119,11 +113,6 @@ class server:
 
     def connection_process(self, socket):
         done = 0
-
-        #print self.DEBUG_TAG + " Connection handler initialized with PID " + str(os.getpid())
-
-        print self.DEBUG_TAG + " Connection process initiated on " + str(os.getpid())
-
         try:
             while (done == 0):
                 # receive the message
@@ -138,8 +127,8 @@ class server:
 
                 # switch on the message type
                 msg_type = msg.msg_type
-                
-                # route the message to the appropriate process based on the message type
+
+                # route the message to the appropriate process based its type
                 if (msg_type == message.MESSAGE_TYPE.PREPARE):
                     print self.DEBUG_TAG + " Got a prepare message."
                     self.acceptor_queue_lock.acquire()
@@ -166,18 +155,16 @@ class server:
                     self.proposer_queue.put(msg)
                     self.proposer_queue_lock.release()
                 elif(msg_type == message.MESSAGE_TYPE.CLIENT_ACK):
-                    print self.DEBUG_TAG + " Got a client ACK message."
-                    assert(false) # the server should never receive this message type
+                    raise ValueError("ERROR: Got a client ACK message.")
                 elif(msg_type == message.MESSAGE_TYPE.EXIT):
                     print self.DEBUG_TAG + " Got an exit message."
                     self.proposer_queue.put(msg)
                     self.acceptor_queue.put(msg)
-                    self.learner_queue.put(msg)
                     done = 1
                 else:
-                    print self.DEBUG_TAG + " ERROR - Got a message which makes no sense."
-                    assert(false) # the server should never get here
-            
+                    raise ValueError(
+                        " ERROR - Got a message which makes no sense.")
+
         # if the socket closes, handle the disconnect exception and terminate
         except Exception, e:
             print self.DEBUG_TAG + " ERROR - exception raised: " + str(e)
@@ -191,24 +178,20 @@ class server:
     # the listening sockets
     ######################################################################
 
-    def initialize_paxos(self, host, port, server_number, total_servers, server_list):
-        try:
-            self.proposer_process = self.launch_proposer_process(host, port, server_number, total_servers, server_list)
-            self.acceptor_process = self.launch_acceptor_process(host, port, server_number, total_servers, server_list)
-            assert(self.proposer_process.is_alive() and
-                   self.acceptor_process.is_alive())
-        except Exception, e:
-            print str(e)
-            assert(False)
+    def initialize_paxos(self, host, port,
+                         server_id, total_servers, server_list):
+        self.acceptor_process = self.launch_acceptor_process(
+            host, port, server_id, total_servers, server_list)
+        self.proposer_process = self.launch_proposer_process(
+            host, port, server_id, total_servers, server_list)
 
     # abstract initialization processes for testing purposes
-    def launch_acceptor_process(self, host, port, server_number, total_servers, server_list):
-
-        print self.DEBUG_TAG + " Launching acceptor process..."
-
+    def launch_acceptor_process(self, host, port,
+                                server_id, total_servers, server_list):
         # initialize the acceptor process
         acceptor_process = Process(target=self.initialize_acceptor,
-                                   args=(host, port, server_number, total_servers, server_list))
+                                   args=(host, port, server_id,
+                                         total_servers, server_list))
         acceptor_process.start()
 
         print self.DEBUG_TAG + " Initialized proposer process..."
@@ -217,13 +200,15 @@ class server:
         return acceptor_process
 
     # abstract initialization processes for testing purposes
-    def launch_proposer_process(self, host, port, server_number, total_servers, server_list):
+    def launch_proposer_process(self, host, port,
+                                server_id, total_servers, server_list):
 
         print self.DEBUG_TAG + " Launching proposer process..."
 
         # initialize the proposer process
-        proposer_process = Process(target=self.initialize_proposer, 
-                                   args=(host, port, server_number, total_servers, server_list))
+        proposer_process = Process(target=self.initialize_proposer,
+                                   args=(host, port, server_id,
+                                         total_servers, server_list))
         proposer_process.start()
 
         print self.DEBUG_TAG + " Initialized acceptor process..."
@@ -242,45 +227,57 @@ class server:
 
     # TODO: figure out how to advance instance number
 
-    def initialize_proposer(self, host, port, server_number, total_servers, server_list):
+    def initialize_proposer(self):
+        # counter for proposer number
+        proposer_cnt = 0
 
-        ######################################################################
-        # Data structure initializations
-        ######################################################################
+        def prop_num(proposer_cnt):
+            """
+                make sure proposer number increases and unique
+            """
+            return proposer_cnt * 100 + self.server_id
 
-        # create a request queue for pending commands
-        request_queue = Queue()
-
-        # proposer port must be even
-        assert((int(port) % 2) == 0)
+        def send_to_acceptors(msg, server_connections):
+            assert isinstance(msg, message.message)
+            # send the proposal to acceptors
+            for s_socket in server_connections:
+                try:
+                    s_socket.send(pickle.dumps(msg))
+                except Exception, e:
+                    server_connections.remove(s_socket)
+                    print "{}: ERROR - {}".format(self.DEBUG_TAG, e)
+                    pass
+                    # TODO: remove the dead connections
 
         # Initialize server connections unless it's to yourself
-
         server_connections = []
-        
-        for serv in server_list:
-            assert(len(serv) == 2)
-            target_host = serv[0]
-            target_port = serv[1]
-            assert((int(target_port) % 2) == 1)  # interserver ports are odd
 
-            self.DEBUG_TAG + " Proposer attempting connection to " + str((target_host, target_port))
-
+        for (serv_id, serv) in enumerate(self.server_list):
+            if serv_id == self.server_id:
+                continue
+            target_host = serv.host
+            target_port = serv.internal_port
             try:
                 connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                connection.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                connection.setsockopt(
+                    socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 connection.connect((target_host, target_port))
                 server_connections.append(connection)
                 self.DEBUG_TAG + " Proposer established connection to server at " + str((target_host, target_port))
             except Exception, e:
-                print self.DEBUG_TAG + " Proposer failed to connect to " + str(target_host) + ":" + str(target_port) + " " + str(e)
-                assert(False)
+                print "Failed to connect to " + target_host + ":" + target_port + " " + e
+                continue
+
+        print self.DEBUG_TAG + " Opening client socket on: " + str(self.port)
 
         # Open a client port and listen on port for connections
-        client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        client_socket.bind((host, port))
-        client_socket.listen(30)
+        try:
+            client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            client_socket.bind((self.host, self.client_port))
+            client_socket.listen(30)
+        except Exception, e:
+            raise Exception(self.DEBUG_TAG+": cannot open client port." + e)
 
         print self.DEBUG_TAG + " Opening client socket on: " + str(self.port)
 
@@ -293,14 +290,12 @@ class server:
         IDLE = 12        # no proposals in flight
         READY = 13       # state in which a proposal is ready for submission
         ACCEPT = 14      # state issuing accept requests
-        BROADCAST = 15   # send learner messages to propagate messages
-        WAIT = 16        # waiting state for lock to become available
 
         state = IDLE
 
         # Initialize proposer data structures
-        proposal_instance = 0       # the instance this node is proposing for
-        instance_proposal_map = dict()   # a mapping of instance -> current proposal number
+        instance = 0       # the instance this node is proposing for
+        inst_prop_value = dict()   # map of instance -> (prop, value)
 
         ######################################################################
         # Open connection to the client
@@ -316,19 +311,21 @@ class server:
 
             client_done = 0
 
-            ######################################################################
+            ###################################################################
             # While the client still has messages it wants to issue
             # - check the request queue for commands to propose first
             # - get the messages from the client connection
-            # - check the lock set - if the lock you want is held, put the request
-            #   on the message request queue and spin in a WAIT state until you get
-            #   a lock release
-            ######################################################################
+            # - check the lock set - if the lock you want is held, put the
+            #   request on the message request queue and spin in a WAIT
+            #   state until you get a lock release
+            ###################################################################
 
-            # client processing loop - service as many message from the client as needed until socket closed
+            # client processing loop:
+            # service as many message from the client as
+            # needed until socket closed
             while (client_done == 0):
-
-                # receive the client command to propose - if you get an EOF exit gracefully
+                # receive the client command to propose:
+                # - if you get an EOF exit gracefully
                 c_msgs = client_connection.recv(1000)
 
                 # unpack the message and get the command to propose from client
@@ -341,213 +338,173 @@ class server:
                     break
 
                 # validate that you got a valid message with command payload
-                assert(isinstance(c_msg, message.message))
-                cmd = c_msg.value
-                assert(isinstance(cmd, command.command))
-                assert(c_msg.msg_type == message.MESSAGE_TYPE.CLIENT)
+                assert isinstance(c_msg, message.message)
+                assert isinstance(c_msg.value, command.command)
+                assert c_msg.msg_type == message.MESSAGE_TYPE.CLIENT
 
-                # if the lock you want is held, go to a waiting state
-                if (cmd.my_command == command.COMMAND_TYPE.LOCK and
-                    cmd.my_lock_num in self.lock_set):
-                    request_queue.put(cmd)
-                    state = WAIT
-                else:
-                    state = READY
+                # the command sent by client
+                client_command = c_msg.value
+                # the command learnt by proposer (if any)
+                learnt_command = c_msg.value
+                # get proposer number
+                this_prop = prop_num(proposer_cnt)
 
-                # reset the ack count
-                ack_count = 0
-
+                state = READY
                 # Paxos proposal phase if not IDLE
-                while (state != IDLE):
-
-                    ###############################################################################
-                    # WAIT - until the lock becomes available
-                    ###############################################################################
-                    
-                    if (state == WAIT):
-                        # TODO: dequeue messages and updat
-                        pass
-
-                    ###############################################################################
+                while state != IDLE:
+                    ###########################################################
                     # READY - node is ready to propose
-                    ###############################################################################
-                    elif (state == READY):
+                    ###########################################################
+                    if state == READY:
 
                         print self.DEBUG_TAG + " Proposer in READY state..."
-                        
-                        # if never proposed during this instance, initialize proposal number
-                        if (not proposal_instance in instance_proposal_map.keys()):
-                            instance_proposal_map[proposal_instance] = server_number
-                        
-                        # craft the proposal packet
-                        msg = message.message(message.MESSAGE_TYPE.PREPARE, 
-                                              instance_proposal_map[proposal_instance],
-                                              proposal_instance,
-                                              None,
-                                              self.host,
-                                              self.port,
-                                              c_msg.client_id)
 
-                        # send the proposal to acceptors
-                        for s_socket in server_connections:
-                            try:
-                                s_socket.send(pickle.dumps(msg))
-                            except Exception, e:
-                                server_connections.remove(s_socket)
-                                pass  # TODO: remove the appropriate connection that has died
-                                
+                        # get and update proposer number
+                        this_prop = prop_num(proposer_cnt)
+                        proposer_cnt += 1
+                        inst_prop_value[instance] = (
+                            prop_num(proposer_cnt), c_msg.value)
+
+                        # craft the proposal packet and send to acceptors
+                        msg = message.message(
+                            message.MESSAGE_TYPE.PREPARE,
+                            this_prop, instance, None,
+                            self.host, self.server_id, c_msg.client_id)
+                        send_to_acceptors(msg, server_connections)
+
                         # update the state
                         state = PROPOSING
-                        ack_count = 0
 
-                    ###############################################################################
-                    # PROPOSING - wait for the proposals to come back
-                    ###############################################################################
+                    ###########################################################
+                    # PROPOSING - wait for the prepare proposals to come back
+                    ###########################################################
                     elif (state == PROPOSING):
 
-                        print self.DEBUG_TAG + " Proposer in PROPOSING state..."
-                        
-                        try:
-                            # listen to responses on the server message queue
-                            msg = self.proposer_queue.get(block=True, timeout=1)
+                        print self.DEBUG_TAG + " Proposer in PROPOSING state.."
+                        # TODO: total time out is needed
+                        # PREPARE_NACKs received
+                        pre_nacks = []
+                        # response count
+                        response_cnt = 0
+                        while response_cnt <= self.group_size / 2:
+                            try:
+                                # listen to responses on the server msg queue
+                                msg = self.proposer_queue.get(
+                                    block=True, timeout=1)
+                            # if an exception occurs and we're not done,
+                            # consider the proposal failed
+                            except Exception as e:
+                                print "{} : WARN - {}".format(
+                                    self.DEBUG_TAG, e)
+                                # attempt another proposal round
+                                state = READY
+                                continue
 
-                            # TODO: another timeout must be implemented here since a proposer can get constantly flooded with other messages to prevent this one from progressing
+                            assert(isinstance(msg, message.message))
 
-                        # if an exception occurs and we're not done, consider the proposal failed
-                        except Exception as e:
-                            print str(e)
-                            # increment the proposal number
-                            instance_proposal_map[proposal_instance] += total_servers
+                            # if the message ia a prepare ack and matches your
+                            # proposal/instance, increment ack count
+                            if msg.instance != instance:
+                                # ignore these messages since they're leftover
+                                pass
+                            if msg.msg_type == MESSAGE_TYPE.PREPARE_ACK:
+                                # good, +1 ack
+                                assert msg.instance == instance
+                                response_cnt += 1
+                            elif msg.msg_type == MESSAGE_TYPE.PREPARE_NACK:
+                                # store it
+                                nack_msg = (msg.proposal, msg)
+                                pre_nacks.append(nack_msg)
+                                response_cnt += 1
+                            elif (msg.msg_type == message.MESSAGE_TYPE.EXIT):
+                                # exit
+                                print self.DEBUG_TAG + " Proposer exit..."
+                                done = 1
+                                client_done = 1
+                                break
+                            else:
+                                raise ValueError(
+                                    "Wrong message got by proposer")
 
-                            # attempt another proposal round
-                            state = READY
-                            
-                            continue
-                        
-                        assert(isinstance(msg, message.message))
+                        # learn the value of highest prop from responses
+                        if not pre_nacks:
+                            highest_p, p_msg = max(pre_nacks)
+                            learnt_command = p_msg.value
+                        state = ACCEPT
 
-                        # if the message ia a prepare ack and matches your proposal/instance, increment ack count
-                        if (msg.msg_type == message.MESSAGE_TYPE.PREPARE_ACK):
-                            assert(msg.instance != None)
-                            if (msg.instance == proposal_instance):
-                                ack_count += 1
-                                # TODO: MUST MAKE THIS ACK INCREMENT ROBUST AGAINST MESSAGE DUPLICATION
-                        elif (msg.msg_type == message.MESSAGE_TYPE.ACCEPT_ACK):
-                            pass            # ignore these messages since they're leftover from previous rounds
-                        elif (msg.msg_type == message.MESSAGE_TYPE.EXIT):
-                            print self.DEBUG_TAG + " Proposer got an exit message..."
-                            done = 1
-                            client_done = 1
-                            break
-                        else:
-                            assert(False)   # should never get any other message type
-
-                        # if you get enough acks move to accept the proposal
-                        if (ack_count >= int(len(server_list)/2) + 1):
-                            state = ACCEPT
-                            ack_count = 0
-                            
-                    ###############################################################################
+                    ###########################################################
                     # ACCEPT - send the accept messages
-                    ###############################################################################
+                    ###########################################################
                     elif (state == ACCEPT):
 
                         print self.DEBUG_TAG + " Proposer in ACCEPT state..."
-                        
-                        # craft the accept packet
-                        accept_msg = message.message(message.MESSAGE_TYPE.ACCEPT,
-                                                     instance_proposal_map[proposal_instance],
-                                                     proposal_instance,
-                                                     cmd,
-                                                     self.host,
-                                                     self.port,
-                                                     c_msg.client_id)
 
-                        # fire off the accept requests
-                        for s_socket in server_connections:
-                            s_socket.send(pickle.dumps(accept_msg))
+                        # craft the accept packet
+                        accept_msg = message.message(
+                            MESSAGE_TYPE.ACCEPT,
+                            this_prop, instance, learnt_command,
+                            self.host, self.server_id, c_msg.client_id)
+
+                        # send the accept requests
+                        send_to_acceptors(accept_msg, server_connections)
 
                         # advance state
                         state = ACCEPTING
-                        ack_count = 0
 
-                    ###############################################################################
+                    ###########################################################
                     # ACCEPTING - wait for the accepting messages to come back
-                    ###############################################################################
+                    ###########################################################
                     elif (state == ACCEPTING):
-                        
-                        print self.DEBUG_TAG + " Proposer in ACCEPTING state..."
 
-                        try:
-                            msg = self.proposer_queue.get(block=True, timeout=1)
+                        print self.DEBUG_TAG + " Proposer in ACCEPTING state.."
 
-                        except Exception, e:
-                            print self.DEBUG_TAG + " Accepting phase timed out " + str(e)
+                        response_cnt = 0
 
-                            # increment the proposal number
-                            instance_proposal_map[proposal_instance] += total_servers
+                        while response_cnt <= self.group_size() / 2:
+                            try:
+                                msg = self.proposer_queue.get(
+                                    block=True, timeout=1)
+                            except Exception, e:
+                                print self.DEBUG_TAG + " Accepting timed out " + e
+                                # TODO: attempt another proposal round
+                                break
 
-                            # attempt another proposal round
-                            state = READY
-                            ack_count = 0
+                            assert isinstance(msg, message.message)
 
-                        assert(isinstance(msg, message.message))
-
-                        # check messages on the queue for acks
-                        if (msg.msg_type == message.MESSAGE_TYPE.ACCEPT_ACK):
-                            assert(msg.instance != None)
-                            if (msg.instance == proposal_instance):
-                                ack_count += 1
-                            # TODO: make message receive robust against message duplication
-                        elif (msg.msg_type == message.MESSAGE_TYPE.PREPARE_ACK):
-                            pass  #ignore leftover prepare ack messages
-                        elif (msg.msg_type == message.MESSAGE_TYPE.EXIT):
-                            client_done = 1
-                            done = 1
-                        else:
-                            assert(msg.msg_type == -1) # should never get here
+                            # check messages on the queue for acks
+                            if msg.instance != instance:
+                                # ignore left over messages from lower instance
+                                assert msg.instance < instance
+                                pass
+                            if msg.msg_type == MESSAGE_TYPE.ACCEPT_ACK:
+                                assert msg.instance
+                                # only care response for this accept req
+                                if msg.proposal == this_prop:
+                                    response_cnt += 1
+                            elif msg.msg_type == MESSAGE_TYPE.PREPARE_ACK:
+                                # ignore leftover prepare ack messages
+                                pass
+                            elif (msg.msg_type == message.MESSAGE_TYPE.EXIT):
+                                client_done = 1
+                                done = 1
+                            else:
+                                raise ValueError("Should not reach here.")
 
                         # proposal was accepted
-                        if (ack_count >= (int(len(server_list)/2) + 1)):
-                            state = BROADCAST
-                            # TODO: add additional state for when the lock is requested but not available
+                        if response_cnt > self.group_size() / 2:
+                            # yeah! accepted.
+                            # TODO: do something
+                            state = IDLE
+                        else:
+                            # break by timeout
+                            state = READY
 
-                    ###############################################################################
-                    # BROADCAST - distribute messages to all members with chosen value
-                    ###############################################################################
-                    elif (state == BROADCAST):
-                        
-                        print self.DEBUG_TAG + " Proposer in BROADCAST state..."
-
-                        # craft the message for learners and fire them to all learners 
-                        msg = message.message(message.MESSAGE_TYPE.LEARNER,
-                                              instance_proposal_map[proposal_instance],
-                                              proposal_instance,
-                                              cmd,
-                                              self.host,
-                                              self.port,
-                                              c_msg.client_id)
-
-                        # fire the messages to each server
-                        for s_socket in server_connections:
-                            s_socket.send(pickle.dumps(msg))
-
-                        # send an acknowledgement message to the client if we got the lock
-                        
-
-                        # reset the state now that we finished
-                        state = IDLE
-                        ack_count = 0
-
-                    ###############################################################################
+                    ###########################################################
                     # Failure state
-                    ###############################################################################
+                    ###########################################################
                     else:
                         assert(False)
                         assert(state == IDLE)
-
-                # by default always look at the learner message queue for resolved instances 
-                # TODO: abandon proposals and reset states appropriately when you get colliding instance acks
 
                 # close command processing loop
             # close while loop
@@ -561,7 +518,7 @@ class server:
     # - server_list is a list of pairs (host, port)
     ######################################################################
 
-    def initialize_acceptor(self, host, port, server_number, total_servers, server_list):
+    def initialize_acceptor(self, host, port, server_id, total_servers, server_list):
 
         #print (self.DEBUG_TAG + " Initializing acceptor process with PID " + str(os.getpid()))
 
@@ -694,20 +651,3 @@ class server:
         
         # close while (done == 0)
     # close definition of acceptor
-
-    ######################################################################
-    # Intializes a learner of the Paxos group
-    # - listens to learner messages to construct the command stream
-    # - TODO: issue a proposal via the proposer to determine missing 
-    #   instance resolutions
-    # - TODO: consider combining the proposer and learner into one process
-    #   information propagation is then easier to propose and resolve
-    ######################################################################
-
-    def initialize_learner(self, host, port, server_number, total_servers):
-
-        # TODO: on every round compute the last known state of the lock set
-
-        # TODO: when you get a message based on the lock state, put a new proposal on the proposer queue
-
-        pass

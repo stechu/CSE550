@@ -13,10 +13,10 @@ class COMMAND_TYPE():
     NONE = 2
 
 class command():
-    
+
     def __init__(self, cmd_str):
         assert(type(cmd_str) == str)
-        
+
         cmd_s = cmd_str.strip(" \t\n")
         cmd_fields = cmd_s.split(" ")
 
