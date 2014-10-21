@@ -75,6 +75,8 @@ class server:
     
     def initialize_listener(self, host, port):
         #print self.DEBUG_TAG + " Starting listener on process " + str(os.getpid())
+
+        assert((port % 2) == 0)
         
         try:
             # bring up the listening socket
@@ -83,7 +85,7 @@ class server:
             server_socket.bind((host, int(port) + 1)) # inter-server connections on port + 1
             server_socket.listen(30)
 
-            #print self.DEBUG_TAG + " Opened inter_server socket on port " + str(port + 1)
+            print self.DEBUG_TAG + " Opened inter_server socket on port " + str(port + 1)
 
             #TODO: set up graceful exit
             done = 0
@@ -101,8 +103,11 @@ class server:
                 # starts the connection process
                 listening_process.start()
 
+                print self.DEBUG_TAG + " Got a connection from " + str(address) + " on " + str((host, int(port + 1)))
+
         except Exception, e:
             print self.DEBUG_TAG + " ERROR - Error initializing listening process on port " + str(port + 1) + " - " + str(e)
+            assert(False)
 
         server_socket.close()
 
@@ -117,10 +122,14 @@ class server:
 
         #print self.DEBUG_TAG + " Connection handler initialized with PID " + str(os.getpid())
 
+        print self.DEBUG_TAG + " Connection process initiated on " + str(os.getpid())
+
         try:
             while (done == 0):
                 # receive the message
                 smsg = socket.recv(1000)
+
+                print self.DEBUG_TAG + " Got a message on the socket..." + str(smsg) + "|" + str(len(smsg))
 
                 # unpack the message data
                 msg = pickle.loads(smsg)
@@ -168,7 +177,7 @@ class server:
                 else:
                     print self.DEBUG_TAG + " ERROR - Got a message which makes no sense."
                     assert(false) # the server should never get here
-
+            
         # if the socket closes, handle the disconnect exception and terminate
         except Exception, e:
             print self.DEBUG_TAG + " ERROR - exception raised: " + str(e)
@@ -183,29 +192,42 @@ class server:
     ######################################################################
 
     def initialize_paxos(self, host, port, server_number, total_servers, server_list):
-        self.acceptor_process = launch_acceptor_process(self, host, port, server_number, total_servers, server_list)
-        self.proposer_process = launch_proposer_process(self, host, port, server_number, total_servers, server_list)
+        try:
+            self.proposer_process = self.launch_proposer_process(host, port, server_number, total_servers, server_list)
+            self.acceptor_process = self.launch_acceptor_process(host, port, server_number, total_servers, server_list)
+            assert(self.proposer_process.is_alive() and
+                   self.acceptor_process.is_alive())
+        except Exception, e:
+            print str(e)
+            assert(False)
 
     # abstract initialization processes for testing purposes
     def launch_acceptor_process(self, host, port, server_number, total_servers, server_list):
+
+        print self.DEBUG_TAG + " Launching acceptor process..."
+
         # initialize the acceptor process
         acceptor_process = Process(target=self.initialize_acceptor,
                                    args=(host, port, server_number, total_servers, server_list))
         acceptor_process.start()
 
-        #print self.DEBUG_TAG + " Initialized proposer process..."
+        print self.DEBUG_TAG + " Initialized proposer process..."
+        assert(acceptor_process.is_alive())
 
         return acceptor_process
 
     # abstract initialization processes for testing purposes
     def launch_proposer_process(self, host, port, server_number, total_servers, server_list):
 
+        print self.DEBUG_TAG + " Launching proposer process..."
+
         # initialize the proposer process
         proposer_process = Process(target=self.initialize_proposer, 
                                    args=(host, port, server_number, total_servers, server_list))
         proposer_process.start()
 
-        #print self.DEBUG_TAG + " Initialized acceptor process..."
+        print self.DEBUG_TAG + " Initialized acceptor process..."
+        assert(proposer_process.is_alive())
 
         return proposer_process
 
@@ -242,22 +264,25 @@ class server:
             target_port = serv[1]
             assert((int(target_port) % 2) == 1)  # interserver ports are odd
 
+            self.DEBUG_TAG + " Proposer attempting connection to " + str((target_host, target_port))
+
             try:
                 connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 connection.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 connection.connect((target_host, target_port))
                 server_connections.append(connection)
+                self.DEBUG_TAG + " Proposer established connection to server at " + str((target_host, target_port))
             except Exception, e:
-                print "Failed to connect to " + str(target_host) + ":" + str(target_port) + " " + str(e)
-                continue
-
-        print self.DEBUG_TAG + " Opening client socket on: " + str(self.port)
+                print self.DEBUG_TAG + " Proposer failed to connect to " + str(target_host) + ":" + str(target_port) + " " + str(e)
+                assert(False)
 
         # Open a client port and listen on port for connections
         client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         client_socket.bind((host, port))
         client_socket.listen(30)
+
+        print self.DEBUG_TAG + " Opening client socket on: " + str(self.port)
 
         # Enter the main loop of the proposer
         done = 0
@@ -557,15 +582,15 @@ class server:
                 connection.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 connection.connect((target_host, target_port))
                 server_connections[(target_host, target_port)] = connection
-                #print (self.DEBUG_TAG + " Established connection to server at " + target_host + ":" + str(target_port))
+                print (self.DEBUG_TAG + " Acceptor established connection to server at " + target_host + ":" + str(target_port))
             except Exception, e:
-                print "Failed to connect to " + str(target_host) + ":" + str(target_port)
+                print self.DEBUG_TAG + "Acceptor failed to connect to " + str(target_host) + ":" + str(target_port)
                 continue
 
         instance_proposal_map = dict()   # holds the highest promised sequence numbers per instance
         resolved_instances = []          # holds list of resolved instances
 
-        #print (self.DEBUG_TAG + " Done initializing processes...")
+        print (self.DEBUG_TAG + " Done initializing acceptor processes...")
 
         # Enter the proposal processing loop - dequeue message for this proposer and process them
         done = 0

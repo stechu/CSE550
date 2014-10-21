@@ -16,6 +16,7 @@ import time
 import message
 from multiprocessing import Queue, Process, Lock
 import random
+import lock_file
 
 class integration_test(unittest.TestCase):
 
@@ -26,7 +27,7 @@ class integration_test(unittest.TestCase):
     def setUp(self):
 
         # set test server size
-        self.TOTAL_SERVERS = 1
+        self.TOTAL_SERVERS = 3
 
         # initialize server list
         self.server_list = []
@@ -67,12 +68,37 @@ class integration_test(unittest.TestCase):
     ###############################################################
 
     def test_bring_up(self):
+   
+        print "\n[Info] ##########[INTEGRATION TEST SERVER BRING UP TEST]########## \n\n"
+
         # assert processes are running
-#        for s in self.servers:
- #           assert(s.listening_process.is_alive())
-  #          assert(s.proposer_process.is_alive())
-   #         assert(s.acceptor_process.is_alive())
+        for s in self.servers:
+            assert(s.listening_process.is_alive())
+            assert(s.proposer_process.is_alive())
+            assert(s.acceptor_process.is_alive())
         pass
+
+    ###############################################################
+    # Test to see if the client correctly can connect issue
+    #  messages, and sign off
+    ###############################################################
+    
+    def test_single_client(self):
+
+        print "\n[Info] ##########[INTEGRATION TEST SINGLE CLIENT TEST]########## \n\n"
+
+        # generate a lock file
+        CMD_FILE = "client_0.txt"
+        LOCKS = 3
+        lock_file(LOCKS, CMD_FILE)
+
+        # initialize a client
+        cli = client.client()
+
+        # connect to the first server in the list
+        (host, port) = self.server_list[0]
+        assert((port % 2) == 1)
+        cli.connect_to_server(host, port - 1)
 
     ###############################################################
     # Shutdown the Paxos group
