@@ -60,6 +60,7 @@ A propose message is then sent to the set of acceptors with the sequence number 
 When an acceptor receives a propose message, it compares the sequence number of the proposal to all previous sequence numbers it has seen.
 If the sequence number received is less than any sequence number the acceptor has seen, the proposal is rejected and ignored.
 A response message with the highest proposal seen and the value accepted is sent to the proposer instead.
+
 If the sequence number received by the acceptor is greater than or equal to the prior sequence numbers observed by the acceptor, it ``promises'' to reject all messages less than the sequence number received from that point forward.
 A response is issued with this ``promise'' to the original proposer.
 Meanwhile, the original proposer wait until it receives responses from a majority of the acceptors it initially issued proposals to with sequence number N.
@@ -131,11 +132,9 @@ The following is a list of failure modes that our implementation of the lock ser
   The unique identifier is used upon reconnecting to a new Paxos member to validate whether requests by the failed Paxos member were accepted.
   If a command with the unique identifier appears in a previous resolution to an instance of Paxos, we know that the command has already been accepted and do not need to attempt to propose it again.
   If the command identifier does not appear in the list of previously resolved Paxos instances, we know that the original proposal failed and must be proposed again.
-\item Upon acquiring a lock, the client connection and the lock is orphaned. 
-  We do not handle this in our implementation as we assume that clients are well behaved and communication between the client and server is reliable
 \item Upon acquiring a lock, the server node dies and the lock is orphaned.
   We consider allowing the client to reconnect to a different server node to complete execution of the lock sequence to free the lock.
-  Clients will issue a client identifier tag with each request allowing the server to authenticate if the client was the original holder of the lock.
+  Clients in this scenario issue a client identifier tag with each request allowing the server to authenticate if the client was the original holder of the lock.
 \end{enumerate}
 
 \subsection{High Level Software Architecture}
@@ -302,6 +301,31 @@ STUB
 
 \section{Discussion}
 
-STUB
+In this section, we discuss a series of potential problems with our implementation of the lock service which we do not resolve, but would have been important considerations should this have been intended to be a production level system.
+We also present discussion of
+
+\subsection{Resolving Deadlock}
+
+In our implementation of the lock service, it is entirely possible for deadlock to occur.
+The canoncial deadlock scenario is if client A requests locks 1 and 2, while client B requests lock 2 and 1.
+If client A is able to acquire lock 1 and client B is able to acquire lock 2, then the system deadlocks.
+This particular deadlock stems from a poorly designed lock application and thus we punt this problem to the client application programmer to avoid this sort of deadlock issue.
+
+A second deadlock can occur in the case of orphaned locks.
+A lock can be orphaned if a lock command was issued, and the server node failed before it could issue the unlock command associated with the client.
+Since each lock acquisition is tagged with a client id, unless the original client comes back online at another server node, no other client may release this lock.
+As a result, any other client requesting the orphaned lock is deadlocked.
+
+In order to resolve this issue, we would have needed to implement some sort of watchdog timeout which after a certain period of time proposes to unlock the lock on behalf of the dead client.
+This would eventually free up the lock but also does not bypass the Paxos consensus protocol by going through established means to release the lock.
+
+\subsection{Proposal Priority}
+
+In our current implementation, upon initialization, each server is given a unique identifier.
+This identifier is made the server's initial proposal number such that proposals from different servers avoid collisions.
+However, arbitrarily initializing the proposal number to the server number gives the highest numbered server an unfair advantage.
+Thus in the case where all Paxos members are starting a fresh instance simultaneously, the highest numbered proposing server would always ``win'' in that instance.
+Since we do not shuffle the initial proposal values after each instance, the highest numbered server will always enjoy a slight advantage over its peers.
+To fix this, we would have had to implement a variant of Paxos where a leader token would be rotated among Paxos members such that each member would enjoy highest priority the same number of instances as every other proposer.
 
 \end{document}
