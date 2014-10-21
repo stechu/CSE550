@@ -5,19 +5,15 @@
 #########################################################################
 
 import server
-import sys
 import os
 import unittest
-import command
 import pickle
 import socket
-import subprocess
 import time
 import message
-from multiprocessing import Queue, Process, Lock
+
 
 class acceptor_test(unittest.TestCase):
-
     ###########################################################
     # Bring up just enough infrastructure to set up a test
     #  acceptor and send it messages
@@ -37,39 +33,40 @@ class acceptor_test(unittest.TestCase):
 
         # start a test remote inter-server socket on 9003
         try:
-            self.dummy_server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.dummy_server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            self.dummy_server_socket = socket.socket(
+                socket.AF_INET, socket.SOCK_STREAM)
+            self.dummy_server_socket.setsockopt(
+                socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self.dummy_server_socket.bind(('localhost', 9003))
             self.dummy_server_socket.listen(5)
         except Exception, e:
             os.system("lsof -n -i")
             os.system("ps -a")
-            print "[Info] Failed to bind socket for dummy server: " + str(e)
             self.dummy_server_socket.close()
-            
-            assert(False)
+            emsg = "[Info] Failed to bind socket for dummy server: " + str(e)
+            raise ValueError(emsg)
 
         # populate the server list
         self.server_list = [('localhost', 9003)]
 
         # initialize the acceptor which should initiate a connection to 9003
-        self.acceptor_process = self.paxos_server.launch_acceptor_process('localhost', 9000, 0, 2, self.server_list)
+        self.acceptor_process = self.paxos_server.launch_acceptor_process(
+            'localhost', 9000, 0, 2, self.server_list)
 
         # create a test socket to inject messages to the acceptor and connect to 9001
         self.message_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.message_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.message_socket.setsockopt(
+            socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.message_socket.connect(('localhost', 9001))
 
         # accept the incoming connection that should have been made from 9001 to 9003
-        (self.acceptor_connection, acceptor_address) = self.dummy_server_socket.accept()
-
+        (self.acceptor_connection, acceptor_address) = (
+            self.dummy_server_socket.accept())
 
     ###########################################################
     # Test acceptor for graceful bring up and exit
     ###########################################################
-
     def test_bring_up(self):
-
         print "\n\n[Info] ##########[BRING UP TEST]##########\n"
 
         pass
