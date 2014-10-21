@@ -189,21 +189,24 @@ Once a command has been successfully added to an instance of Paxos, an acknowled
 \subsection{Process Architecture}
 
 A server contains one instance of each Paxos role: a proposer, an acceptor, and a learner.
-In our implementation, to reduce complexity, we make the proposer also a learner and do not have separate learner entities operating asynchronously in our design.
-The proposer, and acceptor run on separate processes for each instance of a server in order to operate asynchronously.
-The proposer and learner each have a message queue which is fed with in-bound messages from other servers and client requests.
-These message queues are used to serialize the message streams that may be coming from other servers.
-Each connection to a Paxos member by another server first connection to a Listening process.
-This Listening process spawns a new connection process to handle all requests for the new connection.
-Each of these connection processes handle inter-server communication messages and puts them on the appropriate message queue bound for the Proposer process, or Acceptor process on that server.
-The proposer process is responsible for opening a client facing socket which allows clients to connect to the service and send request messages.
+In our implementation, to reduce complexity, we make the proposer also a learner and do not have separate learner entities operating asynchronously in our design on another process.
+The proposer and acceptor run on separate processes for each instance of a server in order to operate asynchronously.
+In addition, the proposer and acceptor each have a message queue which is fed with in-bound messages from other servers and client requests.
+These message queues are used to serialize the message streams that may be coming from multiple other server connection processes.
+
+Each server services two different server sockets.
+An even numbered port on the server is reserved for listening to client connections while the adjacent higher odd number port is reserved for listening to interserver connections within the Paxos group.
+Each inbound connection from other servers first connects to a socket monitored by a listening process say port 9001.
+This listening process spawns a new connection process to handle all requests for the newly connected socket on a high port.
+Each of these connection processes handle inter-server communication messages and puts them on the appropriate message queue bound for the proposer process, or acceptor process depending on the message type.
+The proposer process is responsible for opening a client facing socket (in this case port 9000) which allows clients to connect to the service and send request messages.
 Proposers handle each connection in a blocking manner where the client connection will block until the requested command issued by the client makes it into an instance of Paxos.
 The process architecture in our implementation is shown in Figure ~\ref{paxos_member}.
 
 \begin{figure}
 \centering
 \includegraphics[width=4in]{paxos_member_architecture.jpg}
-\caption{Process Architecture - message queues to learner, proposer, and acceptor are serialized and each put() on the message queue is atomic}
+\caption{Process Architecture - message queues to learner, proposer, and acceptor are serialized; each put() and get() on the message queue is atomic}
 \label{paxos_member}
 \end{figure}
 

@@ -4,10 +4,7 @@
 # - message class for Paxos communication
 ######################################################################
 
-from enum import Enum
-
-
-class MESSAGE_TYPE(Enum):
+class MESSAGE_TYPE():
     PREPARE = 0
     PREPARE_ACK = 1
     ACCEPT = 2
