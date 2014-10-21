@@ -25,8 +25,8 @@ class client:
         self.connect_to_server(server_host, server_port)
         self.client_id = client_id
         self.cmd_file = cmd_file
-        c_process = Process(target=self.client_process, args=())
-        c_process.start()
+        self.c_process = Process(target=self.client_process, args=())
+        self.c_process.start()
 
     # enables launching of client on a separate thread
     def client_process(self):
