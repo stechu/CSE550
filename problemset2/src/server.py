@@ -559,8 +559,8 @@ class server(object):
 
                 # check if the instance has been resolved
                 if (p_instance in resolved_instances):
+                    # TODO: check if the instance has been resolved? - is this necessary anymore?
                     pass
-                    # TODO: send a PREPARE_NACK with the instance number
 
                 # check if we've ever received a proposal number for this instance
                 if (not p_instance in instance_proposal_map.keys()):
@@ -580,6 +580,9 @@ class server(object):
                     response_connection = server_connections[(msg.origin_host, msg.origin_port)]
                     response_connection.send(pickle.dumps(rmsg))
                     print self.DEBUG_TAG + " Sent a prepare_ack in response to proposal..."
+
+                # TODO: check the instance number and proposal number, if it has already been resolved, 
+                #       send back the value resolved for this instance with a NACK
 
             # if the message type is an ACCEPT request
             elif(msg.msg_type == message.MESSAGE_TYPE.ACCEPT):
@@ -611,6 +614,8 @@ class server(object):
                     assert(server_connections[(msg.origin_host, msg.origin_port)] != None)
                     response_connection = server_connections[(msg.origin_host, msg.origin_port)]
                     response_connection.send(pickle.dumps(rmsg))
+
+                # TODO: add a map that holds the accepted value for this proposal number
 
             # also subscribe to learner messages to determine the resolved instances
             elif (msg.msg_type == message.MESSAGE_TYPE.LEARNER):

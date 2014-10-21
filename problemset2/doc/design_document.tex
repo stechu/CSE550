@@ -173,16 +173,22 @@ Once a command has been successfully added to an instance of Paxos, an acknowled
 \subsection{Process Architecture}
 
 A server contains one instance of each Paxos role: a proposer, an acceptor, and a learner.
-The proposer, acceptor, and learners run on separate processes for each instance of a server in order to operate asynchronously.
-Each process has a message queue which is fed with in-bound messages from other servers and client requests.
-A listening thread is initialized on the inter-server socket which receives messages and routes them
+In our implementation, to reduce complexity, we make the proposer also a learner and do not have separate learner entities operating asynchronously in our design.
+The proposer, and acceptor run on separate processes for each instance of a server in order to operate asynchronously.
+The proposer and learner each have a message queue which is fed with in-bound messages from other servers and client requests.
+These message queues are used to serialize the message streams that may be coming from other servers.
+Each connection to a Paxos member by another server first connection to a Listening process.
+This Listening process spawns a new connection process to handle all requests for the new connection.
+Each of these connection processes handle inter-server communication messages and puts them on the appropriate message queue bound for the Proposer process, or Acceptor process on that server.
 The proposer process is responsible for opening a client facing socket which allows clients to connect to the service and send request messages.
 Proposers handle each connection in a blocking manner where the client connection will block until the requested command issued by the client makes it into an instance of Paxos.
+The process architecture in our implementation is shown in Figure ~\ref{paxos_member}.
 
 \begin{figure}
 \centering
 \includegraphics[width=4in]{paxos_member_architecture.jpg}
 \caption{Process Architecture - message queues to learner, proposer, and acceptor are serialized and each put() on the message queue is atomic}
+\label{paxos_member|
 \end{figure}
 
 \subsection{Proposer Finite State Machine}
@@ -213,15 +219,26 @@ State definitions:
 \item[BROADCAST] PROPOSER issues LEARNER messages to all Paxos learner members in the system notifying that the COMMAND for the INSTANCE has been chosen.
 \end{itemize}
 
-\subsection{Lock Service Contention}
+\subsection{Lock Service Implementation}
+
+The client is implemented such that after sending the server a command message with type CLIENT to request a command be proposed, it will block on a receive from the server until it receives a CLIENT ACK message.
+If the server receives a CLIENT message, it will block until it has confirmed that the Paxos group has accepted the proposed command into an instance in the Paxos group and that the appropriate lock was acquired or released.
+Each client issues a unique client\_id field in order to distringuish its requests from other clients which may issue similar requests.
 
 Because the service for each client is blocking until the request is resolved, in the event of lock contention a client connection will simply wait until lock request has been processed.
 
-TODO: argue correctness?
+In order to ensure that multiple requests for the same lock do not simultaneously get assign in subsequent instances of Paxos, we impose conservative constraints on the conditions for which the instance number may be incremented.
+A Paxos proposer may only advance it's instance number to some instance value N if it has learned the values of all instances less than N.
+If a value for instance N-1 is not resolved, a proposer must attempt to learn it's value by submitting a proposal to that instance.
 
-STUB
+Though this restriction means that only one instance of Paxos may be resolved at a time, it imposes the guarantee that we will never acquire the same lock simultaneously for two adjacent instances of Paxos (ex. instance N = lock(5), instance N+1 = lock(5)).
 
+The correct locking service behavior then follows as proposers will necessarily have the correct view of the lock state up to instance N before trying to acquire a lock that is currently held.
+If a proposer sees that the lock it wants is currently held, it will wait until the lock is released in a future instance before attempting to acquire it.
 
+Once the requested operation finished, the server issues a message with type CLIENT ACK indicating to the client that the Paxos group successfully accepted the proposal.
+
+The client can then either disconnect from the server, or issue another command to be processed.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
