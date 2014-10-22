@@ -6,13 +6,15 @@
 
 from constants import *
 
+
 # A makeshift enum
-class COMMAND_TYPE():
+class COMMAND_TYPE(object):
     LOCK = 0
     UNLOCK = 1
     NONE = 2
 
-class command():
+
+class command(object):
 
     def __init__(self, cmd_str):
         assert(type(cmd_str) == str)

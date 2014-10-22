@@ -23,7 +23,7 @@ import pickle
 import command
 
 
-class server(object):
+class PAXOS_member(object):
 
     def __init__(self, server_id, server_list):
         """
@@ -284,7 +284,6 @@ class server(object):
 
         # Initialize proposer data structures
         instance = 0       # the instance this node is proposing for
-        inst_prop_value = dict()   # map of instance -> (prop, value)
 
         ######################################################################
         # Open connection to the client
@@ -351,8 +350,6 @@ class server(object):
                         # get and update proposer number
                         this_prop = prop_num(proposer_cnt)
                         proposer_cnt += 1
-                        inst_prop_value[instance] = (
-                            prop_num(proposer_cnt), c_msg.value)
 
                         # craft the proposal packet and send to acceptors
                         msg = message.message(
@@ -466,7 +463,6 @@ class server(object):
                                 assert msg.instance < instance
                                 pass
                             if msg.msg_type == MESSAGE_TYPE.ACCEPT_ACK:
-                                assert msg.instance
                                 # only care response for this accept req
                                 if msg.proposal == this_prop:
                                     response_cnt += 1
@@ -481,11 +477,16 @@ class server(object):
 
                         # proposal was accepted
                         if response_cnt > self.group_size() / 2:
-                            # yeah! accepted.
-                            # TODO: do something
-                            state = IDLE
+                            # yeah! accepted
+                            if learnt_command == client_command:
+                                state = IDLE
+                            else:
+                                state = READY
+                            instance += 1
+                            # TODO: add resolve (inst, prop, v) to shared obj.
                         else:
-                            # break by timeout
+                            # break by timeout:
+                            # propose again
                             state = READY
 
                     ###########################################################
@@ -500,129 +501,112 @@ class server(object):
         # close connection processing loop
     # close proposer process definition
 
-    ######################################################################
-    # Intializes an acceptor of the Paxos group
-    # - initializes connections to other server connections
-    # - starts a main loop which processes accept requests
-    # - server_list is a list of pairs (host, port)
-    ######################################################################
+    def initialize_acceptor(self):
+        """
+            Intializes an acceptor of the Paxos group
+               - initializes connections to other server connections
+               - starts a main loop which processes accept requests
+        """
 
-    def initialize_acceptor(self, host, port, server_id, total_servers, server_list):
+        def response_proposer(msg, prop_id):
+            assert server_connections[prop_id]
+            response_conn = server_connections[prop_id]
+            try:
+                response_conn.send(pickle.dumps(rmsg))
+            except Exception, e:
+                print self.DEBUG_TAG + "WARN - fail to response " + e
 
-        #print (self.DEBUG_TAG + " Initializing acceptor process with PID " + str(os.getpid()))
-
-        # host port must be even
-        assert((int(port) % 2) == 0)
-
-        # open socket connections to each server with (hostname, port) pairs as keys
+        # open socket connections to each server: server_id -> connection
         server_connections = dict()
-        for s in server_list:
-
-            assert(len(s) == 2)
-            target_host = s[0]
-            target_port = s[1]
-            assert((int(target_port) % 2) == 1)  # inter-server ports are odd
+        for p_server in self.server_list:
+            target_host = p_server.host
+            target_port = p_server.internal_port
 
             try:
                 connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                connection.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                connection.setsockopt(
+                    socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 connection.connect((target_host, target_port))
-                server_connections[(target_host, target_port)] = connection
-                #print (self.DEBUG_TAG + " Established connection to server at " + target_host + ":" + str(target_port))
+                server_connections[p_server.server_id] = connection
             except Exception, e:
                 print "Failed to connect to " + str(target_host) + ":" + str(target_port)
                 continue
 
-        instance_proposal_map = dict()   # holds the highest promised sequence numbers per instance
-        resolved_instances = []          # holds list of resolved instances
+        # TODO: make this global accessable
+        accept_history = dict()          # instance -> prep_p, acc_p, acc_v
 
-        #print (self.DEBUG_TAG + " Done initializing processes...")
-
-        # Enter the proposal processing loop - dequeue message for this proposer and process them
+        # Enter the proposal processing loop
+        # - dequeue message for this proposer and process them
         done = 0
 
-        # TODO: fix the case for 2 servers where a majority is two
         while (done == 0):
 
             # get a message of the queue
             msg = self.acceptor_queue.get()
 
-            #print (self.DEBUG_TAG + " Received a message with type " + str(msg.msg_type))
-
-            # switch based on the message type
+            ###################################################################
+            # handle PREPARE request
+            ###################################################################
             if (msg.msg_type == message.MESSAGE_TYPE.PREPARE):
-                
+
                 # extract the data fields
                 p_instance = msg.instance
                 p_proposal = msg.proposal
-                p_client_id = msg.client_id
 
-                # check if the instance has been resolved
-                if (p_instance in resolved_instances):
-                    # TODO: check if the instance has been resolved? - is this necessary anymore?
-                    pass
+                # if accepted
+                if p_instance in accept_history:
+                    # unpack history info
+                    h_prep, h_accp, h_accv = accept_history[p_instance]
 
-                # check if we've ever received a proposal number for this instance
-                if (not p_instance in instance_proposal_map.keys()):
-                    instance_proposal_map[p_instance] = 0
+                    # only response if p_proposal higher than current
+                    if p_proposal > h_prep:
 
-                # check to see if the proposal number for the instance is high enough
-                if (p_proposal >= instance_proposal_map[p_instance]):
-                    instance_proposal_map[p_instance] = p_proposal
-                    rmsg = message.message(message.MESSAGE_TYPE.PREPARE_ACK,
-                                           p_proposal,
-                                           p_instance,
-                                           None,
-                                           self.host,
-                                           self.port,
-                                           p_client_id)
-                    assert(server_connections[(msg.origin_host, msg.origin_port)] != None)
-                    response_connection = server_connections[(msg.origin_host, msg.origin_port)]
-                    response_connection.send(pickle.dumps(rmsg))
-                    print self.DEBUG_TAG + " Sent a prepare_ack in response to proposal..."
+                        # decide message type
+                        if h_accp != -1:
+                            msg_type = MESSAGE_TYPE.PREPARE_NACK
+                        else:
+                            msg_type = MESSAGE_TYPE.PREPARE_ACK
+                        # send the nack back
+                        rmsg = message.message(
+                            msg_type, h_accp, p_instance,
+                            h_accv, self.server_id)
+                        response_proposer(rmsg, msg.origin_id)
 
-                # TODO: check the instance number and proposal number, if it has already been resolved, 
-                #       send back the value resolved for this instance with a NACK
+                        # update accept_history
+                        accept_history[p_instance] = (
+                            p_proposal, h_accp, h_accv)
+                else:
+                    # update accept_history
+                    accept_history[p_instance] = (p_proposal, -1, None)
 
-            # if the message type is an ACCEPT request
+                    # send ack back
+                    rmsg = message.message(
+                        MESSAGE_TYPE.PREPARE_ACK, -1, p_instance,
+                        None, self.server_id)
+
+            ###################################################################
+            # handle ACCEPT request
+            ###################################################################
             elif(msg.msg_type == message.MESSAGE_TYPE.ACCEPT):
-                
                 # extract the data fields
                 p_instance = msg.instance
                 p_value = msg.value
                 p_proposal = msg.proposal
                 p_client_id = msg.client_id
-                
-                if (p_instance in resolved_instances):
-                    pass
-                    # TODO: send an ACCEPT_NACK with resolved instance numbers
 
-                # check if we've ever received a proposal number for this instance
-                if (not p_instance in instance_proposal_map.keys()):
-                    instance_proposal_map[p_instance] = p_proposal
+                # check to see if the proposal number for
+                # this instance is high enough
+                h_prep, h_accp, h_accv = accept_history[p_instance]
 
-                # check to see if the proposal number for th instance is high enough
-                if (p_proposal >= instance_proposal_map[p_instance]):
-                    instance_proposal_map[p_instance] = p_proposal
-                    rmsg = message.message(message.MESSAGE_TYPE.ACCEPT_ACK,
-                                           p_proposal,
-                                           p_instance,
-                                           None,
-                                           self.host,
-                                           self.port,
-                                           p_client_id)
-                    assert(server_connections[(msg.origin_host, msg.origin_port)] != None)
-                    response_connection = server_connections[(msg.origin_host, msg.origin_port)]
-                    response_connection.send(pickle.dumps(rmsg))
+                if p_proposal >= h_prep:
+                    rmsg = message.message(
+                        MESSAGE_TYPE.ACCEPT_ACK, p_proposal, p_instance,
+                        p_value, self.server_id, p_client_id)
+                    response_proposer(rmsg, msg.origin_id)
 
-                # TODO: add a map that holds the accepted value for this proposal number
-
-            # also subscribe to learner messages to determine the resolved instances
-            elif (msg.msg_type == message.MESSAGE_TYPE.LEARNER):
-                r_instance = msg.instance
-                if (not r_instance in resolved_instances):
-                    resolved_instances.append(r_instance)
-            # if you get an exit flag signal the done flag to break
+            ###################################################################
+            # handle EXIT message
+            ###################################################################
             elif (msg.msg_type == message.MESSAGE_TYPE.EXIT):
                 done = 1
             # should never get this far
@@ -635,8 +619,7 @@ class server(object):
             for skey in server_connections.keys():
                 server_connections[skey].close()
         except Exception, e:
-            print self.DEBUG_TAG + " ERROR - failed to close server connection..."
+            print self.DEBUG_TAG + " ERROR - failed to close server connection..." + e
 
-        
         # close while (done == 0)
     # close definition of acceptor

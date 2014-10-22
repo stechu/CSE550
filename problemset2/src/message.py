@@ -4,10 +4,8 @@
 # - message class for Paxos communication
 ######################################################################
 
-from enum import Enum
 
-
-class MESSAGE_TYPE(Enum):
+class MESSAGE_TYPE(object):
     PREPARE = 0
     PREPARE_ACK = 1
     ACCEPT = 2
@@ -31,19 +29,17 @@ class MESSAGE_TYPE(Enum):
 # - proposal is proposal number
 # - instance is Paxos instance number
 # - value is proposed value or command
-# - origin_host is hostname of message origin
 # - origin_id is paxos member id of the orignal host
 # - client_id is id number associated with this request
 
 
-class message:
+class message(object):
     def __init__(self, msg_type, proposal, instance,
-                 value, origin_host, origin_id, client_id):
+                 value, origin_id, client_id=-1):
         assert isinstance(msg_type, MESSAGE_TYPE)
         self.msg_type = msg_type
         self.proposal = proposal
         self.instance = instance
         self.value = value
-        self.origin_host = origin_host
         self.origin_id = origin_id
         self.client_id = client_id
