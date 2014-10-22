@@ -36,7 +36,6 @@ class MESSAGE_TYPE(object):
 class message(object):
     def __init__(self, msg_type, proposal, instance,
                  value, origin_id, client_id=-1):
-        assert isinstance(msg_type, MESSAGE_TYPE)
         self.msg_type = msg_type
         self.proposal = proposal
         self.instance = instance
