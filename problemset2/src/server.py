@@ -610,11 +610,14 @@ class PAXOS_member(object):
                 h_prep, h_accp, h_accv = accept_history[p_instance]
 
                 if p_proposal >= h_prep:
+                    # send accept_ack message
                     rmsg = message.message(
                         MESSAGE_TYPE.ACCEPT_ACK, p_proposal, p_instance,
                         p_value, self.server_id, p_client_id)
                     response_proposer(rmsg, msg.origin_id)
-
+                    # update accept_history
+                    accept_history[p_instance] = (
+                        p_proposal, p_proposal, p_value)
             ###################################################################
             # handle EXIT message
             ###################################################################
