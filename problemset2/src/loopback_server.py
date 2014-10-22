@@ -9,7 +9,6 @@
 
 import socket
 import sys
-import os
 
 NUM_CONNECTIONS = -1
 
