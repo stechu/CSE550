@@ -556,7 +556,6 @@ class PAXOS_member(object):
 
             # get a message of the queue
             msg = self.acceptor_queue.get()
-
             ###################################################################
             # handle PREPARE request
             ###################################################################
@@ -589,13 +588,14 @@ class PAXOS_member(object):
                         accept_history[p_instance] = (
                             p_proposal, h_accp, h_accv)
                 else:
-                    # update accept_history
-                    accept_history[p_instance] = (p_proposal, -1, None)
-
                     # send ack back
                     rmsg = message.message(
-                        MESSAGE_TYPE.PREPARE_ACK, -1, p_instance,
+                        MESSAGE_TYPE.PREPARE_ACK, p_proposal, p_instance,
                         None, self.server_id)
+                    response_proposer(rmsg, msg.origin_id)
+
+                    # update accept_history
+                    accept_history[p_instance] = (p_proposal, -1, None)
 
             ###################################################################
             # handle ACCEPT request
@@ -627,8 +627,7 @@ class PAXOS_member(object):
                 done = 1
             # should never get this far
             else:
-                assert(msg.msg_type == -1)
-
+                raise ValueError("Should not be here.")
         # shut down inter-server communication channels
         try:
             assert(len(server_connections.keys()) > 0)
