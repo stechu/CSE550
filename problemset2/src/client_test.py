@@ -19,14 +19,18 @@ import message
 
 class client_test(unittest.TestCase):
     def setUp(self):
-        # instantiate a client
-        self.client = client.client()
+        pass
 
     def test_client_connection_loopback(self):
-        """
-        Tests if connecting to the server works and that
-        loopback works appropriately
-        """
+
+        # file initialization
+        self.test_file_name = "test_file.txt"
+        self.test_file = open(self.test_file_name, "w+")
+        self.test_file.write("lock 1\n")
+        self.test_file.close()
+
+        # Tests if connecting to the server works and that loopback works appropriately
+        
         # start up the test loopback server
         SERVER_HOSTNAME = 'localhost'
         SERVER_PORT = 9000
@@ -38,21 +42,18 @@ class client_test(unittest.TestCase):
         server_socket.bind((SERVER_HOSTNAME, SERVER_PORT))
         server_socket.listen(10)
 
-        print "[Lock Client Test] Launched server subprocess..."
+        print "[Lock Client Test] Launched server socket..."
 
-        # connect to the initialized server socket
-        self.client.connect_to_server(SERVER_HOSTNAME, SERVER_PORT)
+        # instantiate a client
+        self.client_id = 239
+        self.client = client.client(self.test_file_name, 'localhost', 9000, self.client_id)
 
-        # allow server socket to accept connection
+        print "[Lock Client Test] Client initialized to server..."
+
+        # allow server socket to accept connection from the client
         (connection_socket, connection_address) = server_socket.accept()
 
         print "[Lock Client Test] Client connected to server..."
-
-        client_id = 57
-
-        # Client sends a command to server
-        cmd_obj = command.command("lock 45")
-        self.client.send_command(cmd_obj, client_id)
 
         # Server receives and unpickles command
         rmsgs = connection_socket.recv(1024)
@@ -61,32 +62,23 @@ class client_test(unittest.TestCase):
 
         assert(isinstance(rmsg, message.message))
         assert(rmsg.value.my_command == command.COMMAND_TYPE.LOCK)
-        assert(rmsg.value.my_lock_num == 45)
-        assert(rmsg.client_id == client_id)
+        assert(rmsg.value.my_lock_num == 1)
+        assert(rmsg.client_id == self.client_id)
         assert(rmsg.msg_type == message.MESSAGE_TYPE.CLIENT)
 
-        # loopback the data to the server
+        # loopback the data to the client with a modified CLIENT ACK type
+        rmsg.msg_type = message.MESSAGE_TYPE.CLIENT_ACK
 
         connection_socket.send(pickle.dumps(rmsg))
 
-        print "[Lock Client Test] Client issued command to server..."
-
-        # Client receives loopback data from server
-        rmsgs = self.client.receive_message()
-
-        print "[Lock Client Test] Client received loopback data from server..."
-
-        rmsg = pickle.loads(rmsgs)
-        assert(isinstance(rmsg, message.message))
-        assert(rmsg.value.my_command == command.COMMAND_TYPE.LOCK)
-        assert(rmsg.value.my_lock_num == 45)
-        assert(rmsg.client_id == client_id)
-        assert(rmsg.msg_type == message.MESSAGE_TYPE.CLIENT)
-
-        # Clean up
+        # shutdown the client
         self.client.exit()
         server_socket.close()
         connection_socket.close()
+
+    def tearDown(self):
+        pass
+        # Clean up
 
 if __name__ == '__main__':
     unittest.main()

@@ -99,6 +99,8 @@ class PAXOS_member(object):
                 # starts the connection process
                 listening_process.start()
 
+                print self.DEBUG_TAG + " Got a connection from " + str(address) + " on " + str((host, int(port + 1)))
+
         except Exception, e:
             print self.DEBUG_TAG + " ERROR - Error initializing listening process on port " + str(port + 1) + " - " + str(e)
         server_socket.close()
@@ -115,6 +117,8 @@ class PAXOS_member(object):
             while (done == 0):
                 # receive the message
                 smsg = socket.recv(1000)
+
+                print self.DEBUG_TAG + " Got a message on the socket..." + str(smsg) + "|" + str(len(smsg))
 
                 # unpack the message data
                 msg = pickle.loads(smsg)
@@ -190,7 +194,8 @@ class PAXOS_member(object):
                                          total_servers, server_list))
         acceptor_process.start()
 
-        #print self.DEBUG_TAG + " Initialized proposer process..."
+        print self.DEBUG_TAG + " Initialized proposer process..."
+        assert(acceptor_process.is_alive())
 
         return acceptor_process
 
@@ -198,13 +203,16 @@ class PAXOS_member(object):
     def launch_proposer_process(self, host, port,
                                 server_id, total_servers, server_list):
 
+        print self.DEBUG_TAG + " Launching proposer process..."
+
         # initialize the proposer process
         proposer_process = Process(target=self.initialize_proposer,
                                    args=(host, port, server_id,
                                          total_servers, server_list))
         proposer_process.start()
 
-        #print self.DEBUG_TAG + " Initialized acceptor process..."
+        print self.DEBUG_TAG + " Initialized acceptor process..."
+        assert(proposer_process.is_alive())
 
         return proposer_process
 
@@ -255,6 +263,7 @@ class PAXOS_member(object):
                     socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 connection.connect((target_host, target_port))
                 server_connections.append(connection)
+                self.DEBUG_TAG + " Proposer established connection to server at " + str((target_host, target_port))
             except Exception, e:
                 print "Failed to connect to " + target_host + ":" + target_port + " " + e
                 continue
@@ -269,6 +278,8 @@ class PAXOS_member(object):
             client_socket.listen(30)
         except Exception, e:
             raise Exception(self.DEBUG_TAG+": cannot open client port." + e)
+
+        print self.DEBUG_TAG + " Opening client socket on: " + str(self.port)
 
         # Enter the main loop of the proposer
         done = 0
@@ -529,7 +540,7 @@ class PAXOS_member(object):
                 connection.connect((target_host, target_port))
                 server_connections[p_server.server_id] = connection
             except Exception, e:
-                print "Failed to connect to " + str(target_host) + ":" + str(target_port)
+                print self.DEBUG_TAG + "Acceptor failed to connect to " + str(target_host) + ":" + str(target_port)
                 continue
 
         # TODO: make this global accessable

@@ -15,4 +15,4 @@ test:
 run: 
 	echo "TODO"
 clean:
-	rm -f *~ \#* *.o
+	rm -f *~ \#* *.o *.txt
