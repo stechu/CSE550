@@ -24,6 +24,9 @@ class proposer_test(unittest.TestCase):
             Bring up just enough infrastructure to set up a test
             proposer and send it messages.
         """
+
+        print "\n##########[BEGIN TEST]##########\n"
+
         # Proposer message receive socket = 9001
         # Proposer client socket port = 9000
         # Remote server message receive socket = 9003
@@ -94,7 +97,7 @@ class proposer_test(unittest.TestCase):
             cmd = command.command(COMMAND_TYPE.LOCK, resource_id)
             msg = message.message(message.MESSAGE_TYPE.CLIENT,
                                   None, None, cmd, None, client_id)
-            self.client_socket.send(pickle.dumps(msg))
+            self.client_socket.sendall(pickle.dumps(msg))
         except Exception, e:
             print "Error when send client msg {} - {}".format(msg, e)
             raise Exception("exit")
@@ -139,12 +142,15 @@ class proposer_test(unittest.TestCase):
         msg = message.message(message.MESSAGE_TYPE.PREPARE_ACK,
                               rmsg.instance, rmsg.proposal, None,
                               None, rmsg.client_id)
-        self.message_socket.send(pickle.dumps(msg))
-        self.message_socket.send(pickle.dumps(msg))
+        self.message_socket.sendall(pickle.dumps(msg))
+        msg = message.message(message.MESSAGE_TYPE.ACCEPT_ACK, #should be PREPARE-ACK
+                              rmsg.instance, rmsg.proposal, None,
+                              None, rmsg.client_id)
+        self.message_socket.sendall(pickle.dumps(msg))
 
         # get an accept message
         rmsg = pickle.loads(self.proposer_connection.recv(1000))
-        print "rmsg: {}".format(rmsg)
+        print ">>>rmsg: {}".format(rmsg) 
         assert isinstance(rmsg, message.message)
         assert rmsg.client_id == client_id
         assert rmsg.msg_type == message.MESSAGE_TYPE.ACCEPT
@@ -247,6 +253,89 @@ class proposer_test(unittest.TestCase):
         self.message_socket.send(pickle.dumps(msg))
         self.message_socket.send(pickle.dumps(msg))
 
+    def test_instance_advancement(self):
+        """
+            Tests if the instances advance appropriately
+        """
+
+        print "\n##########[TEST PROPOSAL TIMEOUTS]##########\n\n"
+        # make life a little bit easier
+        ps = self.paxos_server
+
+        client_id = random.randint(0, 1000)
+        expected_instance = 0
+
+        # fire a proposal to the server
+        self.client_msg_to_test_server(COMMAND_TYPE.LOCK, 1, client_id)
+
+        # get the prepare message
+        rmsg = pickle.loads(self.proposer_connection.recv(1000))
+        assert(isinstance(rmsg, message.message))
+        assert(rmsg.client_id == client_id)
+        assert(rmsg.msg_type == message.MESSAGE_TYPE.PREPARE)
+        assert(rmsg.proposal == self.paxos_server.server_id)
+        assert(rmsg.instance == expected_instance)
+        
+        # send back responses
+        msg = message.message(message.MESSAGE_TYPE.PREPARE_ACK,
+                              rmsg.proposal, rmsg.instance, None,
+                              None, rmsg.client_id)
+        self.message_socket.send(pickle.dumps(msg))
+        self.message_socket.send(pickle.dumps(msg))
+
+        # get the accept message
+        rmsg = pickle.loads(self.proposer_connection.recv(1000))
+        assert(isinstance(rmsg, message.message))
+        assert(rmsg.client_id == client_id)
+        assert(rmsg.msg_type == message.MESSAGE_TYPE.ACCEPT)
+        assert(rmsg.proposal == self.paxos_server.server_id)
+        assert(rmsg.instance == expected_instance)
+
+        # send back two response messages
+        msg = message.message(message.MESSAGE_TYPE.ACCEPT_ACK,
+                              rmsg.proposal, rmsg.instance, None,
+                              None, rmsg.client_id)
+        self.message_socket.send(pickle.dumps(msg))
+        self.message_socket.send(pickle.dumps(msg))
+
+        # we should now be done with the first instance, start the second instance
+
+        expected_instance += 1
+
+        # fire a proposal to the server
+        self.client_msg_to_test_server(COMMAND_TYPE.LOCK, 1, client_id)
+
+        # get the prepare message
+        rmsg = pickle.loads(self.proposer_connection.recv(1000))
+        assert(isinstance(rmsg, message.message))
+        assert(rmsg.client_id == client_id)
+        assert(rmsg.msg_type == message.MESSAGE_TYPE.PREPARE)
+        assert(rmsg.proposal == self.paxos_server.server_id)
+        assert(rmsg.instance == expected_instance)
+        
+        # send back responses
+        msg = message.message(message.MESSAGE_TYPE.PREPARE_ACK,
+                              rmsg.proposal, rmsg.instance, None,
+                              None, rmsg.client_id)
+        self.message_socket.send(pickle.dumps(msg))
+        self.message_socket.send(pickle.dumps(msg))
+
+        # get the accept message
+        rmsg = pickle.loads(self.proposer_connection.recv(1000))
+        assert(isinstance(rmsg, message.message))
+        assert(rmsg.client_id == client_id)
+        assert(rmsg.msg_type == message.MESSAGE_TYPE.ACCEPT)
+        assert(rmsg.proposal == self.paxos_server.server_id)
+        assert(rmsg.instance == expected_instance)
+
+        # send back two response messages
+        msg = message.message(message.MESSAGE_TYPE.ACCEPT_ACK,
+                              rmsg.proposal, rmsg.instance, None,
+                              None, rmsg.client_id)
+        self.message_socket.send(pickle.dumps(msg))
+        self.message_socket.send(pickle.dumps(msg))
+
+
     def tearDown(self):
         """
             Tear down infrastructure and exit
@@ -275,6 +364,8 @@ class proposer_test(unittest.TestCase):
         self.paxos_server.proposer_process.terminate()
 
         print "[Info] Terminate listening process..."
+
+        print "\n##########[END TEST]##########\n"
 
 
 if __name__ == '__main__':
