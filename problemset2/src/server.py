@@ -188,8 +188,10 @@ class PAXOS_member(object):
         self.acceptor_process = self.launch_acceptor_process()
         self.proposer_process = self.launch_proposer_process()
 
-    # abstract initialization processes for testing purposes
     def launch_acceptor_process(self):
+        """
+            abstract initialization processes for testing purposes
+        """
         # initialize the acceptor process
         acceptor_process = Process(
             target=self.initialize_acceptor, args=())
@@ -200,8 +202,10 @@ class PAXOS_member(object):
 
         return acceptor_process
 
-    # abstract initialization processes for testing purposes
     def launch_proposer_process(self):
+        """
+            abstract initialization processes for testing purposes
+        """
 
         print self.DEBUG_TAG + " Launching proposer process..."
 
@@ -215,18 +219,15 @@ class PAXOS_member(object):
 
         return proposer_process
 
-    ######################################################################
-    # Intializes a proposer process that acts as a proposer Paxos member
-    # - creates listening socket for client connections
-    # - initializes connections to other server connections
-    # - starts main loop for proposer which reads proposal requests off
-    #   a queue of requests
-    # - server_list is a list of pairs (host, port)
-    ######################################################################
-
-    # TODO: figure out how to advance instance number
-
     def initialize_proposer(self):
+        """
+            Intializes a proposer process that acts as a proposer Paxos member
+            - creates listening socket for client connections
+            - initializes connections to other server connections
+            - starts main loop for proposer which reads proposal requests off
+               a queue of requests
+            - server_list is a list of pairs (host, port)
+        """
         # counter for proposer number
         proposer_cnt = 0
 
@@ -383,6 +384,7 @@ class PAXOS_member(object):
                         pre_nacks = []
                         # response count
                         response_cnt = 0
+
                         while response_cnt <= self.group_size / 2:
                             try:
                                 # listen to responses on the server msg queue
@@ -395,7 +397,7 @@ class PAXOS_member(object):
                                     self.DEBUG_TAG, e)
                                 # attempt another proposal round
                                 state = READY
-                                continue
+                                break
 
                             assert(isinstance(msg, message.message))
 
@@ -422,6 +424,11 @@ class PAXOS_member(object):
                             else:
                                 raise ValueError(
                                     "Wrong message got by proposer")
+
+                        # if timeout try another round (higher prop number)
+                        if response_cnt <= self.group_size / 2:
+                            state = READY
+                            continue
 
                         # learn the value of highest prop from responses
                         if not pre_nacks:
@@ -464,7 +471,6 @@ class PAXOS_member(object):
                             except Exception, e:
                                 print "{} Accepting timed out - {}".format(
                                     self.DEBUG_TAG, e)
-                                # TODO: attempt another proposal round
                                 break
 
                             assert isinstance(msg, message.message)
@@ -635,5 +641,3 @@ class PAXOS_member(object):
         except Exception, e:
             print "{} ERROR - failed to close server conn... {}".format(
                 self.DEBUG_TAG, e)
-        # close while (done == 0)
-    # close definition of acceptor
