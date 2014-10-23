@@ -56,5 +56,5 @@ class message(object):
             return "EXIT"
 
     def __str__(self):
-        return "msg(p={}, i={}, cid={})".format(
+        return "msg({}, p={}, i={}, cid={})".format(
             self.msg_type_str(), self.proposal, self.instance, self.client_id)

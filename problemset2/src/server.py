@@ -431,7 +431,7 @@ class PAXOS_member(object):
                             continue
 
                         # learn the value of highest prop from responses
-                        if not pre_nacks:
+                        if pre_nacks:
                             highest_p, p_msg = max(pre_nacks)
                             learnt_command = p_msg.value
                         state = ACCEPT
@@ -447,7 +447,7 @@ class PAXOS_member(object):
                         accept_msg = message.message(
                             MESSAGE_TYPE.ACCEPT,
                             this_prop, instance, learnt_command,
-                            self.host, self.server_id, c_msg.client_id)
+                            self.server_id, c_msg.client_id)
 
                         # send the accept requests
                         send_to_acceptors(accept_msg, server_connections)
@@ -498,8 +498,10 @@ class PAXOS_member(object):
                             # yeah! accepted
                             if learnt_command == client_command:
                                 state = IDLE
+                                print "client cmd accepted"
                             else:
                                 state = READY
+                                print "learnt cmd accepted"
                             instance += 1
                             # TODO: add resolve (inst, prop, v) to shared obj.
                         else:
