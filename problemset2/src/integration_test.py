@@ -17,6 +17,8 @@ import message
 from multiprocessing import Queue, Process, Lock
 import random
 import lock_file
+import client
+from lock_file import make_lock_file
 
 class integration_test(unittest.TestCase):
 
@@ -33,24 +35,22 @@ class integration_test(unittest.TestCase):
         self.server_list = []
 
         # generate the host numbers and ports of server connections
-        for i in range(9001, 9001 + 2 * self.TOTAL_SERVERS, 2):
-            port = i
-            host = 'localhost'
+        for i in range(9000, 9000 + 2 * self.TOTAL_SERVERS, 2):
+            server_entry = dict()
 
-            self.server_list.append((host, port))
+            server_entry["host"] = "localhost"
+            server_entry["internal_port"] = i + 1
+            server_entry["client_port"] = i
+
+            self.server_list.append(server_entry)
 
         # bring up each server
         self.servers = []
 
         # iterate through address list and instantiate servers
-        for addr in self.server_list:
-            assert(len(addr) == 2)
-            client_port = addr[1] - 1
-            host = addr[0]
-
+        for i in range(0, len(self.server_list)):
             # instantiate new servers
-            new_server = server.server(host, client_port, len(self.servers), len(self.server_list))
-
+            new_server = server.PAXOS_member(i, self.server_list)
             self.servers.append(new_server)
 
         assert(len(self.servers) == len(self.server_list))
@@ -60,8 +60,7 @@ class integration_test(unittest.TestCase):
         for i in range(0, len(self.servers)):
             s = self.server_list[i]
             assert(s != None)
-            assert(((s[1]-1) % 2) == 0)
-            self.servers[i].initialize_paxos(s[0], s[1] - 1, i, len(self.servers), self.server_list)
+            self.servers[i].initialize_paxos()
 
     ###############################################################
     # Test to see if the Paxos server group shutsdown correctly
@@ -90,14 +89,15 @@ class integration_test(unittest.TestCase):
         # generate a lock file
         CMD_FILE = "client_0.txt"
         LOCKS = 3
-        lock_file(LOCKS, CMD_FILE)
+        make_lock_file(LOCKS, CMD_FILE)
 
         # connect to the first server in the list
-        (host, port) = self.server_list[0]
-        assert((port % 2) == 1)
+        port = self.server_list[0]["client_port"]
+        host = self.server_list[0]["host"]
+        assert((int(port) % 2) == 0)
 
         # initialize a client
-        cli = client.client(CMD_FILE, 'localhost', port - 1, 0)
+        cli = client.client(CMD_FILE, 'localhost', port, 0)
 
         # wait for the client process to join
         try:
@@ -118,12 +118,14 @@ class integration_test(unittest.TestCase):
         # generate a lock file for each client
         CMD_FILES = ["client_0.txt", "client_1.txt"]
         LOCKS = 3
-        lock_file(LOCKS, CMD_FILES[0])
-        lock_file(LOCKS, CMD_FILES[1])
+        make_lock_file(LOCKS, CMD_FILES[0])
+        make_lock_file(LOCKS, CMD_FILES[1])
 
         # connect to the first server in the list only
-        (host, port) = self.server_list[0]
-        assert((port % 2) == 1)
+        # connect to the first server in the list
+        port = self.server_list[0]["client_port"]
+        host = self.server_list[0]["host"]
+        assert((int(port) % 2) == 0)
 
         # initialize the clients
         cli0 = client.client(CMD_FILES[0], 'localhost', port - 1, 0)
@@ -152,15 +154,16 @@ class integration_test(unittest.TestCase):
         LOCKS = 3
 
         # generate the lock files
-        for i in range(0, len(server_list)):
+        for i in range(0, len(self.server_list)):
             filename = "client_" + str(i) + ".txt"
-            lock_file(LOCKS, filename)
+            make_lock_file(LOCKS, filename)
 
         # instantiate a client to each server
         client_list = []
-        for s in self.server_list:
-            host = s[0]
-            port = s[1] - 1 # deduct one to get client port
+        for i in range(0, len(self.server_list)):
+            port = self.server_list[i]["client_port"]
+            host = self.server_list[i]["host"]
+            assert((int(port) % 2) == 0)
 
             cli = client.client("client_" + str(i) + ".txt", host, port, len(client_list))
             client_list.append(cli)
@@ -193,9 +196,10 @@ class integration_test(unittest.TestCase):
         
         # instantiate each client with a copy of the contentious lock file
         client_list = []
-        for s in self.server_list:
-            host = s[0]
-            port = s[1] - 1 # deduct one to get client port
+        for i in range(0, len(self.server_list)):
+            port = self.server_list[i]["client_port"]
+            host = self.server_list[i]["host"]
+            assert((int(port) % 2) == 0)
 
             cli = client.client("contentious_test.txt", host, port, len(client_list))
             client_list.append(cli)
