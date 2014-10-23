@@ -183,8 +183,8 @@ class PAXOS_member(object):
             Initializes the Paxos members on different processes after starting
             the listening sockets
         """
-        self.acceptor_process = self.launch_acceptor_process()
-        self.proposer_process = self.launch_proposer_process()
+        self.launch_acceptor_process()
+        self.launch_proposer_process()
 
     def launch_acceptor_process(self):
         """
@@ -197,6 +197,7 @@ class PAXOS_member(object):
 
         print self.DEBUG_TAG + " Initialized proposer process..."
         assert(acceptor_process.is_alive())
+        self.acceptor_process = acceptor_process
 
         return acceptor_process
 
@@ -214,6 +215,7 @@ class PAXOS_member(object):
 
         print self.DEBUG_TAG + " Initialized acceptor process..."
         assert(proposer_process.is_alive())
+        self.proposer_process = proposer_process
 
         return proposer_process
 
