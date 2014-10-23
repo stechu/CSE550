@@ -16,6 +16,7 @@ import time
 import message
 from multiprocessing import Queue, Process, Lock
 import random
+from lock_file import make_lock_file
 
 class failure_test(unittest.TestCase):
 
@@ -32,24 +33,22 @@ class failure_test(unittest.TestCase):
         self.server_list = []
 
         # generate the host numbers and ports of server connections
-        for i in range(9001, 9001 + 2 * self.TOTAL_SERVERS, 2):
-            port = i
-            host = 'localhost'
+        for i in range(9000, 9000 + 2 * self.TOTAL_SERVERS, 2):
+            server_entry = dict()
 
-            self.server_list.append((host, port))
+            server_entry["host"] = "localhost"
+            server_entry["internal_port"] = i + 1
+            server_entry["client_port"] = i
+
+            self.server_list.append(server_entry)
 
         # bring up each server
         self.servers = []
 
         # iterate through address list and instantiate servers
-        for addr in self.server_list:
-            assert(len(addr) == 2)
-            client_port = addr[1] - 1
-            host = addr[0]
-
+        for i in range(0, len(self.server_list)):
             # instantiate new servers
-            new_server = server.server(host, client_port, len(self.servers), len(self.server_list))
-
+            new_server = server.PAXOS_member(i, self.server_list)
             self.servers.append(new_server)
 
         assert(len(self.servers) == len(self.server_list))
@@ -59,8 +58,7 @@ class failure_test(unittest.TestCase):
         for i in range(0, len(self.servers)):
             s = self.server_list[i]
             assert(s != None)
-            assert(((s[1]-1) % 2) == 0)
-            self.servers[i].initialize_paxos(s[0], s[1] - 1, i, len(self.servers), self.server_list)
+            self.servers[i].initialize_paxos()
 
     ###############################################################
     # Shutdown the Paxos group
@@ -102,19 +100,19 @@ class failure_test(unittest.TestCase):
     def test_single_server_failure(self):
 
         # randomly compute a server index to kill
-        server_index = random.randint(0, len(server_list))
-        assert(server_index < len(server_list))
+        server_index = random.randint(0, len(self.server_list))
+        assert(server_index < len(self.server_list))
         s = self.servers[server_index]
 
         # write a bunch of lock files
         client_list = []
         for i in range(0, len(self.server_list)):
-            lock_file(100, "client_" + str(i) + ".txt")
+            make_lock_file(100, "client_" + str(i) + ".txt")
 
         # start a bunch of clients
         for i in range(0, len(self.server_list)):
-            (host, port) = self.server_list[i]
-            port = port - 1
+            host = self.server_list[i]["host"]
+            port = self.server_list[i]["port"]
             assert((port % 2) == 0)
             new_client = client.client("client_" + str(i) + ".txt", host, port, i)
 
@@ -123,17 +121,23 @@ class failure_test(unittest.TestCase):
         s.acceptor_process.terminate()
         s.listening_process.terminate()
 
+    ##########################################################
+    # Test if Paxos group completes even with slightly less 
+    # than a majority of nodes experiencing a failure
+    # Do not attempt recovery
+    ##########################################################
+
     def test_multi_server_failure(self):
         
         # write a bunch of lock files
         client_list = []
         for i in range(0, len(self.server_list)):
-            lock_file(100, "client_" + str(i) + ".txt")
+            make_lock_file(100, "client_" + str(i) + ".txt")
 
         # start a bunch of clients
         for i in range(0, len(self.server_list)):
-            (host, port) = self.server_list[i]
-            port = port - 1
+            host = self.server_list[i]["host"]
+            port = self.server_list[i]["port"]
             assert((port % 2) == 0)
             new_client = client.client("client_" + str(i) + ".txt", host, port, i)
 
@@ -144,7 +148,5 @@ class failure_test(unittest.TestCase):
             s.proposer_process.terminate()
             s.acceptor_process.terminate()
         
-
-
-if __name__ == '__main_':
+if __name__ == '__main__':
     unittest.main()
