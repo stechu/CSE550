@@ -363,9 +363,9 @@ class PAXOS_member(object):
 
                         # craft the proposal packet and send to acceptors
                         msg = message.message(
-                            message.MESSAGE_TYPE.PREPARE,
+                            MESSAGE_TYPE.PREPARE,
                             this_prop, instance, None,
-                            self.host, self.server_id, c_msg.client_id)
+                            self.server_id, c_msg.client_id)
                         send_to_acceptors(msg, server_connections)
 
                         # update the state
