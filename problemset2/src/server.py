@@ -229,13 +229,7 @@ class PAXOS_member(object):
             - server_list is a list of pairs (host, port)
         """
         # counter for proposer number
-        proposer_cnt = 0
-
-        def prop_num(proposer_cnt):
-            """
-                make sure proposer number increases and unique
-            """
-            return proposer_cnt * 100 + self.server_id
+        proposer_num = self.server_id
 
         def send_to_acceptors(msg, server_connections):
             assert isinstance(msg, message.message)
@@ -346,8 +340,6 @@ class PAXOS_member(object):
                 client_command = c_msg.value
                 # the command learnt by proposer (if any)
                 learnt_command = c_msg.value
-                # get proposer number
-                this_prop = prop_num(proposer_cnt)
 
                 state = READY
                 # Paxos proposal phase if not IDLE
@@ -359,17 +351,12 @@ class PAXOS_member(object):
 
                         print self.DEBUG_TAG + " Proposer in READY state..."
 
-                        # get and update proposer number
-                        this_prop = prop_num(proposer_cnt)
-                        proposer_cnt += 1
-
                         # craft the proposal packet and send to acceptors
                         msg = message.message(
                             MESSAGE_TYPE.PREPARE,
-                            this_prop, instance, None,
+                            proposer_num, instance, None,
                             self.server_id, c_msg.client_id)
                         send_to_acceptors(msg, server_connections)
-
                         # update the state
                         state = PROPOSING
 
@@ -427,7 +414,10 @@ class PAXOS_member(object):
 
                         # if timeout try another round (higher prop number)
                         if response_cnt <= self.group_size() / 2:
+                            # update state
                             state = READY
+                            # update proposal num
+                            proposer_num += self.group_size()
                             continue
 
                         # learn the value of highest prop from responses
@@ -446,7 +436,7 @@ class PAXOS_member(object):
                         # craft the accept packet
                         accept_msg = message.message(
                             MESSAGE_TYPE.ACCEPT,
-                            this_prop, instance, learnt_command,
+                            proposer_num, instance, learnt_command,
                             self.server_id, c_msg.client_id)
 
                         # send the accept requests
@@ -482,7 +472,7 @@ class PAXOS_member(object):
                                 pass
                             if msg.msg_type == MESSAGE_TYPE.ACCEPT_ACK:
                                 # only care response for this accept req
-                                if msg.proposal == this_prop:
+                                if msg.proposal == proposer_num:
                                     response_cnt += 1
                             elif msg.msg_type == MESSAGE_TYPE.PREPARE_ACK:
                                 # ignore leftover prepare ack messages
@@ -493,6 +483,9 @@ class PAXOS_member(object):
                             else:
                                 raise ValueError("Should not reach here.")
 
+                        # update proposer number, in any case
+                        proposer_num += self.group_size()
+
                         # proposal was accepted
                         if response_cnt > self.group_size() / 2:
                             # yeah! accepted
@@ -502,8 +495,8 @@ class PAXOS_member(object):
                             else:
                                 state = READY
                                 print "learnt cmd accepted"
+                            # move to the next instance
                             instance += 1
-                            # TODO: add resolve (inst, prop, v) to shared obj.
                         else:
                             # break by timeout:
                             # propose again
