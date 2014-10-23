@@ -231,6 +231,9 @@ class PAXOS_member(object):
         # counter for proposer number
         proposer_num = self.server_id
 
+        # resolved command
+        resolved = dict()   # instance_number -> (cmd, client_id)
+
         def send_to_acceptors(msg, server_connections):
             assert isinstance(msg, message.message)
             # send the proposal to acceptors
@@ -495,6 +498,8 @@ class PAXOS_member(object):
                             else:
                                 state = READY
                                 print "learnt cmd accepted"
+                            # update resolved
+                            resolved[instance] = (msg.command, msg.client_id)
                             # move to the next instance
                             instance += 1
                         else:
