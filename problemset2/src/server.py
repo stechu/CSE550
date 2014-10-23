@@ -545,7 +545,6 @@ class PAXOS_member(object):
                     self.DEBUG_TAG, target_host, target_port)
                 continue
 
-        # TODO: make this global accessable
         accept_history = dict()          # instance -> prep_p, acc_p, acc_v
 
         # Enter the proposal processing loop
@@ -565,7 +564,7 @@ class PAXOS_member(object):
                 p_instance = msg.instance
                 p_proposal = msg.proposal
 
-                # if accepted
+                # that is not the first message with this instance
                 if p_instance in accept_history:
                     # unpack history info
                     h_prep, h_accp, h_accv = accept_history[p_instance]
@@ -580,8 +579,8 @@ class PAXOS_member(object):
                             msg_type = MESSAGE_TYPE.PREPARE_ACK
                         # send the nack back
                         rmsg = message.message(
-                            msg_type, h_accp, p_instance,
-                            h_accv, self.server_id)
+                            msg_type, p_proposal, p_instance,
+                            h_accv, self.server_id, r_proposal=h_accp)
                         response_proposer(rmsg, msg.origin_id)
 
                         # update accept_history
@@ -615,7 +614,7 @@ class PAXOS_member(object):
                     # send accept_ack message
                     rmsg = message.message(
                         MESSAGE_TYPE.ACCEPT_ACK, p_proposal, p_instance,
-                        p_value, self.server_id, p_client_id)
+                        p_value, self.server_id, client_id=p_client_id)
                     response_proposer(rmsg, msg.origin_id)
                     # update accept_history
                     accept_history[p_instance] = (

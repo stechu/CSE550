@@ -93,6 +93,9 @@ class acceptor_test(unittest.TestCase):
         print "[Info] Received a response from server..."
 
         assert rmsg.msg_type == rmsg_type
+        if rmsg.proposal != rmsg_prop:
+            print (rmsg.proposal, rmsg_prop)
+
         assert rmsg.proposal == rmsg_prop
         assert rmsg.instance == rmsg_ins
 
@@ -153,10 +156,6 @@ class acceptor_test(unittest.TestCase):
         # send and receive another valid proposal, proposal = 3, instance = 0
         self.send_prepare(3, 0, MESSAGE_TYPE.PREPARE_ACK, 3, 0)
         print "[Info] Second prepare request successful..."
-
-        # send and receive same numbered proposal, proposal = 3, instance = 0
-        self.send_prepare(3, 0, MESSAGE_TYPE.PREPARE_ACK, 3, 0)
-        print "[Info] Third prepare request successful..."
 
         # send an not receive a lower numbered proposal
         proposal, instance = 2, 0
