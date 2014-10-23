@@ -516,6 +516,8 @@ class PAXOS_member(object):
                             # break by timeout:
                             # propose again
                             state = READY
+                            # update proposal num
+                            proposer_num += self.group_size()
 
                     ###########################################################
                     # Failure state
