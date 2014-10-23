@@ -54,7 +54,7 @@ class proposer_test(unittest.TestCase):
         # start a test remote inter-server socket on R_SERVER_MSG_PORT
         try:
             self.dummy_server_socket = socket.socket(
-                socket.AF_INET, socket.SOCK_DGRAM)
+                socket.AF_INET, socket.SOCK_STREAM)
             self.dummy_server_socket.setsockopt(
                 socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self.dummy_server_socket.bind(('localhost', R_SERVER_MSG_PORT))
@@ -77,13 +77,13 @@ class proposer_test(unittest.TestCase):
 
         # create a test socket to inject messages
         # to the proposer and connect to INTERNAL_PORT_SERVER
-        self.message_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.message_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.message_socket.setsockopt(
             socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.message_socket.connect(('localhost', INTERNAL_PORT_SERVER))
 
         # connect a client
-        self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.client_socket.setsockopt(
             socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.client_socket.connect(('localhost', CLIENT_PORT))
@@ -145,14 +145,13 @@ class proposer_test(unittest.TestCase):
                               rmsg.instance, rmsg.proposal, None,
                               None, rmsg.client_id)
         self.message_socket.sendall(pickle.dumps(msg))
-        msg = message.message(message.MESSAGE_TYPE.ACCEPT_ACK, #should be PREPARE-ACK
+        msg = message.message(message.MESSAGE_TYPE.PREPARE_ACK, #should be PREPARE-ACK
                               rmsg.instance, rmsg.proposal, None,
                               None, rmsg.client_id)
         self.message_socket.sendall(pickle.dumps(msg))
 
         # get an accept message
         rmsg = pickle.loads(self.proposer_connection.recv(1000))
-        print ">>>rmsg: {}".format(rmsg) 
         assert isinstance(rmsg, message.message)
         assert rmsg.client_id == client_id
         assert rmsg.msg_type == message.MESSAGE_TYPE.ACCEPT
@@ -167,8 +166,8 @@ class proposer_test(unittest.TestCase):
         msg = message.message(message.MESSAGE_TYPE.ACCEPT_ACK,
                               rmsg.instance, rmsg.proposal, rmsg.value,
                               None, rmsg.client_id)
-        self.message_socket.send(pickle.dumps(msg))
-        self.message_socket.send(pickle.dumps(msg))
+        self.message_socket.sendall(pickle.dumps(msg))
+        self.message_socket.sendall(pickle.dumps(msg))
 
     def test_proposal_timeouts(self):
         """
@@ -193,6 +192,8 @@ class proposer_test(unittest.TestCase):
         assert(rmsg.proposal == self.paxos_server.server_id)
         assert(rmsg.instance == 0)
 
+        print "[Info] Got a prepare message and ignored it..."
+
         # ignore it and get the next prepare message
 
         # get the prepare message
@@ -203,12 +204,16 @@ class proposer_test(unittest.TestCase):
         assert rmsg.proposal == ps.server_id + ps.group_size()
         assert rmsg.instance == 0
 
+        print "[Info] Got a second prepare message.."
+
         # send back responses
         msg = message.message(message.MESSAGE_TYPE.PREPARE_ACK,
                               rmsg.proposal, rmsg.instance, None,
                               None, rmsg.client_id)
-        self.message_socket.send(pickle.dumps(msg))
-        self.message_socket.send(pickle.dumps(msg))
+        self.message_socket.sendall(pickle.dumps(msg))
+        self.message_socket.sendall(pickle.dumps(msg))
+
+        print "[Info] Sent a response message..."
 
         # get the accept message
         rmsg = pickle.loads(self.proposer_connection.recv(1000))
@@ -220,6 +225,8 @@ class proposer_test(unittest.TestCase):
 
         # ignore the message and send it back to the proposing state
 
+        print "[Info] Ignored an accept message..."
+
         # get the next prepare message
 
         rmsg = pickle.loads(self.proposer_connection.recv(1000))
@@ -230,12 +237,16 @@ class proposer_test(unittest.TestCase):
         assert rmsg.proposal == ps.server_id + 2 * ps.group_size()
         assert rmsg.instance == 0
 
+        print "[Info] Got a prepare message..."
+
         # send back a response
         msg = message.message(message.MESSAGE_TYPE.PREPARE_ACK,
                               rmsg.proposal, rmsg.instance, None,
                               None, rmsg.client_id)
-        self.message_socket.send(pickle.dumps(msg))
-        self.message_socket.send(pickle.dumps(msg))
+        self.message_socket.sendall(pickle.dumps(msg))
+        self.message_socket.sendall(pickle.dumps(msg))
+
+        print "[Info] Sent two response messages..."
 
         # get the accept message
         rmsg = pickle.loads(self.proposer_connection.recv(1000))
@@ -248,12 +259,16 @@ class proposer_test(unittest.TestCase):
         assert rmsg.value.resource_id == 1
         assert rmsg.value.command_type == command.COMMAND_TYPE.LOCK
 
+        print "[Info] Got and accept message..."
+
         # send back the accept ack
         msg = message.message(MESSAGE_TYPE.ACCEPT_ACK,
                               rmsg.proposal, rmsg.instance, rmsg.value,
                               None, rmsg.client_id)
-        self.message_socket.send(pickle.dumps(msg))
-        self.message_socket.send(pickle.dumps(msg))
+        self.message_socket.sendall(pickle.dumps(msg))
+        self.message_socket.sendall(pickle.dumps(msg))
+
+        print "[Info] Sent and accept response..."
 
     def test_instance_advancement(self):
         """
@@ -282,8 +297,8 @@ class proposer_test(unittest.TestCase):
         msg = message.message(message.MESSAGE_TYPE.PREPARE_ACK,
                               rmsg.proposal, rmsg.instance, None,
                               None, rmsg.client_id)
-        self.message_socket.send(pickle.dumps(msg))
-        self.message_socket.send(pickle.dumps(msg))
+        self.message_socket.sendall(pickle.dumps(msg))
+        self.message_socket.sendall(pickle.dumps(msg))
 
         # get the accept message
         rmsg = pickle.loads(self.proposer_connection.recv(1000))
@@ -297,8 +312,8 @@ class proposer_test(unittest.TestCase):
         msg = message.message(message.MESSAGE_TYPE.ACCEPT_ACK,
                               rmsg.proposal, rmsg.instance, None,
                               None, rmsg.client_id)
-        self.message_socket.send(pickle.dumps(msg))
-        self.message_socket.send(pickle.dumps(msg))
+        self.message_socket.sendall(pickle.dumps(msg))
+        self.message_socket.sendall(pickle.dumps(msg))
 
         # we should now be done with the first instance, start the second instance
 
@@ -312,30 +327,30 @@ class proposer_test(unittest.TestCase):
         assert(isinstance(rmsg, message.message))
         assert(rmsg.client_id == client_id)
         assert(rmsg.msg_type == message.MESSAGE_TYPE.PREPARE)
-        assert(rmsg.proposal == self.paxos_server.server_id)
+        assert(rmsg.proposal == self.paxos_server.server_id + len(self.paxos_server.server_list))
         assert(rmsg.instance == expected_instance)
         
         # send back responses
         msg = message.message(message.MESSAGE_TYPE.PREPARE_ACK,
                               rmsg.proposal, rmsg.instance, None,
                               None, rmsg.client_id)
-        self.message_socket.send(pickle.dumps(msg))
-        self.message_socket.send(pickle.dumps(msg))
+        self.message_socket.sendall(pickle.dumps(msg))
+        self.message_socket.sendall(pickle.dumps(msg))
 
         # get the accept message
         rmsg = pickle.loads(self.proposer_connection.recv(1000))
         assert(isinstance(rmsg, message.message))
         assert(rmsg.client_id == client_id)
         assert(rmsg.msg_type == message.MESSAGE_TYPE.ACCEPT)
-        assert(rmsg.proposal == self.paxos_server.server_id)
+        assert(rmsg.proposal == self.paxos_server.server_id + len(self.paxos_server.server_list))
         assert(rmsg.instance == expected_instance)
 
         # send back two response messages
         msg = message.message(message.MESSAGE_TYPE.ACCEPT_ACK,
                               rmsg.proposal, rmsg.instance, None,
                               None, rmsg.client_id)
-        self.message_socket.send(pickle.dumps(msg))
-        self.message_socket.send(pickle.dumps(msg))
+        self.message_socket.sendall(pickle.dumps(msg))
+        self.message_socket.sendall(pickle.dumps(msg))
 
 
     def tearDown(self):
@@ -345,7 +360,7 @@ class proposer_test(unittest.TestCase):
         # shut down the proposer by sending an exit message from R_SERVER_MSG_PORT to INTERNAL_PORT_SERVER
         msg = message.message(message.MESSAGE_TYPE.EXIT,
                               None, None, None, None, None)
-        self.message_socket.send(pickle.dumps(msg))
+        self.message_socket.sendall(pickle.dumps(msg))
 
         print "[Info] Issued a shutdown message..."
 

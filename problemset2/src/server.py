@@ -170,6 +170,9 @@ class PAXOS_member(object):
                     raise ValueError(
                         " ERROR - Got a message which makes no sense.")
 
+                # check if the socket is alive
+                socket.send(" ")
+
         # if the socket closes, handle the disconnect exception and terminate
         except Exception, e:
             print "{} WARN - connection may end: {}".format(self.DEBUG_TAG, e)
@@ -239,7 +242,7 @@ class PAXOS_member(object):
             # send the proposal to acceptors
             for s_socket in server_connections:
                 try:
-                    s_socket.send(pickle.dumps(msg))
+                    s_socket.sendall(pickle.dumps(msg))
                 except Exception, e:
                     server_connections.remove(s_socket)
                     print "{}: ERROR - {}".format(self.DEBUG_TAG, e)
@@ -323,7 +326,11 @@ class PAXOS_member(object):
             while (client_done == 0):
                 # receive the client command to propose:
                 # - if you get an EOF exit gracefully
-                c_msgs = client_connection.recv(1000)
+                try:
+                    c_msgs = client_connection.recv(1000)
+                except EOFError:
+                    self.DEBUG_TAG + " Received an eof on client... ending connection..."
+                    break
 
                 # unpack the message and get the command to propose from client
                 try:
@@ -380,11 +387,13 @@ class PAXOS_member(object):
                                 # listen to responses on the server msg queue
                                 msg = self.proposer_queue.get(
                                     block=True, timeout=1)
+
                             # if an exception occurs and we're not done,
                             # consider the proposal failed
                             except Exception as e:
-                                print "{} : WARN - {}".format(
+                                print "{} : WARN 2 - {}".format(
                                     self.DEBUG_TAG, e)
+                                print str(e)
                                 # attempt another proposal round
                                 state = READY
                                 break
@@ -412,6 +421,7 @@ class PAXOS_member(object):
                                 client_done = 1
                                 break
                             else:
+                                print self.DEBUG_TAG + str(msg)
                                 raise ValueError(
                                     "Wrong message got by proposer")
 
@@ -499,7 +509,7 @@ class PAXOS_member(object):
                                 state = READY
                                 print "learnt cmd accepted"
                             # update resolved
-                            resolved[instance] = (msg.command, msg.client_id)
+                            resolved[instance] = (msg.value, msg.client_id)
                             # move to the next instance
                             instance += 1
                         else:
