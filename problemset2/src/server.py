@@ -106,13 +106,12 @@ class PAXOS_member(object):
                 self.DEBUG_TAG, self.internal_port, e)
         server_socket.close()
 
-    ######################################################################
-    # Handles data incoming on each connection socket
-    # - issues a blocking call to the receive function
-    # - expects to receive message class type objects after unpickling
-    ######################################################################
-
     def connection_process(self, socket):
+        """
+            Handles data incoming on each connection socket
+            - issues a blocking call to the receive function
+            - expects to receive message class type objects after unpickling
+        """
         done = 0
         try:
             while (done == 0):
@@ -179,12 +178,11 @@ class PAXOS_member(object):
         # close the server socket
         socket.close()
 
-    ######################################################################
-    # Initializes the Paxos members on different processes after starting
-    # the listening sockets
-    ######################################################################
-
     def initialize_paxos(self):
+        """
+            Initializes the Paxos members on different processes after starting
+            the listening sockets
+        """
         self.acceptor_process = self.launch_acceptor_process()
         self.proposer_process = self.launch_proposer_process()
 
