@@ -383,8 +383,6 @@ class proposer_test(unittest.TestCase):
         self.paxos_server.listening_process.terminate()
         self.paxos_server.proposer_process.terminate()
 
-        print "PAXOS INSTANCE RESOLUTIONS:\n" + str(self.paxos_server.instance_resolutions)
-            
         print "[Info] Terminate listening process..."
 
         print "\n##########[END TEST]##########\n"

@@ -46,6 +46,7 @@ class PAXOS_member(object):
         # Initialize queue locks
         self.proposer_queue_lock = Lock()
         self.acceptor_queue_lock = Lock()
+        self.read_lock = Lock()
 
         self.instance_resolutions = dict()  # resolved instances
         self.lock_set = []              # (lock, client_ids) that are locked
@@ -235,7 +236,7 @@ class PAXOS_member(object):
         proposer_num = self.server_id
 
         # resolved command
-        self.instance_resolutions = dict()   # instance_number -> (cmd, client_id)
+        # self.instance_resolutions = dict()   # instance_number -> (cmd, client_id)
 
         def send_to_acceptors(msg, server_connections):
             assert isinstance(msg, message.message)
@@ -511,6 +512,7 @@ class PAXOS_member(object):
                             # update self.instance_resolutions
                             print "For instance " + str(instance) + " got resolution: " + str(learnt_command) + " with client id " + str(msg.client_id)
                             self.instance_resolutions[instance] = (learnt_command, msg.client_id)
+                            print self.instance_resolutions
                             # move to the next instance
                             instance += 1
                         else:
@@ -654,3 +656,4 @@ class PAXOS_member(object):
         except Exception, e:
             print "{} ERROR - failed to close server conn... {}".format(
                 self.DEBUG_TAG, e)
+
