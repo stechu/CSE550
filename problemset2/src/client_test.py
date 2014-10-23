@@ -7,15 +7,12 @@
 #########################################################################
 
 import client
-import sys
-import os
 import unittest
 import command
 import pickle
 import socket
-import subprocess
-import time
 import message
+
 
 class client_test(unittest.TestCase):
     def setUp(self):
@@ -29,8 +26,9 @@ class client_test(unittest.TestCase):
         self.test_file.write("lock 1\n")
         self.test_file.close()
 
-        # Tests if connecting to the server works and that loopback works appropriately
-        
+        # Tests if connecting to the server works and
+        # that loopback works appropriately
+
         # start up the test loopback server
         SERVER_HOSTNAME = 'localhost'
         SERVER_PORT = 9000
@@ -46,7 +44,8 @@ class client_test(unittest.TestCase):
 
         # instantiate a client
         self.client_id = 239
-        self.client = client.client(self.test_file_name, 'localhost', 9000, self.client_id)
+        self.client = client.client(
+            self.test_file_name, 'localhost', 9000, self.client_id)
 
         print "[Lock Client Test] Client initialized to server..."
 
@@ -60,11 +59,11 @@ class client_test(unittest.TestCase):
 
         rmsg = pickle.loads(rmsgs)
 
-        assert(isinstance(rmsg, message.message))
-        assert(rmsg.value.my_command == command.COMMAND_TYPE.LOCK)
-        assert(rmsg.value.my_lock_num == 1)
-        assert(rmsg.client_id == self.client_id)
-        assert(rmsg.msg_type == message.MESSAGE_TYPE.CLIENT)
+        assert isinstance(rmsg, message.message)
+        assert rmsg.value.command_type == command.COMMAND_TYPE.LOCK
+        assert rmsg.value.resource_id == 1
+        assert rmsg.client_id == self.client_id
+        assert rmsg.msg_type == message.MESSAGE_TYPE.CLIENT
 
         # loopback the data to the client with a modified CLIENT ACK type
         rmsg.msg_type = message.MESSAGE_TYPE.CLIENT_ACK
