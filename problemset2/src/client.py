@@ -7,14 +7,15 @@
 # - client may issue an arbitrary number of requests
 #########################################################################
 
-import sys
-import os
 import socket
 from constants import *
 import command
+from command import COMMAND_TYPE
 import cPickle as pickle
 import message
-from multiprocessing import Queue, Process, Lock
+from message import MESSAGE_TYPE
+from multiprocessing import Process
+
 
 class client:
 
@@ -26,11 +27,12 @@ class client:
         self.client_id = client_id
         self.cmd_file = cmd_file
         self.c_process = Process(target=self.client_process, args=())
+        self.debug_tag = "[client-{}]".format(client_id)
         self.c_process.start()
 
     # enables launching of client on a separate thread
     def client_process(self):
-        self.send_command_file(self.cmd_file)
+        self.send_commands_from_file(self.cmd_file)
 
     def connect_to_server(self, host, port):
         try:
@@ -40,12 +42,12 @@ class client:
             self.CONNECTION_SOCKET = client_socket  # set the connection socket
         except Exception, e:
             print "Error: failed to open socket with error - " + str(e)
-            exit(-1)
+            raise Exception("Error")
 
     # Sends the requested command to the server using pickle
     def send_command(self, cmd, client_id):
-        msg = message.message(message.MESSAGE_TYPE.CLIENT,
-                              None, None, cmd, 'localhost', 9000, client_id)
+        msg = message.message(MESSAGE_TYPE.CLIENT,
+                              None, None, cmd, None, client_id)
         self.CONNECTION_SOCKET.send(pickle.dumps(msg))
 
     # Receive data from the server
@@ -57,26 +59,32 @@ class client:
             return None
         return rmsg
 
-    # Validate the command format
     def create_command(self, cmd_str):
-        cmd = command.command(cmd_str)
-        return cmd
+        """
+            validate command string format, return command
+        """
+        # parse cmd_str
+        action, res_id = cmd_str.rstrip("\n").split(" ")
 
+        # validate it
+        assert action.lower() in ["lock", "unlock"]
 
-    def send_command_file(self, cmd_file):
+        # return command object
+        cmd_type = COMMAND_TYPE.LOCK
+        if action.lower() == "unlock":
+            cmd_type = COMMAND_TYPE.UNLOCK
+        return command.command(cmd_type, int(res_id))
 
+    def send_commands_from_file(self, cmd_file):
+        """
+            read commands from file, send them sequentially
+        """
         cfile = open(cmd_file, "r+")
-        
         cmd_list = []
 
         # load the command file
         for line in cfile:
-            try:
-                new_cmd = command.command(line)
-                cmd_list.append(new_cmd)
-            except Exception, e:
-                print "Client " + str(self.client_id) + " failed to parse specified file..."
-                exit(-1)
+            cmd_list.append(self.create_command(line))
 
         for c in cmd_list:
             # send the command
@@ -87,9 +95,9 @@ class client:
             rmsg = pickle.loads(self.receive_message())
             print "Client received ACK from server..."
 
-            assert(rmsg.msg_type == message.MESSAGE_TYPE.CLIENT_ACK)
-            assert(rmsg.client_id == self.client_id)
-            
+            assert rmsg.msg_type == message.MESSAGE_TYPE.CLIENT_ACK
+            assert rmsg.client_id == self.client_id
+
             # move on to send the next one
 
     # Any clean up routines that should be executed

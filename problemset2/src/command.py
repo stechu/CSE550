@@ -16,22 +16,17 @@ class COMMAND_TYPE(object):
 
 class command(object):
 
-    def __init__(self, cmd_str):
-        assert(type(cmd_str) == str)
+    def __init__(self, command_type, resource_id):
+        assert command_type in [
+            COMMAND_TYPE.LOCK,
+            COMMAND_TYPE.UNLOCK,
+            COMMAND_TYPE.NONE]
+        assert type(resource_id) == int
+        self.command_type = command_type
+        self.resource_id = resource_id
 
-        cmd_s = cmd_str.strip(" \t\n")
-        cmd_fields = cmd_s.split(" ")
-
-        assert(len(cmd_fields) == 2)
-
-        cmd = cmd_fields[0]
-        self.my_lock_num = int(cmd_fields[1])
-
-        # determine if the command valid
-        if (cmd.lower() == LOCK_COMMAND.lower()):
-            self.my_command = COMMAND_TYPE.LOCK
-        elif (cmd.lower() == UNLOCK_COMMAND.lower()):
-            self.my_command = COMMAND_TYPE.UNLOCK
-        else:
-            assert(false)
-
+    def __eq__(self, other):
+        if type(self) == type(other):
+            return self.resource_id == other.resource_id \
+                and self.command_type == other.command_type
+        return False
