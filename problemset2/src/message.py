@@ -37,3 +37,7 @@ class message(object):
         self.value = value
         self.origin_id = origin_id
         self.client_id = client_id
+
+    def __str__(self):
+        return "msg(p={}, i={}, cid={})".format(
+            self.proposal, self.instance, self.client_id)
