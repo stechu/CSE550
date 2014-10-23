@@ -47,7 +47,7 @@ class PAXOS_member(object):
         self.proposer_queue_lock = Lock()
         self.acceptor_queue_lock = Lock()
 
-        self.instance_resolutions = []  # resolved instances
+        self.instance_resolutions = dict()  # resolved instances
         self.lock_set = []              # (lock, client_ids) that are locked
 
         # Fire up a listener process
@@ -235,7 +235,7 @@ class PAXOS_member(object):
         proposer_num = self.server_id
 
         # resolved command
-        resolved = dict()   # instance_number -> (cmd, client_id)
+        self.instance_resolutions = dict()   # instance_number -> (cmd, client_id)
 
         def send_to_acceptors(msg, server_connections):
             assert isinstance(msg, message.message)
@@ -329,7 +329,7 @@ class PAXOS_member(object):
                 try:
                     c_msgs = client_connection.recv(1000)
                 except EOFError:
-                    self.DEBUG_TAG + " Received an eof on client... ending connection..."
+                    self.DEBUG_TAG + " Received an eof on client... ending connection"
                     break
 
                 # unpack the message and get the command to propose from client
@@ -508,8 +508,9 @@ class PAXOS_member(object):
                             else:
                                 state = READY
                                 print "learnt cmd accepted"
-                            # update resolved
-                            resolved[instance] = (msg.value, msg.client_id)
+                            # update self.instance_resolutions
+                            print "For instance " + str(instance) + " got resolution: " + str(learnt_command) + " with client id " + str(msg.client_id)
+                            self.instance_resolutions[instance] = (learnt_command, msg.client_id)
                             # move to the next instance
                             instance += 1
                         else:

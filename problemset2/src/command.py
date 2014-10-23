@@ -30,3 +30,16 @@ class command(object):
             return self.resource_id == other.resource_id \
                 and self.command_type == other.command_type
         return False
+
+    def __str__(self):
+        ret = ""
+        if (self.command_type == COMMAND_TYPE.LOCK):
+            ret += "lock "
+        elif (self.command_type == COMMAND_TYPE.UNLOCK):
+            ret += "unlock "
+        else:
+            ret += "none "
+
+        ret += str(self.resource_id)
+
+        return ret
