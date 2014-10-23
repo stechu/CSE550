@@ -16,6 +16,11 @@ import message
 from message import MESSAGE_TYPE
 import random
 
+# constant for test
+R_SERVER_MSG_PORT = 9003
+CLIENT_PORT = 9000
+INTERNAL_PORT_SERVER = 9001
+
 
 class proposer_test(unittest.TestCase):
 
@@ -24,21 +29,18 @@ class proposer_test(unittest.TestCase):
             Bring up just enough infrastructure to set up a test
             proposer and send it messages.
         """
-
-        print "\n##########[BEGIN TEST]##########\n"
-
-        # Proposer message receive socket = 9001
-        # Proposer client socket port = 9000
-        # Remote server message receive socket = 9003
+        # Proposer message receive socket = INTERNAL_PORT_SERVER
+        # Proposer client socket port = CLIENT_PORT
+        # Remote server message receive socket = R_SERVER_MSG_PORT
         self.server_list = [
             {
                 "host": "localhost",
-                "internal_port": 9001,
-                "client_port": 9000
+                "internal_port": INTERNAL_PORT_SERVER,
+                "client_port": CLIENT_PORT
             },
             {
                 "host": "localhost",
-                "internal_port": 9003,
+                "internal_port": R_SERVER_MSG_PORT,
                 "client_port": 9002
             }
         ]
@@ -49,15 +51,15 @@ class proposer_test(unittest.TestCase):
         # Insert a wait for the server to come online
         time.sleep(1)
 
-        # start a test remote inter-server socket on 9003
+        # start a test remote inter-server socket on R_SERVER_MSG_PORT
         try:
             self.dummy_server_socket = socket.socket(
-                socket.AF_INET, socket.SOCK_STREAM)
+                socket.AF_INET, socket.SOCK_DGRAM)
             self.dummy_server_socket.setsockopt(
                 socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            self.dummy_server_socket.bind(('localhost', 9003))
+            self.dummy_server_socket.bind(('localhost', R_SERVER_MSG_PORT))
             self.dummy_server_socket.listen(5)
-            print "[Info] Opened a dummy server socket on port 9003"
+            print "[Info] Opened a dummy server socket on port R_SERVER_MSG_PORT"
         except Exception, e:
             os.system("lsof -n -i")
             os.system("ps -a")
@@ -65,26 +67,26 @@ class proposer_test(unittest.TestCase):
             raise Exception(
                 "[Error] Failed to bind socket for dummy server: " + str(e))
 
-        # initialize the proposer which should initiate a connection to 9003
+        # initialize the proposer which should initiate a connection to R_SERVER_MSG_PORT
         self.proposer_process = self.paxos_server.launch_proposer_process()
 
         # accept the incoming connection that
-        # should have been made from 9001 to 9003
+        # should have been made from INTERNAL_PORT_SERVER to R_SERVER_MSG_PORT
         (self.proposer_connection, proposer_address) = (
             self.dummy_server_socket.accept())
 
         # create a test socket to inject messages
-        # to the proposer and connect to 9001
-        self.message_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        # to the proposer and connect to INTERNAL_PORT_SERVER
+        self.message_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.message_socket.setsockopt(
             socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.message_socket.connect(('localhost', 9001))
+        self.message_socket.connect(('localhost', INTERNAL_PORT_SERVER))
 
         # connect a client
-        self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.client_socket.setsockopt(
             socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.client_socket.connect(('localhost', 9000))
+        self.client_socket.connect(('localhost', CLIENT_PORT))
 
     def internal_msg_to_test_server(self):
         pass
@@ -340,7 +342,7 @@ class proposer_test(unittest.TestCase):
         """
             Tear down infrastructure and exit
         """
-        # shut down the proposer by sending an exit message from 9003 to 9001
+        # shut down the proposer by sending an exit message from R_SERVER_MSG_PORT to INTERNAL_PORT_SERVER
         msg = message.message(message.MESSAGE_TYPE.EXIT,
                               None, None, None, None, None)
         self.message_socket.send(pickle.dumps(msg))
@@ -352,6 +354,9 @@ class proposer_test(unittest.TestCase):
         self.dummy_server_socket.close()
         self.proposer_connection.close()
         self.client_socket.close()
+
+        self.paxos_server.listening_process.join(1)
+        self.paxos_server.proposer_process.join(1)
 
         # attempt to join the processes
         # try:
