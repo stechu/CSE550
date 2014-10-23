@@ -253,8 +253,8 @@ class PAXOS_member(object):
         for (serv_id, serv) in enumerate(self.server_list):
             if serv_id == self.server_id:
                 continue
-            target_host = serv.host
-            target_port = serv.internal_port
+            target_host = serv["host"]
+            target_port = serv["internal_port"]
             try:
                 connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 connection.setsockopt(
@@ -267,8 +267,6 @@ class PAXOS_member(object):
                 print "{} Failed to connect to {}:{}".format(
                     self.DEBUG_TAG, target_host, target_port)
 
-        print self.DEBUG_TAG + " Opening client socket on: " + str(self.port)
-
         # Open a client port and listen on port for connections
         try:
             client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -276,9 +274,11 @@ class PAXOS_member(object):
             client_socket.bind((self.host, self.client_port))
             client_socket.listen(30)
         except Exception, e:
-            raise Exception(self.DEBUG_TAG+": cannot open client port." + e)
+            raise Exception(
+                self.DEBUG_TAG+": cannot open client port." + str(e))
 
-        print self.DEBUG_TAG + " Opening client socket on: " + str(self.port)
+        print "{} Opening client socket on: {}".format(
+            self.DEBUG_TAG, self.client_port)
 
         # Enter the main loop of the proposer
         done = 0
@@ -383,7 +383,7 @@ class PAXOS_member(object):
                         # response count
                         response_cnt = 0
 
-                        while response_cnt <= self.group_size / 2:
+                        while response_cnt <= self.group_size() / 2:
                             try:
                                 # listen to responses on the server msg queue
                                 msg = self.proposer_queue.get(
@@ -424,7 +424,7 @@ class PAXOS_member(object):
                                     "Wrong message got by proposer")
 
                         # if timeout try another round (higher prop number)
-                        if response_cnt <= self.group_size / 2:
+                        if response_cnt <= self.group_size() / 2:
                             state = READY
                             continue
 
