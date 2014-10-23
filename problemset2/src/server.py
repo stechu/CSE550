@@ -481,7 +481,7 @@ class PAXOS_member(object):
                             elif msg.msg_type == MESSAGE_TYPE.PREPARE_ACK:
                                 # ignore leftover prepare ack messages
                                 pass
-                            elif (msg.msg_type == message.MESSAGE_TYPE.EXIT):
+                            elif msg.msg_type == message.MESSAGE_TYPE.EXIT:
                                 client_done = 1
                                 done = 1
                             else:
@@ -551,14 +551,14 @@ class PAXOS_member(object):
         # - dequeue message for this proposer and process them
         done = 0
 
-        while (done == 0):
+        while done == 0:
 
             # get a message of the queue
             msg = self.acceptor_queue.get()
             ###################################################################
             # handle PREPARE request
             ###################################################################
-            if (msg.msg_type == message.MESSAGE_TYPE.PREPARE):
+            if msg.msg_type == MESSAGE_TYPE.PREPARE:
 
                 # extract the data fields
                 p_instance = msg.instance
@@ -599,7 +599,7 @@ class PAXOS_member(object):
             ###################################################################
             # handle ACCEPT request
             ###################################################################
-            elif(msg.msg_type == message.MESSAGE_TYPE.ACCEPT):
+            elif msg.msg_type == MESSAGE_TYPE.ACCEPT:
                 # extract the data fields
                 p_instance = msg.instance
                 p_value = msg.value

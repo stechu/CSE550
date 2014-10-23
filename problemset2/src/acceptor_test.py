@@ -99,22 +99,24 @@ class acceptor_test(unittest.TestCase):
         assert rmsg.proposal == rmsg_prop
         assert rmsg.instance == rmsg_ins
 
-    def send_accept(self, prop, ins, cid,
+        return rmsg
+
+    def send_accept(self, prop, ins, cid, value,
                     rmsg_type, rmsg_prop, rmsg_ins, rmsg_cid):
         """
             Helper function, send accept message to server, check
             returned message
             - prop: proposal number to be sent
             - ins: instance number to be sent
-            - value: value to be sent
             - cid: client id to be sent
+            - value: value to be sent
             - rmsg_type: expected returned message type
             - rmsg_prop: expected returned message proposal number
             - rmsg_ins: expected returned message instane number
             - rmsg_cid: expected returned message client id
         """
-        msg = message.message(MESSAGE_TYPE.PREPARE, prop, ins,
-                              None, self.dummy_server_id, cid)
+        msg = message.message(MESSAGE_TYPE.ACCEPT, prop, ins,
+                              value, self.dummy_server_id, cid)
         self.message_socket.send(pickle.dumps(msg))
 
         rmsgs = self.acceptor_connection.recv(1000)
@@ -125,6 +127,8 @@ class acceptor_test(unittest.TestCase):
         assert rmsg.proposal == rmsg_prop
         assert rmsg.instance == rmsg_ins
         assert rmsg.client_id == rmsg_cid
+
+        return rmsg
 
     def test_bring_up(self):
         """
@@ -221,16 +225,16 @@ class acceptor_test(unittest.TestCase):
         self.send_prepare(9, 3, MESSAGE_TYPE.PREPARE_ACK, 9, 3)
 
         # send an accept request, proposal = 5, instance = 1, client_id = 9
-        self.send_accept(5, 1, 9, MESSAGE_TYPE.ACCEPT_ACK, 5, 1, 9)
+        self.send_accept(5, 1, 9, 5, MESSAGE_TYPE.ACCEPT_ACK, 5, 1, 9)
 
         # send a prepare request, proposal = 0, instance = 2
         self.send_prepare(0, 2, MESSAGE_TYPE.PREPARE_ACK, 0, 2)
 
         # send a accept request, proposal = 9, instance = 3, client_id = 9
-        self.send_accept(9, 3, 9, MESSAGE_TYPE.ACCEPT_ACK, 9, 3, 9)
+        self.send_accept(9, 3, 9, 5, MESSAGE_TYPE.ACCEPT_ACK, 9, 3, 9)
 
         # send a accept request, proposal = 0, instance = 2, client_id = 9
-        self.send_accept(0, 2, 9, MESSAGE_TYPE.ACCEPT_ACK, 0, 2, 9)
+        self.send_accept(0, 2, 9, 5, MESSAGE_TYPE.ACCEPT_ACK, 0, 2, 9)
 
     def test_reject_accept_test(self):
         """
@@ -259,9 +263,28 @@ class acceptor_test(unittest.TestCase):
             print e
             pass
 
+        print "[Info] send actual valid accept req"
+
         # send an actual accept message which should get accepted
         # proposal = 8, instance = 0, client_id = 9
-        self.send_accept(8, 0, 9, MESSAGE_TYPE.ACCEPT_ACK, 8, 0, 9)
+        self.send_accept(8, 0, 9, 5, MESSAGE_TYPE.ACCEPT_ACK, 8, 0, 9)
+
+    def test_return_prepare_nack(self):
+        """
+            Test that acceptor will return highest proposal accepted and its
+            value correctly.
+        """
+        # send a prepare message, proposal = 1, instance = 0
+        self.send_prepare(1, 0, MESSAGE_TYPE.PREPARE_ACK, 1, 0)
+
+        # send an accept message, proposal = 1, instance = 0, value = 5
+        self.send_accept(1, 0, 0, 5, MESSAGE_TYPE.ACCEPT_ACK, 1, 0, 0)
+
+        # send a prepare message, proposal = 3, instance = 0,
+        rmsg = self.send_prepare(3, 0, MESSAGE_TYPE.PREPARE_NACK, 3, 0)
+        assert rmsg.r_proposal == 1
+        print "rmsg.value : {}".format(rmsg.value)
+        assert rmsg.value == 5
 
     def tearDown(self):
         """
