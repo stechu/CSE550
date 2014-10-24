@@ -20,7 +20,7 @@ class integration_test(unittest.TestCase):
     def setUp(self):
 
         # set test server size
-        self.TOTAL_SERVERS = 3
+        self.TOTAL_SERVERS = 5
 
         # initialize server list
         self.server_list = []
@@ -34,6 +34,8 @@ class integration_test(unittest.TestCase):
             server_entry["client_port"] = i
 
             self.server_list.append(server_entry)
+
+        print self.server_list
 
         # bring up each server
         self.servers = []
@@ -110,7 +112,7 @@ class integration_test(unittest.TestCase):
 
         # generate a lock file for each client
         CMD_FILES = ["client_0.txt", "client_1.txt"]
-        LOCKS = 3
+        LOCKS = 10
         make_lock_file(LOCKS, CMD_FILES[0])
         make_lock_file(LOCKS, CMD_FILES[1])
 
@@ -149,7 +151,7 @@ class integration_test(unittest.TestCase):
 
         print "\n[Info] ##########[INTEGRATION TEST MULTIPLE CLIENT MULTIPLE SERVER TEST]########## \n\n"
 
-        LOCKS = 1
+        LOCKS = 10
 
         # generate the lock files
         for i in range(0, len(self.server_list)):
@@ -231,11 +233,11 @@ class integration_test(unittest.TestCase):
         # join the acceptor and proposer processes for each server
         for s in self.servers:
             s.listening_process.terminate()
-            s.listening_process.join(.1)
-            s.acceptor_process.join(.1)
+            s.listening_process.join(5)
+            s.acceptor_process.join(5)
+            s.proposer_process.join(5)
             s.proposer_process.terminate()
-            s.proposer_process.join(.1)
-
+            assert(not s.proposer_process.is_alive())
 
 if __name__ == '__main__':
     unittest.main()

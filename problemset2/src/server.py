@@ -58,6 +58,8 @@ class PAXOS_member(object):
         listening_process.start()
         self.listening_process = listening_process
 
+        self.client_socket = None
+
     def group_size(self):
         """
             Return the size of the paxos group
@@ -276,10 +278,11 @@ class PAXOS_member(object):
 
         # Open a client port and listen on port for connections
         try:
-            client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            client_socket.bind((self.host, self.client_port))
-            client_socket.listen(30)
+            self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            self.client_socket.bind((self.host, self.client_port))
+            self.client_socket.listen(30)
+            self.client_socket.settimeout(1) # set the timeout to check for exit conditions
         except Exception, e:
             raise Exception(
                 self.DEBUG_TAG + ": cannot open client port." + str(e))
@@ -315,8 +318,22 @@ class PAXOS_member(object):
                 self.DEBUG_TAG)
 
             # accept an incoming client connection
-            (client_connection, address) = client_socket.accept()
-            client_connection.settimeout(1)
+            try:
+                (client_connection, address) = self.client_socket.accept()
+                client_connection.settimeout(1)
+            except Exception, e:
+                # check for an exit message
+                try:
+                    m = self.proposer_queue.get(block=True, timeout = 1)
+                    if (m.msg_type == MESSAGE_TYPE.EXIT):
+                        done = 1
+                        client_done = 1
+                        break
+                    else:
+                        self.proposer_queue.put(m)
+                except Exception, e:
+                    pass
+                continue
 
             client_done = 0
 
@@ -560,9 +577,9 @@ class PAXOS_member(object):
                 f.write(str(key) + " -> cid:" + str(self.instance_resolutions[key][1])
                                                     + " - " + str(self.instance_resolutions[key][0]) + "\n")
             f.close()
-            print "DROPPED OUT OF STATE FSM LOOP"
+            print self.DEBUG_TAG + "DROPPED OUT OF STATE FSM LOOP"
             # close while loop
-        print "DROPPED OUT OF PROPOSER LOOPS"
+        print self.DEBUG_TAG + "DROPPED OUT OF PROPOSER LOOPS"
         # close connection processing loop
     # close proposer process definition
 
