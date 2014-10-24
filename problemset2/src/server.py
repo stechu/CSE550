@@ -232,6 +232,12 @@ class PAXOS_member(object):
         # counter for proposer number
         proposer_num = self.server_id
 
+        # log file
+        write_lock = Lock()
+        write_lock.acquire()
+        logfile = open("server" + str(self.server_id) + ".txt", "w+")
+        write_lock.release()
+
 #        print "Proposer number is initially: " + str(proposer_num)
 
         # resolved command
@@ -372,15 +378,20 @@ class PAXOS_member(object):
                 assert isinstance(c_msg, message.message)
                 assert isinstance(c_msg.value, command.command)
                 assert c_msg.msg_type == message.MESSAGE_TYPE.CLIENT
+                assert(c_msg.client_id != None)
 
                 # the command sent by client
                 client_command = c_msg.value
+                orig_client_id = c_msg.client_id
+
                 # the command learnt by proposer (if any)
                 learnt_command = c_msg.value
+                learnt_client = c_msg.client_id
 
                 state = READY
                 # Paxos proposal phase if not IDLE
                 while state != IDLE:
+
                     ###########################################################
                     # READY - node is ready to propose
                     ###########################################################
@@ -393,6 +404,7 @@ class PAXOS_member(object):
                             MESSAGE_TYPE.PREPARE,
                             proposer_num, instance, None,
                             self.server_id, c_msg.client_id)
+                        assert(msg.client_id != None)
                         send_to_acceptors(msg, server_connections)
                         # update the state
                         state = PROPOSING
@@ -414,6 +426,7 @@ class PAXOS_member(object):
                                 # listen to responses on the server msg queue
                                 msg = self.proposer_queue.get(
                                     block=True, timeout=1)
+                                assert(msg.client_id != None)
 
                             # if an exception occurs and we're not done,
                             # consider the proposal failed
@@ -468,6 +481,7 @@ class PAXOS_member(object):
                         if pre_nacks:
                             highest_p, p_msg = max(pre_nacks)
                             learnt_command = p_msg.value
+                            learnt_client = p_msg.client_id
                         state = ACCEPT
 
                     ###########################################################
@@ -484,6 +498,7 @@ class PAXOS_member(object):
                             self.server_id, c_msg.client_id)
 
                         # send the accept requests
+                        assert(accept_msg.client_id != None)
                         send_to_acceptors(accept_msg, server_connections)
 
                         # advance state
@@ -536,9 +551,11 @@ class PAXOS_member(object):
                         # proposal was accepted
                         if response_cnt > self.group_size() / 2:
                             # yeah! accepted
-                            if learnt_command == client_command:
+                            if (learnt_command == client_command and
+                                learnt_client == orig_client_id):
                                 state = IDLE
                                 # send a response message
+                                assert(msg.client_id != None)
                                 client_ack_msg = message.message(
                                     MESSAGE_TYPE.CLIENT_ACK, None, instance,
                                     client_command, self.server_id,
@@ -546,18 +563,26 @@ class PAXOS_member(object):
                                 client_connection.send(
                                     pickle.dumps(client_ack_msg))
                             else:
+                                print self.DEBUG_TAG + "Failed to get command and/or client id correct."
                                 state = READY
 
                             self.instance_resolutions[instance] = (
                                 learnt_command, msg.client_id)
+
+                            write_lock.acquire()
+                            logfile.write(str(instance) + " -> cid:" + str(msg.client_id)
+                                    + " - " + str(learnt_command) + "\n")
+                            write_lock.release()
+
                             # move to the next instance
                             instance += 1
                             # reset learnt command
                             learnt_command = client_command
+                            learnt_client = orig_client_id
 
-#                            print "{} resolve! ins={}, cmd={}, lt={}".format(
-#                                self.DEBUG_TAG, instance,
-#                                client_command, learnt_command)
+                            print "{} resolve! ins={}, cmd={}, lt={}".format(
+                                self.DEBUG_TAG, instance,
+                                client_command, learnt_command)
                         else:
                             # break by timeout:
                             # propose again
@@ -572,15 +597,14 @@ class PAXOS_member(object):
                         assert(False)
 
                 # close command processing loop
-            f = open("server" + str(self.server_id) + ".txt", "w+")
-            for key in self.instance_resolutions:
-                f.write(str(key) + " -> cid:" + str(self.instance_resolutions[key][1])
-                                                    + " - " + str(self.instance_resolutions[key][0]) + "\n")
-            f.close()
             print self.DEBUG_TAG + "DROPPED OUT OF STATE FSM LOOP"
             # close while loop
         print self.DEBUG_TAG + "DROPPED OUT OF PROPOSER LOOPS"
         # close connection processing loop
+        write_lock.acquire()
+        logfile.close()
+        write_lock.release()
+
     # close proposer process definition
 
     def initialize_acceptor(self):
@@ -660,7 +684,7 @@ class PAXOS_member(object):
                     # send ack back
                     rmsg = message.message(
                         MESSAGE_TYPE.PREPARE_ACK, p_proposal, p_instance,
-                        None, self.server_id)
+                        msg.client_id, self.server_id)
                     response_proposer(rmsg, msg.origin_id)
 
                     # update accept_history

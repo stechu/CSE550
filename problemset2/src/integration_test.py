@@ -237,7 +237,6 @@ class integration_test(unittest.TestCase):
             s.listening_process.join(5)
             s.acceptor_process.join(5)
             s.proposer_process.join(5)
-            s.proposer_process.terminate()
             assert(not s.proposer_process.is_alive())
 
 if __name__ == '__main__':
