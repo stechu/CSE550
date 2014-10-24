@@ -151,6 +151,7 @@ class PAXOS_member(object):
             self.proposer_queue_lock.acquire()
             self.proposer_queue.put(msg)
             self.proposer_queue_lock.release()
+
         done = 0
         try:
             while (done == 0):
@@ -247,7 +248,6 @@ class PAXOS_member(object):
         """
             abstract initialization processes for testing purposes
         """
-
 #        print self.DEBUG_TAG + " Launching proposer process..."
 
         # initialize the proposer process
@@ -270,6 +270,33 @@ class PAXOS_member(object):
                a queue of requests
             - server_list is a list of pairs (host, port)
         """
+        # the msg type need to handle dup
+        proposer_msg_types = [
+            MESSAGE_TYPE.PREPARE_ACK,
+            MESSAGE_TYPE.PREPARE_NACK,
+            MESSAGE_TYPE.ACCEPT_ACK,
+        ]
+        msg_history = set()
+
+        def if_dup(msg, msg_history):
+            # handle duplication
+            if msg.msg_type in proposer_msg_types:
+                msg_signature = (
+                    msg.msg_type,
+                    msg.value.command_type,
+                    msg.value.resource_id,
+                    msg.proposal,
+                    msg.r_proposal,
+                    msg.client_id,
+                    msg.instance,
+                    msg.origin_id)
+                if msg_signature in msg_history:
+                    # dup, pass
+                    return False
+                else:
+                    msg_history.add(msg_signature)
+                    return True
+
         # counter for proposer number
         proposer_num = self.server_id
 
@@ -497,6 +524,9 @@ class PAXOS_member(object):
 
                             assert(isinstance(msg, message.message))
 
+                            if if_dup(msg, msg_history):
+                                continue
+
                             # if the message ia a prepare ack and matches your
                             # proposal/instance, increment ack count
                             if msg.instance != instance:
@@ -589,6 +619,9 @@ class PAXOS_member(object):
                                 break
 
                             assert isinstance(msg, message.message)
+
+                            if if_dup(msg, msg_history):
+                                continue
 
                             # check messages on the queue for acks
                             if msg.instance != instance:
@@ -694,6 +727,15 @@ class PAXOS_member(object):
                 server_connections.remove(response_conn)
                 print self.DEBUG_TAG + "WARN - fail to response " + e
 
+        # the msg types that will be duped
+        acceptor_msg_types = [
+            MESSAGE_TYPE.PREPARE,
+            MESSAGE_TYPE.ACCEPT,
+        ]
+
+        # msg_history to handle dups
+        msg_history = set()
+
         # open socket connections to each server: server_id -> connection
         server_connections = dict()
         for server_id, p_server in enumerate(self.server_list):
@@ -721,6 +763,24 @@ class PAXOS_member(object):
 
             # get a message of the queue
             msg = self.acceptor_queue.get()
+
+            # handle duplication
+            if msg.msg_type in acceptor_msg_types:
+                msg_signature = (
+                    msg.msg_type,
+                    msg.value.command_type,
+                    msg.value.resource_id,
+                    msg.proposal,
+                    msg.r_proposal,
+                    msg.client_id,
+                    msg.instance,
+                    msg.origin_id)
+                if msg_signature in msg_history:
+                    # dup, pass
+                    continue
+                else:
+                    msg_history.add(msg_signature)
+
             ###################################################################
             # handle PREPARE request
             ###################################################################
