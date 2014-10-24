@@ -182,10 +182,10 @@ class proposer_test(unittest.TestCase):
         """
 
         print "\n##########[TEST PROPOSAL TIMEOUTS]##########\n\n"
-        # make life a little bit easier
-        ps = self.paxos_server
 
         client_id = random.randint(0, 1000)
+
+        seen_proposals = -1
 
         # fire a proposal to the server
         self.client_msg_to_test_server(COMMAND_TYPE.LOCK, 1, client_id)
@@ -197,6 +197,7 @@ class proposer_test(unittest.TestCase):
         assert(rmsg.msg_type == message.MESSAGE_TYPE.PREPARE)
         assert(rmsg.proposal == self.paxos_server.server_id)
         assert(rmsg.instance == 0)
+        seen_proposals = rmsg.proposal
 
         print "[Info] Got a prepare message and ignored it..."
 
@@ -207,8 +208,10 @@ class proposer_test(unittest.TestCase):
         assert isinstance(rmsg, message.message)
         assert rmsg.client_id == client_id
         assert rmsg.msg_type == message.MESSAGE_TYPE.PREPARE
-        assert rmsg.proposal == ps.server_id + ps.group_size()
+        assert rmsg.proposal > seen_proposals
         assert rmsg.instance == 0
+
+        seen_proposals = rmsg.proposal
 
         print "[Info] Got a second prepare message.."
 
@@ -226,7 +229,7 @@ class proposer_test(unittest.TestCase):
         assert isinstance(rmsg, message.message)
         assert rmsg.client_id == client_id
         assert rmsg.msg_type == message.MESSAGE_TYPE.ACCEPT
-        assert rmsg.proposal == ps.server_id + ps.group_size()
+        assert rmsg.proposal == seen_proposals
         assert rmsg.instance == 0
 
         # ignore the message and send it back to the proposing state
@@ -240,8 +243,9 @@ class proposer_test(unittest.TestCase):
         assert rmsg.client_id == client_id
         assert rmsg.msg_type == message.MESSAGE_TYPE.PREPARE
         print "rmsg : {}".format(rmsg)
-        assert rmsg.proposal == ps.server_id + 2 * ps.group_size()
+        assert rmsg.proposal > seen_proposals
         assert rmsg.instance == 0
+        seen_proposals = rmsg.proposal
 
         print "[Info] Got a prepare message..."
 
@@ -259,7 +263,7 @@ class proposer_test(unittest.TestCase):
         assert isinstance(rmsg, message.message)
         assert rmsg.client_id == client_id
         assert rmsg.msg_type == message.MESSAGE_TYPE.ACCEPT
-        assert rmsg.proposal == ps.server_id + 2 * ps.group_size()
+        assert rmsg.proposal == seen_proposals
         assert rmsg.instance == 0
         assert isinstance(rmsg.value, command.command)
         assert rmsg.value.resource_id == 1
@@ -287,8 +291,6 @@ class proposer_test(unittest.TestCase):
         """
 
         print "\n##########[TEST PROPOSAL TIMEOUTS]##########\n\n"
-        # make life a little bit easier
-        ps = self.paxos_server
 
         client_id = random.randint(0, 1000)
         expected_instance = 0
