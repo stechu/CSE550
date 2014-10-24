@@ -522,17 +522,20 @@ class PAXOS_member(object):
                                                                  None, instance, client_command, 
                                                                  self.server_id , msg.client_id)
                                 client_connection.send(pickle.dumps(client_ack_msg))
+                                print self.DEBUG_TAG + "For instance " + str(instance) + " got resolution: " + str(learnt_command) + " with client id " + str(msg.client_id) + " origin_id = " + str(msg.origin_id)
+
                             else:
                                 state = READY
                                 print "learnt cmd accepted"
+                                # update self.instance_resolutions
+                                print self.DEBUG_TAG + "For instance " + str(instance) + " learned resolution: " + str(learnt_command) + " with client id " + str(msg.client_id)  + " origin_id = " + str(msg.origin_id)
 
-                            # update self.instance_resolutions
-                            print "For instance " + str(instance) + " got resolution: " + str(learnt_command) + " with client id " + str(msg.client_id)
+
                             self.instance_resolutions[instance] = (learnt_command, msg.client_id)
                             # move to the next instance
                             instance += 1
 
-                            print "23579-189231203471289034: incrementing instance\n\n"
+                            print self.DEBUG_TAG + ": incrementing instance to " + str(instance)
                         else:
                             # break by timeout:
                             # propose again
@@ -568,7 +571,6 @@ class PAXOS_member(object):
             response_conn = server_connections[prop_id]
             try:
                 response_conn.sendall(pickle.dumps(rmsg))
-                print self.DEBUG_TAG + " Send a prepare response message..."
             except Exception, e:
                 print self.DEBUG_TAG + "WARN - fail to response " + e
 

@@ -158,7 +158,7 @@ class integration_test(unittest.TestCase):
 
         print "\n[Info] ##########[INTEGRATION TEST MULTIPLE CLIENT MULTIPLE SERVER TEST]########## \n\n"
 
-        LOCKS = 3
+        LOCKS = 1
 
         # generate the lock files
         for i in range(0, len(self.server_list)):
