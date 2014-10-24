@@ -46,6 +46,24 @@ def make_lock_file(num_locks, filename):
 
     f.close()
 
+def make_simple_file(num_locks, filename):
+    cmd_list = []
+    lock_set = []
+
+    a_locks = 0
+
+    for i in range(0, num_locks):
+        new_lock = random.randint(0, 10)
+        cmd_list.append("lock " + str(new_lock))
+        cmd_list.append("unlock " + str(new_lock))
+
+    f = open(filename, "w+")
+
+    for cmd in cmd_list:
+        f.write(cmd + "\n")
+
+    f.close()
+
 # Generate a contentious lock file sequence which acquires and released the same lock over and over again
 def make_contentious_lock_file(num_locks, filename):
     cmd_list = []

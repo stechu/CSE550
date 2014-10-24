@@ -8,8 +8,8 @@ import server
 import unittest
 import message
 import client
-from lock_file import make_lock_file
-
+from lock_file import *
+import time
 
 class integration_test(unittest.TestCase):
 
@@ -54,6 +54,7 @@ class integration_test(unittest.TestCase):
             s = self.server_list[i]
             assert s
             self.servers[i].initialize_paxos()
+            time.sleep(.5) # allow the system to recover
 
     ###############################################################
     # Test to see if the Paxos server group shutsdown correctly
@@ -82,7 +83,7 @@ class integration_test(unittest.TestCase):
         # generate a lock file
         CMD_FILE = "client_0.txt"
         LOCKS = 3
-        make_lock_file(LOCKS, CMD_FILE)
+        make_simple_file(LOCKS, CMD_FILE)
 
         # connect to the first server in the list
         port = self.server_list[0]["client_port"]
@@ -113,8 +114,8 @@ class integration_test(unittest.TestCase):
         # generate a lock file for each client
         CMD_FILES = ["client_0.txt", "client_1.txt"]
         LOCKS = 10
-        make_lock_file(LOCKS, CMD_FILES[0])
-        make_lock_file(LOCKS, CMD_FILES[1])
+        make_simple_file(LOCKS, CMD_FILES[0])
+        make_simple_file(LOCKS, CMD_FILES[1])
 
         # connect to the first server in the list only
         # connect to the first server in the list
@@ -151,12 +152,12 @@ class integration_test(unittest.TestCase):
 
         print "\n[Info] ##########[INTEGRATION TEST MULTIPLE CLIENT MULTIPLE SERVER TEST]########## \n\n"
 
-        LOCKS = 10
+        LOCKS = 100
 
         # generate the lock files
         for i in range(0, len(self.server_list)):
             filename = "client_" + str(i) + ".txt"
-            make_lock_file(LOCKS, filename)
+            make_simple_file(LOCKS, filename)
 
         # instantiate a client to each server
         client_list = []
