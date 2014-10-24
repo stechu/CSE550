@@ -89,11 +89,11 @@ class client:
         for c in cmd_list:
             # send the command
             self.send_command(c, self.client_id)
-            print "Client sent command to server..."
+            print str(self.client_id) + ": Client sent command to server..."
 
             # wait for an ACK from the server indicating you got an ACK
             rmsg = pickle.loads(self.receive_message())
-            print "Client received ACK from server..."
+            print str(self.client_id) + ": Client received ACK from server..."
 
             assert rmsg.msg_type == message.MESSAGE_TYPE.CLIENT_ACK
             assert rmsg.client_id == self.client_id

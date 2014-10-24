@@ -132,39 +132,32 @@ class PAXOS_member(object):
 
                 # route the message to the appropriate process based its type
                 if (msg_type == message.MESSAGE_TYPE.PREPARE):
-                    print self.DEBUG_TAG + " Got a prepare message."
                     self.acceptor_queue_lock.acquire()
                     self.acceptor_queue.put(msg)
                     self.acceptor_queue_lock.release()
                 elif(msg_type == message.MESSAGE_TYPE.PREPARE_ACK):
-                    print self.DEBUG_TAG + " Got a prepare ACK message."
                     self.proposer_queue_lock.acquire()
                     self.proposer_queue.put(msg)
                     self.proposer_queue_lock.release()
                 elif(msg_type == message.MESSAGE_TYPE.PREPARE_NACK):
-                    print self.DEBUG_TAG + " Got a prepare NACK message."
                     self.proposer_queue_lock.acquire()
                     self.proposer_queue.put(msg)
                     self.proposer_queue_lock.release()
                 elif(msg_type == message.MESSAGE_TYPE.ACCEPT):
-                    print self.DEBUG_TAG + " Got an accept message."
                     self.acceptor_queue_lock.acquire()
                     self.acceptor_queue.put(msg)
                     self.acceptor_queue_lock.release()
                 elif(msg_type == message.MESSAGE_TYPE.ACCEPT_ACK):
-                    print self.DEBUG_TAG + " Got a accept ACK message."
                     self.proposer_queue_lock.acquire()
                     self.proposer_queue.put(msg)
                     self.proposer_queue_lock.release()
                 elif(msg_type == message.MESSAGE_TYPE.CLIENT):
-                    print self.DEBUG_TAG + " Got a client message."
                     self.proposer_queue_lock.acquire()
                     self.proposer_queue.put(msg)
                     self.proposer_queue_lock.release()
                 elif(msg_type == message.MESSAGE_TYPE.CLIENT_ACK):
                     raise ValueError("ERROR: Got a client ACK message.")
                 elif(msg_type == message.MESSAGE_TYPE.EXIT):
-                    print self.DEBUG_TAG + " Got an exit message."
                     self.proposer_queue.put(msg)
                     self.acceptor_queue.put(msg)
                     done = 1
@@ -322,8 +315,6 @@ class PAXOS_member(object):
             (client_connection, address) = client_socket.accept()
             client_connection.settimeout(1)
 
-            print "========== Got a Connection from " + str((client_connection, address))
-
             client_done = 0
 
             ###################################################################
@@ -344,7 +335,8 @@ class PAXOS_member(object):
                 try:
                     c_msgs = client_connection.recv(1000)
                 except Exception, e:
-                    self.DEBUG_TAG + " Client connection done receiving..."
+                    self.DEBUG_TAG + " Client connection timed out... closing socket..."
+                    client_connection.close()
                     break
 
                 # unpack the message and get the command to propose from client
@@ -419,25 +411,26 @@ class PAXOS_member(object):
                             if msg.instance != instance:
                                 # ignore these messages since they're leftover
                                 pass
-                            if msg.msg_type == MESSAGE_TYPE.PREPARE_ACK:
-                                # good, +1 ack
-                                assert msg.instance == instance
-                                response_cnt += 1
-                            elif msg.msg_type == MESSAGE_TYPE.PREPARE_NACK:
-                                # store it
-                                nack_msg = (msg.proposal, msg)
-                                pre_nacks.append(nack_msg)
-                                response_cnt += 1
-                            elif (msg.msg_type == message.MESSAGE_TYPE.EXIT):
-                                # exit
-                                print self.DEBUG_TAG + " Proposer exit..."
-                                done = 1
-                                client_done = 1
-                                break
                             else:
-                                print self.DEBUG_TAG + str(msg)
-                                raise ValueError(
-                                    "Wrong message got by proposer")
+                                if msg.msg_type == MESSAGE_TYPE.PREPARE_ACK:
+                                    # good, +1 ack
+                                    assert msg.instance == instance
+                                    response_cnt += 1
+                                elif msg.msg_type == MESSAGE_TYPE.PREPARE_NACK:
+                                    # store it
+                                    nack_msg = (msg.proposal, msg)
+                                    pre_nacks.append(nack_msg)
+                                    response_cnt += 1
+                                elif (msg.msg_type == message.MESSAGE_TYPE.EXIT):
+                                    # exit
+                                    print self.DEBUG_TAG + " Proposer exit..."
+                                    done = 1
+                                    client_done = 1
+                                    break
+                                else:
+                                    print self.DEBUG_TAG + str(msg)
+                                    raise ValueError(
+                                        "Wrong message got by proposer" + str(msg))
 
                         # if timeout try another round (higher prop number)
                         if response_cnt <= self.group_size() / 2:
@@ -497,18 +490,19 @@ class PAXOS_member(object):
                                 # ignore left over messages from lower instance
                                 assert msg.instance < instance
                                 pass
-                            if msg.msg_type == MESSAGE_TYPE.ACCEPT_ACK:
-                                # only care response for this accept req
-                                if msg.proposal == proposer_num:
-                                    response_cnt += 1
-                            elif msg.msg_type == MESSAGE_TYPE.PREPARE_ACK:
-                                # ignore leftover prepare ack messages
-                                pass
-                            elif msg.msg_type == message.MESSAGE_TYPE.EXIT:
-                                client_done = 1
-                                done = 1
                             else:
-                                raise ValueError("Should not reach here.")
+                                if msg.msg_type == MESSAGE_TYPE.ACCEPT_ACK:
+                                    # only care response for this accept req
+                                    if msg.proposal == proposer_num:
+                                        response_cnt += 1
+                                elif msg.msg_type == MESSAGE_TYPE.PREPARE_ACK:
+                                    # ignore leftover prepare ack messages
+                                    pass
+                                elif msg.msg_type == message.MESSAGE_TYPE.EXIT:
+                                    client_done = 1
+                                    done = 1
+                                else:
+                                    raise ValueError("Should not reach here.")
 
                         # update proposer number, in any case
                         proposer_num += self.group_size()
@@ -527,12 +521,14 @@ class PAXOS_member(object):
                             else:
                                 state = READY
                                 print "learnt cmd accepted"
+
                             # update self.instance_resolutions
                             print "For instance " + str(instance) + " got resolution: " + str(learnt_command) + " with client id " + str(msg.client_id)
                             self.instance_resolutions[instance] = (learnt_command, msg.client_id)
-                            print_instance_resolutions()
                             # move to the next instance
                             instance += 1
+
+                            print "23579-189231203471289034: incrementing instance\n\n"
                         else:
                             # break by timeout:
                             # propose again
@@ -540,16 +536,19 @@ class PAXOS_member(object):
                             # update proposal num
                             proposer_num += self.group_size()
 
+
+
                     ###########################################################
                     # Failure state
                     ###########################################################
                     else:
                         assert(False)
 
-            print "DROPPED OUT OF STATE FSM LOOP"
-        print "DROPPED OUT OF PROPOSER LOOPS"
                 # close command processing loop
+            print "DROPPED OUT OF STATE FSM LOOP"
             # close while loop
+        print "DROPPED OUT OF PROPOSER LOOPS"
+        print_instance_resolutions()
         # close connection processing loop
     # close proposer process definition
 
@@ -565,7 +564,7 @@ class PAXOS_member(object):
             response_conn = server_connections[prop_id]
             try:
                 response_conn.sendall(pickle.dumps(rmsg))
-                print self.DEBUG_TAG + " Send a prepare respone message..."
+                print self.DEBUG_TAG + " Send a prepare response message..."
             except Exception, e:
                 print self.DEBUG_TAG + "WARN - fail to response " + e
 

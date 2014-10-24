@@ -29,7 +29,7 @@ class integration_test(unittest.TestCase):
     def setUp(self):
 
         # set test server size
-        self.TOTAL_SERVERS = 3
+        self.TOTAL_SERVERS = 5
 
         # initialize server list
         self.server_list = []
