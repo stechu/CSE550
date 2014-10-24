@@ -60,6 +60,8 @@ class PAXOS_member(object):
 
         self.client_socket = None
 
+#        print "[Info] Server number " + str(self.server_id) + " online..."
+
     def group_size(self):
         """
             Return the size of the paxos group
@@ -196,7 +198,7 @@ class PAXOS_member(object):
             target=self.initialize_acceptor, args=())
         acceptor_process.start()
 
-        print self.DEBUG_TAG + " Initialized proposer process..."
+#        print self.DEBUG_TAG + " Initialized proposer process..."
         assert(acceptor_process.is_alive())
         self.acceptor_process = acceptor_process
 
@@ -207,14 +209,14 @@ class PAXOS_member(object):
             abstract initialization processes for testing purposes
         """
 
-        print self.DEBUG_TAG + " Launching proposer process..."
+#        print self.DEBUG_TAG + " Launching proposer process..."
 
         # initialize the proposer process
         proposer_process = Process(
             target=self.initialize_proposer, args=())
         proposer_process.start()
 
-        print self.DEBUG_TAG + " Initialized acceptor process..."
+#        print self.DEBUG_TAG + " Initialized acceptor process..."
         assert(proposer_process.is_alive())
         self.proposer_process = proposer_process
 
@@ -288,13 +290,13 @@ class PAXOS_member(object):
             self.client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self.client_socket.bind((self.host, self.client_port))
             self.client_socket.listen(30)
-            self.client_socket.settimeout(1) # set the timeout to check for exit conditions
+            self.client_socket.settimeout(.1) # set the timeout to check for exit conditions
         except Exception, e:
             raise Exception(
                 self.DEBUG_TAG + ": cannot open client port." + str(e))
 
-        print "{} Opening client socket on: {}".format(
-            self.DEBUG_TAG, self.client_port)
+#        print "{} Opening client socket on: {}".format(
+#            self.DEBUG_TAG, self.client_port)
 
         # Enter the main loop of the proposer
         done = 0
@@ -320,13 +322,13 @@ class PAXOS_member(object):
         # Begin processing messages from the message queue
         while (done == 0):
 
-            print "{} Waiting for a client connection...".format(
-                self.DEBUG_TAG)
+#            print "{} Waiting for a client connection...".format(
+#                self.DEBUG_TAG)
 
             # accept an incoming client connection
             try:
                 (client_connection, address) = self.client_socket.accept()
-                client_connection.settimeout(1)
+                client_connection.settimeout(.5)
             except Exception, e:
                 # check for an exit message
                 try:
@@ -361,8 +363,8 @@ class PAXOS_member(object):
                 try:
                     c_msgs = client_connection.recv(1000)
                 except Exception, e:
-                    print "{} Client conn timed out, closing socket...".format(
-                        self.DEBUG_TAG)
+#                    print "{} Client conn timed out, closing socket...".format(
+#                        self.DEBUG_TAG)
                     client_connection.close()
                     break
 
@@ -431,9 +433,9 @@ class PAXOS_member(object):
                             # if an exception occurs and we're not done,
                             # consider the proposal failed
                             except Exception as e:
-                                print "{} : WARN 2 - {}".format(
-                                    self.DEBUG_TAG, e)
-                                print str(e)
+#                                print "{} : WARN 2 - {}".format(
+#                                    self.DEBUG_TAG, e)
+#                                print str(e)
                                 # attempt another proposal round
                                 state = READY
                                 break
@@ -572,7 +574,7 @@ class PAXOS_member(object):
                                 client_connection.send(
                                     pickle.dumps(client_ack_msg))
                             else:
-                                print self.DEBUG_TAG + "Failed to get command and/or client id correct."
+#                                print self.DEBUG_TAG + "Failed to get command and/or client id correct."
                                 state = READY
 
                             self.instance_resolutions[instance] = (
@@ -594,7 +596,6 @@ class PAXOS_member(object):
                                 assert(not learnt_command.resource_id in self.lock_set)
                             else:
                                 assert(False)
-                            print "Current lock set: " + str(self.lock_set)
 
                             # move to the next instance
                             instance += 1
@@ -602,9 +603,9 @@ class PAXOS_member(object):
                             learnt_command = client_command
                             learnt_client = orig_client_id
 
-                            print "{} resolve! ins={}, cmd={}, lt={}".format(
-                                self.DEBUG_TAG, instance,
-                                client_command, learnt_command)
+#                            print "{} resolve! ins={}, cmd={}, lt={}".format(
+ #                               self.DEBUG_TAG, instance,
+ #                               client_command, learnt_command)
                         else:
                             # break by timeout:
                             # propose again
@@ -619,13 +620,15 @@ class PAXOS_member(object):
                         assert(False)
 
                 # close command processing loop
-            print self.DEBUG_TAG + "DROPPED OUT OF STATE FSM LOOP"
+#            print self.DEBUG_TAG + "DROPPED OUT OF STATE FSM LOOP"
             # close while loop
-        print self.DEBUG_TAG + "DROPPED OUT OF PROPOSER LOOPS"
+#        print self.DEBUG_TAG + "DROPPED OUT OF PROPOSER LOOPS"
         # close connection processing loop
         write_lock.acquire()
         logfile.close()
         write_lock.release()
+
+        print "[Info] Proposer on server " + str(self.server_id) + " exited..."
 
     # close proposer process definition
 
@@ -642,6 +645,7 @@ class PAXOS_member(object):
             try:
                 response_conn.sendall(pickle.dumps(rmsg))
             except Exception, e:
+                server_connections.remove(response_conn)
                 print self.DEBUG_TAG + "WARN - fail to response " + e
 
         # open socket connections to each server: server_id -> connection
@@ -751,3 +755,5 @@ class PAXOS_member(object):
         except Exception, e:
             print "{} ERROR - failed to close server conn... {}".format(
                 self.DEBUG_TAG, e)
+
+#        print "[Info] Acceptor on server " + str(self.server_id) + " exited..."

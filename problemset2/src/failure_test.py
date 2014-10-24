@@ -16,7 +16,8 @@ import time
 import message
 from multiprocessing import Queue, Process, Lock
 import random
-from lock_file import make_lock_file
+from lock_file import *
+import client
 
 class failure_test(unittest.TestCase):
 
@@ -27,7 +28,7 @@ class failure_test(unittest.TestCase):
     def setUp(self):
 
         # set test server size
-        self.TOTAL_SERVERS = 3
+        self.TOTAL_SERVERS = 5
 
         # initialize server list
         self.server_list = []
@@ -41,6 +42,8 @@ class failure_test(unittest.TestCase):
             server_entry["client_port"] = i
 
             self.server_list.append(server_entry)
+
+        print self.server_list
 
         # bring up each server
         self.servers = []
@@ -57,8 +60,9 @@ class failure_test(unittest.TestCase):
         # initialize new servers
         for i in range(0, len(self.servers)):
             s = self.server_list[i]
-            assert(s != None)
+            assert s
             self.servers[i].initialize_paxos()
+            time.sleep(.5) # allow the system to recover
 
     ###############################################################
     # Shutdown the Paxos group
@@ -76,20 +80,10 @@ class failure_test(unittest.TestCase):
 
         # join the acceptor and proposer processes for each server
         for s in self.servers:
-            s.listening_process.join(1)
-            if (s.listening_process.is_alive()):
-                s.listening_process.terminate()
-                s.listening_process.join(1)
-
-            s.acceptor_process.join(1)
-            if (s.acceptor_process.is_alive()):
-                s.acceptor_process.terminate()
-                s.acceptor_process.join(1)
- 
-            s.proposer_process.join(1)
-            if (s.proposer_process.is_alive()):
-                s.proposer_process.terminate(1)
-                s.proposer_process.join(1)
+            s.listening_process.terminate()
+            s.listening_process.join(5)
+            s.acceptor_process.join(5)
+            s.proposer_process.join(5)
 
     ##########################################################
     # Test if Paxos group completes even with single node
@@ -99,27 +93,57 @@ class failure_test(unittest.TestCase):
 
     def test_single_server_failure(self):
 
-        # randomly compute a server index to kill
-        server_index = random.randint(0, len(self.server_list))
-        assert(server_index < len(self.server_list))
-        s = self.servers[server_index]
+        print "\n[Info] ##########[INTEGRATION TEST MULTIPLE CLIENT MULTIPLE SERVER TEST]########## \n\n"
 
-        # write a bunch of lock files
+        LOCKS = 10
+
+        kill_server = self.servers[0]
+
+        # generate the lock files
+        for i in range(0, len(self.server_list)):
+            filename = "client_" + str(i) + ".txt"
+            make_simple_file(LOCKS, filename)
+
+        # instantiate a client to each server
         client_list = []
         for i in range(0, len(self.server_list)):
-            make_lock_file(100, "client_" + str(i) + ".txt")
-
-        # start a bunch of clients
-        for i in range(0, len(self.server_list)):
+            port = self.server_list[i]["client_port"]
             host = self.server_list[i]["host"]
-            port = self.server_list[i]["port"]
-            assert((port % 2) == 0)
-            new_client = client.client("client_" + str(i) + ".txt", host, port, i)
+            assert((int(port) % 2) == 0)
 
-        # kill the randomly selected server's processes
-        s.proposer_process.terminate()
-        s.acceptor_process.terminate()
-        s.listening_process.terminate()
+            cli = client.client(
+                "client_" + str(i) + ".txt", host, port, len(client_list))
+            client_list.append(cli)
+
+        time.sleep(1)
+
+        # simulate a graceful server kill instead of a hard terminate
+        exit_msg = message.message(message.MESSAGE_TYPE.EXIT,
+                                   None, None, None, None, None, None)
+#        kill_server.proposer_queue.put(exit_msg)
+#        kill_server.acceptor_queue.put(exit_msg)
+
+#        kill_server.proposer_process.join(1)
+#        kill_server.acceptor_process.join(1)
+
+        kill_server.proposer_process.terminate()
+        kill_server.acceptor_process.terminate()
+        kill_server.listening_process.terminate()
+        try:
+            kill_server.listening_process.join(1)
+        except:
+            pass
+
+        # join each client
+        failed = False
+        for c in client_list:
+            try:
+                c.c_process.join()
+            except Exception, e:
+                c.terminate()
+                failed = True
+
+        assert(not failed)
 
     ##########################################################
     # Test if Paxos group completes even with slightly less 
@@ -132,12 +156,12 @@ class failure_test(unittest.TestCase):
         # write a bunch of lock files
         client_list = []
         for i in range(0, len(self.server_list)):
-            make_lock_file(100, "client_" + str(i) + ".txt")
+            make_simple_file(100, "client_" + str(i) + ".txt")
 
         # start a bunch of clients
         for i in range(0, len(self.server_list)):
             host = self.server_list[i]["host"]
-            port = self.server_list[i]["port"]
+            port = self.server_list[i]["client_port"]
             assert((port % 2) == 0)
             new_client = client.client("client_" + str(i) + ".txt", host, port, i)
 

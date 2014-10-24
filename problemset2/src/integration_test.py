@@ -35,8 +35,6 @@ class integration_test(unittest.TestCase):
 
             self.server_list.append(server_entry)
 
-        print self.server_list
-
         # bring up each server
         self.servers = []
 
@@ -191,7 +189,7 @@ class integration_test(unittest.TestCase):
         
         # generate a contentious lock file
         f = open("contention_test.txt", "w+")
-        for i in range(0, 5):
+        for i in range(0, 50):
             f.write("lock 1\n")
             f.write("unlock 1\n")
         f.close()
@@ -203,7 +201,7 @@ class integration_test(unittest.TestCase):
             host = self.server_list[i]["host"]
             assert((int(port) % 2) == 0)
 
-            cli = client.client("contentious_test.txt", host, port, len(client_list))
+            cli = client.client("contention_test.txt", host, port, len(client_list))
             client_list.append(cli)
 
         # join each client
@@ -238,6 +236,9 @@ class integration_test(unittest.TestCase):
             s.acceptor_process.join(5)
             s.proposer_process.join(5)
             assert(not s.proposer_process.is_alive())
+
+        # perform a validation over the files
+
 
 if __name__ == '__main__':
     unittest.main()

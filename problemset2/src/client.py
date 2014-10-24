@@ -29,6 +29,8 @@ class client:
         self.c_process = Process(target=self.client_process, args=())
         self.debug_tag = "[client-{}]".format(client_id)
         self.c_process.start()
+        self.server_host = server_host
+        self.server_port = server_port
 
     # enables launching of client on a separate thread
     def client_process(self):
@@ -39,6 +41,7 @@ class client:
             client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             client_socket.connect((host, port))
+            client_socket.settimeout(30)            # set a timeout for which you assume the server has failed afterwards
             self.CONNECTION_SOCKET = client_socket  # set the connection socket
         except Exception, e:
             print "Error: failed to open socket with error - " + str(e)
@@ -49,14 +52,19 @@ class client:
         msg = message.message(MESSAGE_TYPE.CLIENT,
                               None, None, cmd, client_id, client_id=client_id)
         assert(msg.client_id != None)
-        self.CONNECTION_SOCKET.send(pickle.dumps(msg))
+        try:
+            self.CONNECTION_SOCKET.send(pickle.dumps(msg))
+        except Exception, e:
+            # the server node failed so abort
+            pass
 
     # Receive data from the server
     def receive_message(self):
         try:
             rmsg = self.CONNECTION_SOCKET.recv(1024)
         except Exception, e:
-            print e
+            print "client side error: " + str(e) + " " + str(self.client_id) 
+#            print " | \n client connected to: " + str((self.server_host, self.server_port))
             return None
         return rmsg
 
@@ -93,7 +101,11 @@ class client:
 #            print str(self.client_id) + ": Client sent command to server..."
 
             # wait for an ACK from the server indicating you got an ACK
-            rmsg = pickle.loads(self.receive_message())
+            try:
+                rmsg = pickle.loads(self.receive_message())
+            except Exception, e:
+                #the server node died or something bad happened so abort
+                break
 #            print str(self.client_id) + ": Client received ACK from server..."
 
             assert rmsg.msg_type == message.MESSAGE_TYPE.CLIENT_ACK
