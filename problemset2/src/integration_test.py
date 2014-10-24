@@ -195,7 +195,7 @@ class integration_test(unittest.TestCase):
         
         # generate a contentious lock file
         f = open("contention_test.txt", "w+")
-        for i in range(0, 5):
+        for i in range(0, 50):
             f.write("lock 1\n")
             f.write("unlock 1\n")
         f.close()
