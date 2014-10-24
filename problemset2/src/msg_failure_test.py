@@ -5,19 +5,12 @@
 #########################################################################
 
 import server
-import sys
-import os
 import unittest
-import command
-import pickle
-import socket
-import subprocess
 import time
 import message
-from multiprocessing import Queue, Process, Lock
-import random
 from lock_file import *
 import client
+
 
 class msg_failure_test(unittest.TestCase):
 
@@ -50,7 +43,7 @@ class msg_failure_test(unittest.TestCase):
             server_entry["host"] = "localhost"
             server_entry["internal_port"] = i + 1
             server_entry["client_port"] = i
-            server_entry["drop_rate"] = 25 # this is a percentage
+            server_entry["drop_rate"] = 0.25
 
             self.server_list.append(server_entry)
 
@@ -71,7 +64,7 @@ class msg_failure_test(unittest.TestCase):
             s = self.server_list[i]
             assert s
             self.servers[i].initialize_paxos()
-            time.sleep(.5) # allow the system to recover
+            time.sleep(.5)  # allow the system to recover
 
         LOCKS = 100
 
@@ -121,7 +114,7 @@ class msg_failure_test(unittest.TestCase):
 
         # initialize server list
         self.server_list = []
-        
+
         self.client_files = []
 
         # generate the host numbers and ports of server connections
@@ -131,7 +124,7 @@ class msg_failure_test(unittest.TestCase):
             server_entry["host"] = "localhost"
             server_entry["internal_port"] = i + 1
             server_entry["client_port"] = i
-            server_entry["dup_rate"] = 50 # this is a percentage
+            server_entry["dup_rate"] = 0.5
 
             self.server_list.append(server_entry)
 

@@ -184,7 +184,7 @@ class failure_test(unittest.TestCase):
 
         time.sleep(1)
 
-        
+
         for i in range(0, len(self.server_list)/2  - 1 + (len(self.server_list) % 2)):
             kill_server = self.servers[i]
             kill_server.proposer_process.terminate()

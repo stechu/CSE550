@@ -19,7 +19,7 @@ import socket
 from multiprocessing import Queue, Process, Lock
 import message
 from message import MESSAGE_TYPE
-from commnad import COMMAND_TYPE
+from command import COMMAND_TYPE
 import pickle
 import command
 import time
@@ -283,8 +283,7 @@ class PAXOS_member(object):
             if msg.msg_type in proposer_msg_types:
                 msg_signature = (
                     msg.msg_type,
-                    msg.value.command_type,
-                    msg.value.resource_id,
+                    msg.value,
                     msg.proposal,
                     msg.r_proposal,
                     msg.client_id,
@@ -463,7 +462,7 @@ class PAXOS_member(object):
                 assert isinstance(c_msg, message.message)
                 assert isinstance(c_msg.value, command.command)
                 assert c_msg.msg_type == message.MESSAGE_TYPE.CLIENT
-                assert c_msg.client_id
+                assert c_msg.client_id is not None
 
                 # the command sent by client
                 client_command = c_msg.value
@@ -489,7 +488,9 @@ class PAXOS_member(object):
                             MESSAGE_TYPE.PREPARE,
                             proposer_num, instance, None,
                             self.server_id, c_msg.client_id)
-                        assert msg.client_id
+                        if msg.client_id is None:
+                            print "$$$$ msg.client_id : ".format(msg.client_id)
+                        assert msg.client_id is not None
                         send_to_acceptors(msg, server_connections)
                         # update the state
                         state = PROPOSING
@@ -510,7 +511,7 @@ class PAXOS_member(object):
                                 # listen to responses on the server msg queue
                                 msg = self.proposer_queue.get(
                                     block=True, timeout=1)
-                                assert msg.client_id
+                                assert msg.client_id is not None
 
                             # if an exception occurs and we're not done,
                             # consider the proposal failed
@@ -768,8 +769,7 @@ class PAXOS_member(object):
             if msg.msg_type in acceptor_msg_types:
                 msg_signature = (
                     msg.msg_type,
-                    msg.value.command_type,
-                    msg.value.resource_id,
+                    msg.value,
                     msg.proposal,
                     msg.r_proposal,
                     msg.client_id,

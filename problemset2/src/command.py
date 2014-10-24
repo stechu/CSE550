@@ -46,3 +46,6 @@ class command(object):
         ret += str(self.resource_id)
 
         return ret
+
+    def __hash__(self):
+        return hash((self.command_type, self.resource_id))
