@@ -22,7 +22,7 @@
 
 \section{Introduction}
 
-In this document, we outlined our software implementation of the Paxos consensus protocol explained in TODO: ADD REFERENCE.
+In this document, we outline our software implementation of the Paxos consensus protocol explained in ``Paxos Made Simple'' by Leslie Lamport.
 We present a high level software architecture, justify our design decisions, and explain any simplfying assumptions that we make to our design.
 We then explain how to use our implementation, and any outstanding problems with our implementation.
 A quick discussion of any interesting tidbits we encounter concludes the document.
@@ -33,7 +33,7 @@ A quick discussion of any interesting tidbits we encounter concludes the documen
 
 \section{Paxos Protocol}
 
-The Paxos protocol originally proposed by Lamport in TODO: ADD REFERENCE is a consensus protocol designed to make forward progress even in the face of arbitrary failures.
+The Paxos protocol is a consensus protocol designed to make forward progress even in the face of arbitrary server node and communication failures.
 We interpret consensus to be defined as the following constraints:
 
 \begin{enumerate}
@@ -71,7 +71,7 @@ At this point the proposer will abandon its original proposal and propose this n
 
 \subsection{Paxos Phase II}
 
-If a majority of messages are prepare NACKs with the same previously accepted value, the proposer changes the value it wants to propose to that value and the proposal number to the number in the prepare NACK message.
+If a majority of messages are prepare NACKs with the same previously accepted value, the proposer abandons it's original proposal and changes the proposal value to the value and the proposal number to those in the prepare NACK message.
 Once this resolution occurs, the proposer issues an accept request with the proposal number and value.
 An acceptor will accept the proposal and chosen value if the highest sequence number is sees is still N, and reject the message otherwise.
 Upon successful receipt of the accept message, messages are issued to all relevant learners with the value chosen and an accept message is issued to the original proposer.
@@ -88,7 +88,7 @@ If during the first phase, the proposer had to abandon the original value, it tr
 
 \section{Paxos Implementation of Lock Service}
 
-Our design leverages the Paxos algorithm to implement a the ordering of commands for a simple lock service.
+Our design leverages the Paxos algorithm to implement an ordering of commands for a simple lock service.
 Issuable commands in this service are $lock(x)$ and $unlock(x)$ where $x$ is an integer.
 The end goal of this service is to provide consensus upon a series of commands in which locks are resolved in a valid order.
 The state machine in this service is defined to be the state of the locks and is replicated across servers for resilience to failure.
@@ -119,23 +119,8 @@ We also make the following assumptions to simplify our implementation of the Pax
 
 Our implementation initializes each server with a different proposal number. 
 When proposing higher numbered proposals, the initial proposal number is incremented by the number of servers initially in the system, not the active number of servers in the Paxos group.
-This is to ensure strict partitioning of the proposals.
+This is to ensure strict partitioning of the proposals and avoid collisions between proposers.
 As a consequence, we do not implement leader based Paxos since the possibility of a livelock situation is negligbly small.
-
-\subsection{Failure Mode Considerations}
-
-The following is a list of failure modes that our implementation of the lock service considers:
-
-\begin{enumerate}
-\item Upon a connection by the client, the Paxos member servicing the client requests promptly fails. 
-  We resolve this by tagging client requests with a unique identifier.
-  The unique identifier is used upon reconnecting to a new Paxos member to validate whether requests by the failed Paxos member were accepted.
-  If a command with the unique identifier appears in a previous resolution to an instance of Paxos, we know that the command has already been accepted and do not need to attempt to propose it again.
-  If the command identifier does not appear in the list of previously resolved Paxos instances, we know that the original proposal failed and must be proposed again.
-\item Upon acquiring a lock, the server node dies and the lock is orphaned.
-  We consider allowing the client to reconnect to a different server node to complete execution of the lock sequence to free the lock.
-  Clients in this scenario issue a client identifier tag with each request allowing the server to authenticate if the client was the original holder of the lock.
-\end{enumerate}
 
 \subsection{High Level Software Architecture}
 
@@ -143,21 +128,22 @@ We first note that it is necessary for each Paxos process to act as a proposer, 
 This is because there are multiple instances of Paxos that may be running and so new proposals must be attributed to instance numbers that have not yet been resolved.
 Proposers and learners in particular must reside on the same process because only learners are defined to learn the outcome on a Paxos instance.
 A proposer must know which instances of Paxos have been resolved so that it may make a proposal for an instance that has not been resolved and therefore must also be a learner.
-This architecture also eliminates the possibility that proposer's receive an accept request acknowledgement while learners may not due to catastrophic message losses.
-By making a process both an acceptor and a learner, it is guaranteed that both the acceptor and learner get a majority response or that both fail to get a majority response.
+Thus, in order to simplify the architectural design and complexity required to manage these additional asynchronous agents, we combine the learner and acceptor roles into the same entity.
+This will facilitate the implementation of the lock service functionality.
 
 \subsection{Implementation Details}
 
 \subsubsection{Server Initialization}
 
-We use a script to initialize each of our servers and bring our Paxos group online.
-Each server is initialized with a unique server identifier and a list of hostname and ports for all other servers in the Paxos group to establish communication channels.
-This is also to allow each server to independently compute a mutually indepedent set of monotonically increasing proposals numbers and avoid proposal number collisions.
-These server connection channels are used to communicate messages between Paxos members and is an all-to-all network.
-To ensure safe bring up, we first initialize listening sockets on each server, then initialize the connections betwen servers.
-Each server in addition to inter-server communication channel sockets, exposes a client facing server socket which are used exclusively by clients to connect to.
-This architecture decision was to simplify the message handling and control complexity that would have gone in to processing both client state and Paxos member states during the protocol.
+Server initialization requires two phases: individual server bring up, and Paxos member initialization
+The server initialization is divided into two phases to ensure all servers are able to opening listening connections before interserver connections established by Paxos entities.
+Each server is initialized with a unique server identifier and a list of hostnames and ports for all other servers in the Paxos group to establish communication channels.
+This allows each server to independently compute a mutually indepedent set of monotonically increasing proposals numbers and avoid proposal number collisions.
+Inter-server connection channels are used to communicate messages between Paxos members and is an all-to-all network.
+Each server in addition to inter-server communication channel sockets, exposes a client facing server socket which are used exclusively by clients to connect and send requests to.
+This architecture decision to separate client and server ports was made to simplify the message handling and control complexity that would have gone in to processing both client state and Paxos member states during the protocol.
 To avoid port collision, listening socket numbers on each server are predefined.
+Client listening sockets will be generally assigned to even port numbers while inter-server communication listening sockets will be assigned to an adjacent odd numbered port; this is not entirely necessary as the initialization ports can be arbitrary as long as ports are not reused across servers.
 
 \subsubsection{Message Passing}
 
@@ -167,46 +153,50 @@ A explanation of each message type is below:
 \begin{itemize}
 \item PREPARE - indicates message is a prepare request from a proposer; holds the proposal number, instance number, and the origin server
 \item PREPARE\_ACK - indicates message ia an acknowledgement or promise message for a proposer from an acceptor; holds a proposal number, and instance number
+\item PREPARE\_NACK - indicates prepare message was rejected and contains the highest proposal number and value accepted for the instance in the prepare message
 \item ACCEPT - an accept request message; holds a proposal number, instance number, value, and origin
 \item ACCEPT\_ACK - an accept acknowledgement; sends proposal number, instance number, and value
 \item CLIENT - indicates message came from client with a command request; contains value
-\item CLIENT\_ACK - an acknowledgement message send to the client once command proposed has been accepted
+\item CLIENT\_ACK - an acknowledgement message send to the client once command proposed has been accepted and put into a Paxos instance
+\item EXIT - a special message issued only by the test harnesses which cause proposer and acceptor processes to shutdown safely
 \end{itemize}
 
-Each server runs two communication server channels.
+As mentioned earlier, each server runs two communication server channels.
 One server socket is dedicated to receiving and connecting to exclusively other servers
 A second server socket is dedicated to listening to client connections on the proposer process discussed later.
-To avoid port collisions, each server assumes that the port number supplied during initialization and the port number plus 1 are both allocated for that server.
+A sample connection matrix between servers is shown below in Figure ~\ref{connection_matrix}.
 
 \begin{figure}
 \centering
 \includegraphics[width=6in]{paxos_group_connections.jpg}
 \caption{Paxos Group Connections - each Paxos group member holds connections to clients and connections to communication to every other server in the Paxos group} 
+\label{connection_matrix}
 \end{figure}
-
-Once a command has been successfully added to an instance of Paxos, an acknowledgement message is sent to the client notifying the client that the lock was acquired. The connection then waits until a new command is issued by the client and repeats the processing or the client terminates the connection.
 
 \subsection{Process Architecture}
 
 A server contains one instance of each Paxos role: a proposer, an acceptor, and a learner.
 In our implementation, to reduce complexity, we make the proposer also a learner and do not have separate learner entities operating asynchronously in our design on another process.
-The proposer and acceptor run on separate processes for each instance of a server in order to operate asynchronously.
-In addition, the proposer and acceptor each have a message queue which is fed with in-bound messages from other servers and client requests.
+The combined proposer and learner, and the acceptor run on separate processes for each instance of a server in order to allow each entity to operate asynchronously.
+In addition, the combined proposer and learner, and the acceptor each have a message queue which is fed with in-bound messages from other servers and client requests.
 These message queues are used to serialize the message streams that may be coming from multiple other server connection processes.
 
-Each server services two different server sockets.
-An even numbered port on the server is reserved for listening to client connections while the adjacent higher odd number port is reserved for listening to interserver connections within the Paxos group.
+Each server services two different litening server sockets.
+Typically, an even numbered port on the server is reserved for listening to client connections while the adjacent higher odd number port is reserved for listening to interserver connections within the Paxos group.
 Each inbound connection from other servers first connects to a socket monitored by a listening process say port 9001.
 This listening process spawns a new connection process to handle all requests for the newly connected socket on a high port.
-Each of these connection processes handle inter-server communication messages and puts them on the appropriate message queue bound for the proposer process, or acceptor process depending on the message type.
-The proposer process is responsible for opening a client facing socket (in this case port 9000) which allows clients to connect to the service and send request messages.
+Each of these connection processes handle inter-server communication messages and put them on the appropriate message queue bound for the proposer/learner process, or acceptor process depending on the message type.
+The proposer process is responsible for opening a client facing socket which allows clients to connect to the service and send request messages.
 Proposers handle each connection in a blocking manner where the client connection will block until the requested command issued by the client makes it into an instance of Paxos.
-The process architecture in our implementation is shown in Figure ~\ref{paxos_member}.
+Once a proposer is able to confirm that the command was issued to an instance in the Paxos group, it sends an acknowledgement message back to the client.
+The client at this point can either issue another message to trigger another proposal or disconnect singaling the end of the client session.
+
+The process architecture for a single Paxos group member in our implementation running on one server is shown in Figure ~\ref{paxos_member}.
 
 \begin{figure}
 \centering
 \includegraphics[width=4in]{paxos_member_architecture.jpg}
-\caption{Process Architecture - message queues to learner, proposer, and acceptor are serialized; each put() and get() on the message queue is atomic}
+\caption{Process Architecture - message queues to proposer/learner, and acceptor are serialized; each put() and get() on the message queue is atomic}
 \label{paxos_member}
 \end{figure}
 
@@ -223,39 +213,57 @@ The proposer executes a finite state machine as summarized in Figure ~\ref{propo
 
 State definitions:
 \begin{itemize}
-\item[IDLE] PROPOSER is waiting for client connection to issue a COMMAND to propose. 
+\item[IDLE] PROPOSER is waiting for client connection to issue a COMMAND $C_1$ to propose. 
   Upon receiving a COMMAND to propose, a transition to READY is made.
 \item[READY] PROPOSER has received a message but no issue proposals to each ACCEPTOR in the Paxos group.
   In this state, the PROPOSER issues PREPARE messages to each ACCEPTOR and unconditionally transitions to the PROPPOSING state.
 \item[PROPOSING] PROPOSER has issued PREPARE messages and is waiting for a majority of ACCEPTORS to response with a PREPARE ACK message.
   In this state, if the PROPOSER does not receive a sufficient number of PREPARE ACK messages for its PREPARE request it transitions to the READY state and attempts another proposal.
-  If the PROPOSER gets a majority of responses, move to the ACCEPT state.
-\item[ACCEPT] PROPOSER has received a majority for proposal and issues an ACCEPT message with the COMMAND to each ACCEPTOR in the Paxos group. 
+  If the PROPOSER gets a majority of responses for its original proposer, it moves to the ACCEPT state.
+  If the PROPOSER gets a majority of responses that are NACKS for a different value, it moves to the ACCEPT state.
+\item[ACCEPT] PROPOSER has received a majority PREPARE ACK or PREPARE NACK for a proposal number and value.
+  If in the previous state the PROPOSER received a majority PREPARE ACK messages, it issues an ACCEPT message with the original client COMMAND $C_1$ to each ACCEPTOR in the Paxos group.
+  If in the previous state the PROPOSER received a majority PREPARE NACK messages agreeing that a different COMMAND $C_2$ has already been accepted for this instance, it abandons it's original COMMAND $C_1$ as the value of the proposal, and issues this different COMMAND $C_2$ instead as it's accept message.
   An unconditional transition to the ACCEPTING state occurs.
 \item[ACCEPTING] PROPOSER has issued ACCEPT requests. 
-  If an ACCEPT ACK message is received from a majority of ACCEPTORS, consider the proposal COMMAND chosen and advance to BROADCAST state.
- If an insufficient number of ACCEPT ACK message are received after a given time, assume the ACCEPT attempt failed and transition to the READY state to attempt another round. 
-\item[BROADCAST] PROPOSER issues LEARNER messages to all Paxos learner members in the system notifying that the COMMAND for the INSTANCE has been chosen.
+  If an ACCEPT ACK message is received from a majority of ACCEPTORS, consider the proposal COMMAND determined in the previous state chosen.
+  If the chosen command is the original client COMMAND $C_1$, the proposer successfully issued its message and can now go back to the client to ask for new commands and transitions to the IDLE state.
+  If the chosen command is not the original client COMMAND $C_1$, the propose failed to issue the client command and must try again be transitioning to the READY state.
+  In either case where a command is chosen the proposer learns an instance resolution which is logged in the list of instance resolutions and the instance number for the Paxos member is incremented by one.
+
+  If an insufficient number of ACCEPT ACK message are received after a given time, assume the ACCEPT attempt failed and transition to the READY state to attempt another round.
+  In the case where an insufficient number of ACCEPT\_ACK messages are received, the instance number is not incremented because the proposer did not learn an instance resolution and hence it is possible the current instance is not resolved..
 \end{itemize}
 
 \subsection{Lock Service Implementation}
 
-The client is implemented such that after sending the server a command message with type CLIENT to request a command be proposed, it will block on a receive from the server until it receives a CLIENT ACK message.
+The client is implemented such that after sending the server a command message with type CLIENT to request a command be proposed, it will block on a receive from the server until it receives a CLIENT\_ACK message.
 If the server receives a CLIENT message, it will block until it has confirmed that the Paxos group has accepted the proposed command into an instance in the Paxos group and that the appropriate lock was acquired or released.
-Each client issues a unique client\_id field in order to distringuish its requests from other clients which may issue similar requests.
+Each client issues a unique client ID field in order to distringuish its requests from other clients which may issue similar requests and to uniquely identify the lock owner.
 
-Because the service for each client is blocking until the request is resolved, in the event of lock contention a client connection will simply wait until lock request has been processed.
+Because the service for each client is blocking until the request is resolved, in the event of lock contention a client connection will simply wait until the lock has been released and the server it is connected to acquires it on the client's behalf.
 
 In order to ensure that multiple requests for the same lock do not simultaneously get assign in subsequent instances of Paxos, we impose conservative constraints on the conditions for which the instance number may be incremented.
 A Paxos proposer may only advance it's instance number to some instance value N if it has learned the values of all instances less than N.
-If a value for instance N-1 is not resolved, a proposer must attempt to learn it's value by submitting a proposal to that instance.
+If a value for instance N-1 is not resolved, a proposer must attempt to learn it's value by submitting a proposal to that instance or proposing its own command for issuing.
 
-Though this restriction means that only one instance of Paxos may be resolved at a time, it imposes the guarantee that we will never acquire the same lock simultaneously for two adjacent instances of Paxos (ex. instance N = lock(5), instance N+1 = lock(5)).
+Though this restriction means that only one instance of Paxos may be resolved at a time and has terrible performance implications, it imposes the guarantee that we will never acquire the same lock simultaneously for two adjacent instances of Paxos (ex. instance N = lock(5), instance N+1 = lock(5)).
+It also eliminates the need of a lock broker which would introduce additional complexity.
 
-The correct locking service behavior then follows as proposers will necessarily have the correct view of the lock state up to instance N before trying to acquire a lock that is currently held.
+The correctness of the locking service behavior then follows as proposers will necessarily have the correct view of the lock state up to instance N before trying to acquire a lock that is currently held for instance N+1.
 If a proposer sees that the lock it wants is currently held, it will wait until the lock is released in a future instance before attempting to acquire it.
 
-Once the requested operation finished, the server issues a message with type CLIENT ACK indicating to the client that the Paxos group successfully accepted the proposal.
+It is insufficient simply to block until the lock becomes available as the proposer must issue proposals in order to learn new instance resolutions.
+At the same time, the proposer must not cause a lock that is already acquired to be acquired again.
+In order to resolve this, we by default attempt to issue the contended lock command for some instance N.
+If the instance was already resolved, the proposer should get a majority of PREPARE\_NACKS and be forced to both abandon it's proposal and learn the instance resolution.
+The lock set can then be updated before the next proposal.
+If the instance has not been resolved but the lock is currently acquired by another member of the Paxos group, the proposer feigns a failure and returns to the READY state after waiting for some amount of time (in our case a second).
+By feigning a failure, this guarantees that the contended lock request does not make it to the resolution for this instance.
+By waiting for some amount of time, and trying again, it allows other Paxos members to release the lock so that the original requesting member can acquire it in a future instance.
+This also indirectly implements a blocking functionality on the client acquisition request.
+
+Once the requested client operation finished, the server issues a message with type CLIENT ACK indicating to the client that the Paxos group successfully accepted the proposal.
 
 The client can then either disconnect from the server, or issue another command to be processed.
 Unless the server instance dies or is shutdown, the server never closes the client connection.
@@ -270,6 +278,12 @@ Unless the server instance dies or is shutdown, the server never closes the clie
 All of our code can be found in the $\${ROOT_DIR}/src$ folder.
 The folder contains a number of unit test files which exercise different aspects of the design.
 Each unit test $unittest$ can be executed by simply running $./unittest$ in the $src$ directory.
+However, in order to minimize cross-talk and leftover state from poorly cleaned up test cases, we prefer to launch each test in isolation.
+The syntax for launching individual test cases $\$(testcase)$ in test file $\$(testfile).py$ is:
+$ python -m unittest \$(testfile).\$(testfile).\$(testcase) $
+
+For instance, to run testcase $test_bring_up$ in the test file $proposer_test.py$, we would issue:
+$ python -m unittest proposer_test.proposer_test.test_bringup $
 
 Unit test files:
 \begin{itemize}
@@ -290,13 +304,156 @@ Unit test files:
 To run all tests, in the $src$ directory, issue $make test$.
 This should fire off each test case.
 
+A more detailed description of each test file and test case is given below:
+
+\subsection{acceptor\_test.py}
+
+The acceptor test initializes a fake server to connect to the acceptor process.
+The fake server injects messages into the acceptor connections to simulate a Paxos group exchange.
+This unit test verifies that the basic functionality of the acceptor is correct.
+
+\subsubsection{test\_bring\_up}
+A simple bring up and shutdown test that checks if the acceptor process initializes correctly and responds correctly to shutdown directives.
+
+\subsubsection{test\_single\_proposal\_prepare}
+The fake server sends a PREPARE message to the acceptor and validates that the response message is a PREPAER\_ACK.
+
+\subsubsection{test\_multiple\_proposal\_prepare}
+The fake server sends several different PREPARE messages with different proposal numbers to the server for the same instance and validates the response messages.
+
+\subsubsection{test\_multiple\_instance\_prepare}
+The fake server sends multiple PREPARE messages for different instances to the acceptor and validates the responses.
+
+\subsubsection{test\_multiple\_prepare\_accept}
+The fake server sends PREPARE requests followed by the expected accept requests.
+The server validates that the appropriate PREPARE and ACCEPT ACKs are received.
+
+\subsubsection{test\_reject\_accept}
+Tests the case where two proposals with different proposal numbers are attempted.
+Validates that the lower numbered proposal is rejected by the acceptor.
+
+\subsubsection{test\_return\_prepare\_nack}
+Tests if the acceptor returns the highest proposal number accepted and the value correctly in response to a lower numbered PREPARE requst.
+
+\subsection{proposer\_test.py}
+
+The proposer test initializes a fake server to connect to the proposer process.
+The fake server injects messages into the proposer connection to simulate a Paxos group exchange.
+This unit test verifies that the basic functionality of the proposer is correct.
+
+\subsubsection{test\_bring\_up}
+
+A simple bring up and shutdown test that checks if the proposer process initializes and shuts down correctly.
+
+\subsubsection{test\_paxos\_round}
+
+Issues messages to the proposer to exercise a full successful round of Paxos without failures or timeouts.
+This test verifies that in the absence of contention and failures, our proposer works correctly.
+
+\subsubsection{test\_proposal\_timeouts}
+
+Tests if the first set of PREPARE messages times out correctly by not responding to them.
+On the second round of PREPARE messages, verifies that the proposal number was increased and responds to the PREPARE messages.
+Allows the resulting ACCEPT messages to time out to verifiy that it times out correctly.
+One the third round, verifies that the proposal number was incrased again and responds to the PREPARE and ACCEPT messages to verify that the instance still can get resolved.
+This test verifies that we correctly handle the cases where a majority of acknowledgements is not received and appropriately conclude the Paxos round has failed.
+
+\subsubsection{test\_instance\_advancement}
+
+Tests if the instance correctly is incremented after a successful Paxos round.
+Tests if two Paxos instances are resolved with unique instance numbers.
+This test verifies that we correctly handle Paxos instance resolution and advancement.
+
+\subsection{integration\_test.py}
+
+The integration test runs a conventional use case for the Paxos group and tests the locking service.
+Client lock files are randomly generated such that deadlock does not occur.
+At the conclusion of each test, client lock files and the server logs are automatically cross checked to ensure several correctness issues:
+\begin{enumerate}
+\item That the client lock requests all appear in the final replicated state machine
+\item That the server logs show a valid lock acquisition and release sequence
+\item That the server logs all record the same instance resolution and implement the replicated state machine correctly
+\end{enumerate}
+
+We do not assume failures in these test cases.
+
+\subsubsection{test\_bring\_up}
+
+Tests if the Paxos group can be initialized and shutdown correctly.
+
+\subsubsection{test\_single\_client}
+
+Tests if a single client can issue a sent of commands to the server and disconnect.
+
+\subsubsection{test\_multi\_client}
+
+Tests if multiple client connected to the server are serviced correctly.
+Each client issues 10 lock and unlock commands.
+This test verifies that each server can handle multiple clients in succession.
+
+\subsubsection{test\_multi\_server}
+
+Tests the case where each server has a client connected to it issuing commands.
+Each client issues the same set of 100 lock and unlock commands to test if the server properly associates each lock with a client and that all copies of the client commands appear in the server.
+This verifies that we are treating each client uniquely.
+
+\subsubsection{test\_lock\_contention}
+
+Tests the cases where each client locks and unlocks the same lock 50 times.
+This test verifies that the locks are appropriately serialized and that blocking works properly.
+
+\subsection{failure\_test.py}
+
+The failure test verifies that under the presence of server node failures, that the Paxos group still operates and functions correctly.
+The corectness test must be manually verified due to the non-determinism introduced by the server termination.
+Since clients do not reconnect, there is no guarantee that any orphaned locks are released after a server fails and thus deadlock is a valid test termination outcome.
+We do not assume message failure in these test cases.
+
+\subsubsection{test\_single\_server\_failure}
+
+Tests if the Paxos group does not crash and still comes to a resolution for remaining client requests after a single server in the group has failed.
+
+\subsubsection{test\_multi\_server\_failure}
+
+Tests if the Paxos group still operates correctly even after one less than a majority of servers has been terminated.
+This verifies that as long as a majority of Paxos group members are operating, instance can still be resolved.
+
+\subsection{msg\_failure\_test.py}
+
+The message failure tests verify that message dropping and duplication does not affect the correctness of the Paxos operation.
+Instance resolutions are again cross-checked as in the integration tests to validate the correctness of the Paxos instance resolutions.
+
+\subsubsection{test\_message\_drops}
+
+Tests that the Paxos group still functions correctly in the presence of message drops.
+A message drop rate R is set on each server instance which drops R percent of all messages transmitted at random.
+This verifies that our design is robust to message loss.
+
+\subsubsection{test\_message\_duplication}
+
+Tests that the Paxos group still functions correctly in the presence of message duplication.
+A message duplication rate D is set on each server instance which duplicates D percent of all messages transmitted at random.
+This verifies that our design is robust to message duplication.
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Known Issues
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \section{Known Issues}
 
-STUB
+\subsection{Failure Test Orphaned Processes}
+
+For the $failure_test.py$ tests which simulate server failure by killing a random subset of servers may leave behind orphaned connection handling processes. 
+Since servers are killed by issues $terminate()$ calls to the main server processes and do not properly terminate child processes that may be spawned, these test cases may fail to clean up correctly.
+
+To clean up these orphaned processes, we must manually issue $kill$ directives to the orphaned process IDs.
+
+\subsection{Occassional Failure Test Race Conditions}
+
+We witnessed an occassional race condition when running $failure_test.py$ test cases.
+Once in a while, the lock sequence resolution that is generated is invalid and a proposer process will throw an assertion failure.
+This may be imparted due to the non-determinism introduced by the arbitrary server termination.
+We do see that for most executions of this test that the sequence of lock resolutions is valid and that the assertion in question is not thrown.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Discussion
@@ -330,5 +487,21 @@ However, arbitrarily initializing the proposal number to the server number gives
 Thus in the case where all Paxos members are starting a fresh instance simultaneously, the highest numbered proposing server would always ``win'' in that instance.
 Since we do not shuffle the initial proposal values after each instance, the highest numbered server will always enjoy a slight advantage over its peers.
 To fix this, we would have had to implement a variant of Paxos where a leader token would be rotated among Paxos members such that each member would enjoy highest priority the same number of instances as every other proposer.
+
+\subsection{Fairness}
+
+In our implementation, we notice that instance resolutions tend to be batched by client. In other words, all the commands from one client are processed before all the commands from another client are processed in the event of a not contentious lock sequence. We speculate that this is the case because upon initialization one client ``wins'' the highest instance number N and claims it while other clients cease and desist until it is resolved. While other clients are learning the instance N, the first client that ``won'' the instance number N continues to resolve instances N+1, N+2, etc. until it is done. This results in all the other client constantly trying to play catch up.
+
+This unfairness stems from the fact we require only one instance be resolved at a time. We acknowledge that this constraint both impacts performance as multiple instances cannot be resolved, and that the Paxos protocol requires non-trivial overhead and latency to learn an instance value. However, the complexity trade-offs are well worth it as we do not need to implement a lock arbiter to avoid incorrect lock sequencing.
+
+However, since the specification does not require fairness, our implementation is sufficient.
+
+\subsection{Optimizing Paxos Instance Resolution}
+
+We note that in the original Paxos algorithm, that learners must issue a proposal in order to learn an instance resolution.
+However, resolving an instance requires at least two round trips of messages to all other Paxos members in the system.
+Under negligible message loss, we can make an optimization to avoid having to using this mechanism to learn instance resolutions.
+It is possible to reduce this cost to half a round trip by issuing a broadcast of the learned value and instance when an instance gets resolved.
+This way proposers are pre-emptively notified of a resolution instead of wasting a Paxos round to learn a value.
 
 \end{document}
