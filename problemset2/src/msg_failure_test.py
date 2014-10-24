@@ -38,6 +38,7 @@ class msg_failure_test(unittest.TestCase):
 
         # set test server size
         self.TOTAL_SERVERS = 5
+        self.client_files = None
 
         # initialize server list
         self.server_list = []
@@ -79,6 +80,8 @@ class msg_failure_test(unittest.TestCase):
             filename = "client_" + str(i) + ".txt"
             make_simple_file(LOCKS, filename)
 
+        client_files = []
+
         # instantiate a client to each server
         client_list = []
         for i in range(0, len(self.server_list)):
@@ -89,6 +92,10 @@ class msg_failure_test(unittest.TestCase):
             cli = client.client(
                 "client_" + str(i) + ".txt", host, port, len(client_list))
             client_list.append(cli)
+            client_list.append(cli)
+            client_files.append("client_" + str(i) + ".txt")
+
+        self.client_files = client_files
 
         # join each client
         failed = False
@@ -114,6 +121,8 @@ class msg_failure_test(unittest.TestCase):
 
         # initialize server list
         self.server_list = []
+        
+        self.client_files = []
 
         # generate the host numbers and ports of server connections
         for i in range(9000, 9000 + 2 * self.TOTAL_SERVERS, 2):
@@ -154,6 +163,7 @@ class msg_failure_test(unittest.TestCase):
 
         # instantiate a client to each server
         client_list = []
+        client_files = []
         for i in range(0, len(self.server_list)):
             port = self.server_list[i]["client_port"]
             host = self.server_list[i]["host"]
@@ -162,6 +172,11 @@ class msg_failure_test(unittest.TestCase):
             cli = client.client(
                 "client_" + str(i) + ".txt", host, port, len(client_list))
             client_list.append(cli)
+            client_list.append(cli)
+            client_list.append(cli)
+            client_files.append("client_" + str(i) + ".txt")
+
+        self.client_files = client_files
 
         # join each client
         failed = False
@@ -194,6 +209,22 @@ class msg_failure_test(unittest.TestCase):
             s.listening_process.join(5)
             s.acceptor_process.join(5)
             s.proposer_process.join(5)
+
+        # perform a validation over the files
+        for s in self.servers:
+            assert(validate_lock_file("server" + str(s.server_id) + ".txt"))
+
+        # check that the correct distributino of lcoks appeared in the log files
+        client_files = self.client_files
+        server_files = []
+        for s in self.servers:
+            server_files.append("server" + str(s.server_id) + ".txt")
+        assert(len(server_files) == len(self.servers))
+
+        if (self.client_files != None):
+            validate_client_file(self.client_files, server_files)
+        else:
+            print "Warning: skipping client and server log cross validation..."
 
 if __name__ == '__main__':
     unittest.main()

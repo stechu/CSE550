@@ -252,7 +252,7 @@ class integration_test(unittest.TestCase):
         for s in self.servers:
             assert(validate_lock_file("server" + str(s.server_id) + ".txt"))
 
-        # check that the correc distributino of lcoks appeared in the log files
+        # check that the correct distributino of lcoks appeared in the log files
         client_files = self.client_files
         server_files = []
         for s in self.servers:

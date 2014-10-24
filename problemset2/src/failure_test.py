@@ -43,8 +43,6 @@ class failure_test(unittest.TestCase):
 
             self.server_list.append(server_entry)
 
-        print self.server_list
-
         # bring up each server
         self.servers = []
 
@@ -62,7 +60,6 @@ class failure_test(unittest.TestCase):
             s = self.server_list[i]
             assert s
             self.servers[i].initialize_paxos()
-            time.sleep(.5) # allow the system to recover
 
     ###############################################################
     # Shutdown the Paxos group
@@ -84,6 +81,16 @@ class failure_test(unittest.TestCase):
             s.listening_process.join(5)
             s.acceptor_process.join(5)
             s.proposer_process.join(5)
+
+        # do a manual clean up of the leftover sockets
+        dump = os.popen("lsof -n -i | grep python").read()
+        lines = dumps.split("\n")
+        for line in lines:
+            fields = line.split()
+            pid = fields[1]
+            os.system("kill " + pid)
+
+        # a manual validation of this test is necessary due to the non-determinism of server failures
 
     ##########################################################
     # Test if Paxos group completes even with single node
@@ -133,6 +140,8 @@ class failure_test(unittest.TestCase):
             kill_server.proposer_process.join(1)
         except:
             pass
+
+        self.servers.remove(kill_server)
 
         # join each client
         failed = False
@@ -186,6 +195,7 @@ class failure_test(unittest.TestCase):
                 print "[Info] Terminated server " + str(i) + "..."
             except:
                 pass
+            self.server.remove(kill_server)
 
         # join each client
         failed = False
