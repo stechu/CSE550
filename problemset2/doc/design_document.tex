@@ -248,7 +248,7 @@ A Paxos proposer may only advance it's instance number to some instance value N 
 If a value for instance N-1 is not resolved, a proposer must attempt to learn it's value by submitting a proposal to that instance or proposing its own command for issuing.
 
 Though this restriction means that only one instance of Paxos may be resolved at a time and has terrible performance implications, it imposes the guarantee that we will never acquire the same lock simultaneously for two adjacent instances of Paxos (ex. instance N = lock(5), instance N+1 = lock(5)).
-It also eliminates the need of a lock broker which introduces additional complexity.
+It also eliminates the need of a lock broker which would introduce additional complexity.
 
 The correctness of the locking service behavior then follows as proposers will necessarily have the correct view of the lock state up to instance N before trying to acquire a lock that is currently held for instance N+1.
 If a proposer sees that the lock it wants is currently held, it will wait until the lock is released in a future instance before attempting to acquire it.
@@ -278,6 +278,12 @@ Unless the server instance dies or is shutdown, the server never closes the clie
 All of our code can be found in the $\${ROOT_DIR}/src$ folder.
 The folder contains a number of unit test files which exercise different aspects of the design.
 Each unit test $unittest$ can be executed by simply running $./unittest$ in the $src$ directory.
+However, in order to minimize cross-talk and leftover state from poorly cleaned up test cases, we prefer to launch each test in isolation.
+The syntax for launching individual test cases $\$(testcase)$ in test file $\$(testfile).py$ is:
+$ python -m unittest \$(testfile).\$(testfile).\$(testcase) $
+
+For instance, to run testcase $test_bring_up$ in the test file $proposer_test.py$, we would issue:
+$ python -m unittest proposer_test.proposer_test.test_bringup $
 
 Unit test files:
 \begin{itemize}
@@ -298,13 +304,156 @@ Unit test files:
 To run all tests, in the $src$ directory, issue $make test$.
 This should fire off each test case.
 
+A more detailed description of each test file and test case is given below:
+
+\subsection{acceptor\_test.py}
+
+The acceptor test initializes a fake server to connect to the acceptor process.
+The fake server injects messages into the acceptor connections to simulate a Paxos group exchange.
+This unit test verifies that the basic functionality of the acceptor is correct.
+
+\subsubsection{test\_bring\_up}
+A simple bring up and shutdown test that checks if the acceptor process initializes correctly and responds correctly to shutdown directives.
+
+\subsubsection{test\_single\_proposal\_prepare}
+The fake server sends a PREPARE message to the acceptor and validates that the response message is a PREPAER\_ACK.
+
+\subsubsection{test\_multiple\_proposal\_prepare}
+The fake server sends several different PREPARE messages with different proposal numbers to the server for the same instance and validates the response messages.
+
+\subsubsection{test\_multiple\_instance\_prepare}
+The fake server sends multiple PREPARE messages for different instances to the acceptor and validates the responses.
+
+\subsubsection{test\_multiple\_prepare\_accept}
+The fake server sends PREPARE requests followed by the expected accept requests.
+The server validates that the appropriate PREPARE and ACCEPT ACKs are received.
+
+\subsubsection{test\_reject\_accept}
+Tests the case where two proposals with different proposal numbers are attempted.
+Validates that the lower numbered proposal is rejected by the acceptor.
+
+\subsubsection{test\_return\_prepare\_nack}
+Tests if the acceptor returns the highest proposal number accepted and the value correctly in response to a lower numbered PREPARE requst.
+
+\subsection{proposer\_test.py}
+
+The proposer test initializes a fake server to connect to the proposer process.
+The fake server injects messages into the proposer connection to simulate a Paxos group exchange.
+This unit test verifies that the basic functionality of the proposer is correct.
+
+\subsubsection{test\_bring\_up}
+
+A simple bring up and shutdown test that checks if the proposer process initializes and shuts down correctly.
+
+\subsubsection{test\_paxos\_round}
+
+Issues messages to the proposer to exercise a full successful round of Paxos without failures or timeouts.
+This test verifies that in the absence of contention and failures, our proposer works correctly.
+
+\subsubsection{test\_proposal\_timeouts}
+
+Tests if the first set of PREPARE messages times out correctly by not responding to them.
+On the second round of PREPARE messages, verifies that the proposal number was increased and responds to the PREPARE messages.
+Allows the resulting ACCEPT messages to time out to verifiy that it times out correctly.
+One the third round, verifies that the proposal number was incrased again and responds to the PREPARE and ACCEPT messages to verify that the instance still can get resolved.
+This test verifies that we correctly handle the cases where a majority of acknowledgements is not received and appropriately conclude the Paxos round has failed.
+
+\subsubsection{test\_instance\_advancement}
+
+Tests if the instance correctly is incremented after a successful Paxos round.
+Tests if two Paxos instances are resolved with unique instance numbers.
+This test verifies that we correctly handle Paxos instance resolution and advancement.
+
+\subsection{integration\_test.py}
+
+The integration test runs a conventional use case for the Paxos group and tests the locking service.
+Client lock files are randomly generated such that deadlock does not occur.
+At the conclusion of each test, client lock files and the server logs are automatically cross checked to ensure several correctness issues:
+\begin{enumerate}
+\item That the client lock requests all appear in the final replicated state machine
+\item That the server logs show a valid lock acquisition and release sequence
+\item That the server logs all record the same instance resolution and implement the replicated state machine correctly
+\end{enumerate}
+
+We do not assume failures in these test cases.
+
+\subsubsection{test\_bring\_up}
+
+Tests if the Paxos group can be initialized and shutdown correctly.
+
+\subsubsection{test\_single\_client}
+
+Tests if a single client can issue a sent of commands to the server and disconnect.
+
+\subsubsection{test\_multi\_client}
+
+Tests if multiple client connected to the server are serviced correctly.
+Each client issues 10 lock and unlock commands.
+This test verifies that each server can handle multiple clients in succession.
+
+\subsubsection{test\_multi\_server}
+
+Tests the case where each server has a client connected to it issuing commands.
+Each client issues the same set of 100 lock and unlock commands to test if the server properly associates each lock with a client and that all copies of the client commands appear in the server.
+This verifies that we are treating each client uniquely.
+
+\subsubsection{test\_lock\_contention}
+
+Tests the cases where each client locks and unlocks the same lock 50 times.
+This test verifies that the locks are appropriately serialized and that blocking works properly.
+
+\subsection{failure\_test.py}
+
+The failure test verifies that under the presence of server node failures, that the Paxos group still operates and functions correctly.
+The corectness test must be manually verified due to the non-determinism introduced by the server termination.
+Since clients do not reconnect, there is no guarantee that any orphaned locks are released after a server fails and thus deadlock is a valid test termination outcome.
+We do not assume message failure in these test cases.
+
+\subsubsection{test\_single\_server\_failure}
+
+Tests if the Paxos group does not crash and still comes to a resolution for remaining client requests after a single server in the group has failed.
+
+\subsubsection{test\_multi\_server\_failure}
+
+Tests if the Paxos group still operates correctly even after one less than a majority of servers has been terminated.
+This verifies that as long as a majority of Paxos group members are operating, instance can still be resolved.
+
+\subsection{msg\_failure\_test.py}
+
+The message failure tests verify that message dropping and duplication does not affect the correctness of the Paxos operation.
+Instance resolutions are again cross-checked as in the integration tests to validate the correctness of the Paxos instance resolutions.
+
+\subsubsection{test\_message\_drops}
+
+Tests that the Paxos group still functions correctly in the presence of message drops.
+A message drop rate R is set on each server instance which drops R percent of all messages transmitted at random.
+This verifies that our design is robust to message loss.
+
+\subsubsection{test\_message\_duplication}
+
+Tests that the Paxos group still functions correctly in the presence of message duplication.
+A message duplication rate D is set on each server instance which duplicates D percent of all messages transmitted at random.
+This verifies that our design is robust to message duplication.
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Known Issues
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \section{Known Issues}
 
-STUB
+\subsection{Failure Test Orphaned Processes}
+
+For the $failure_test.py$ tests which simulate server failure by killing a random subset of servers may leave behind orphaned connection handling processes. 
+Since servers are killed by issues $terminate()$ calls to the main server processes and do not properly terminate child processes that may be spawned, these test cases may fail to clean up correctly.
+
+To clean up these orphaned processes, we must manually issue $kill$ directives to the orphaned process IDs.
+
+\subsection{Occassional Failure Test Race Conditions}
+
+We witnessed an occassional race condition when running $failure_test.py$ test cases.
+Once in a while, the lock sequence resolution that is generated is invalid and a proposer process will throw an assertion failure.
+This may be imparted due to the non-determinism introduced by the arbitrary server termination.
+We do see that for most executions of this test that the sequence of lock resolutions is valid and that the assertion in question is not thrown.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Discussion
@@ -339,8 +488,20 @@ Thus in the case where all Paxos members are starting a fresh instance simultane
 Since we do not shuffle the initial proposal values after each instance, the highest numbered server will always enjoy a slight advantage over its peers.
 To fix this, we would have had to implement a variant of Paxos where a leader token would be rotated among Paxos members such that each member would enjoy highest priority the same number of instances as every other proposer.
 
+\subsection{Fairness}
+
+In our implementation, we notice that instance resolutions tend to be batched by client. In other words, all the commands from one client are processed before all the commands from another client are processed in the event of a not contentious lock sequence. We speculate that this is the case because upon initialization one client ``wins'' the highest instance number N and claims it while other clients cease and desist until it is resolved. While other clients are learning the instance N, the first client that ``won'' the instance number N continues to resolve instances N+1, N+2, etc. until it is done. This results in all the other client constantly trying to play catch up.
+
+This unfairness stems from the fact we require only one instance be resolved at a time. We acknowledge that this constraint both impacts performance as multiple instances cannot be resolved, and that the Paxos protocol requires non-trivial overhead and latency to learn an instance value. However, the complexity trade-offs are well worth it as we do not need to implement a lock arbiter to avoid incorrect lock sequencing.
+
+However, since the specification does not require fairness, our implementation is sufficient.
+
 \subsection{Optimizing Paxos Instance Resolution}
 
-notes on broadcast
+We note that in the original Paxos algorithm, that learners must issue a proposal in order to learn an instance resolution.
+However, resolving an instance requires at least two round trips of messages to all other Paxos members in the system.
+Under negligible message loss, we can make an optimization to avoid having to using this mechanism to learn instance resolutions.
+It is possible to reduce this cost to half a round trip by issuing a broadcast of the learned value and instance when an instance gets resolved.
+This way proposers are pre-emptively notified of a resolution instead of wasting a Paxos round to learn a value.
 
 \end{document}
