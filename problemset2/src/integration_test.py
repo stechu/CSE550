@@ -82,7 +82,7 @@ class integration_test(unittest.TestCase):
     #  messages, and sign off
     ###############################################################
     
-    def test_single_client_single_server(self):
+    def test_single_client(self):
 
         print "\n[Info] ##########[INTEGRATION TEST SINGLE CLIENT TEST]########## \n\n"
 
@@ -111,7 +111,7 @@ class integration_test(unittest.TestCase):
     #  connect and sign off correctly
     ###############################################################
 
-    def test_multi_client_single_server(self):
+    def test_multi_client(self):
 
         print "\n[Info] ##########[INTEGRATION TEST MULTI CLIENT SINGLE SERVER TEST]########## \n\n"
 
@@ -154,7 +154,7 @@ class integration_test(unittest.TestCase):
     #  off correctly
     ###############################################################
 
-    def test_multi_client_multi_server(self):
+    def test_multi_server(self):
 
         print "\n[Info] ##########[INTEGRATION TEST MULTIPLE CLIENT MULTIPLE SERVER TEST]########## \n\n"
 

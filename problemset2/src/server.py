@@ -427,6 +427,8 @@ class PAXOS_member(object):
                                     done = 1
                                     client_done = 1
                                     break
+                                elif (msg.msg_type == message.MESSAGE_TYPE.ACCEPT_ACK):
+                                    pass
                                 else:
                                     print self.DEBUG_TAG + str(msg)
                                     raise ValueError(
@@ -497,6 +499,8 @@ class PAXOS_member(object):
                                         response_cnt += 1
                                 elif msg.msg_type == MESSAGE_TYPE.PREPARE_ACK:
                                     # ignore leftover prepare ack messages
+                                    pass
+                                elif (msg.msg_type == message.MESSAGE_TYPE.PREPARE_NACK):
                                     pass
                                 elif msg.msg_type == message.MESSAGE_TYPE.EXIT:
                                     client_done = 1
