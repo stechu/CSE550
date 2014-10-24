@@ -136,6 +136,21 @@ class PAXOS_member(object):
             - issues a blocking call to the receive function
             - expects to receive message class type objects after unpickling
         """
+        def push_to_acceptor_queue(msg):
+            """
+                push to acceptor
+            """
+            self.acceptor_queue_lock.acquire()
+            self.acceptor_queue.put(msg)
+            self.acceptor_queue_lock.release()
+
+        def push_to_proposer_queue(msg):
+            """
+                push to proposer
+            """
+            self.proposer_queue_lock.acquire()
+            self.proposer_queue.put(msg)
+            self.proposer_queue_lock.release()
         done = 0
         try:
             while (done == 0):
@@ -152,33 +167,41 @@ class PAXOS_member(object):
                 msg_type = msg.msg_type
 
                 # route the message to the appropriate process based its type
-                if (msg_type == message.MESSAGE_TYPE.PREPARE):
-                    self.acceptor_queue_lock.acquire()
-                    self.acceptor_queue.put(msg)
-                    self.acceptor_queue_lock.release()
-                elif(msg_type == message.MESSAGE_TYPE.PREPARE_ACK):
-                    self.proposer_queue_lock.acquire()
-                    self.proposer_queue.put(msg)
-                    self.proposer_queue_lock.release()
-                elif(msg_type == message.MESSAGE_TYPE.PREPARE_NACK):
-                    self.proposer_queue_lock.acquire()
-                    self.proposer_queue.put(msg)
-                    self.proposer_queue_lock.release()
-                elif(msg_type == message.MESSAGE_TYPE.ACCEPT):
-                    self.acceptor_queue_lock.acquire()
-                    self.acceptor_queue.put(msg)
-                    self.acceptor_queue_lock.release()
-                elif(msg_type == message.MESSAGE_TYPE.ACCEPT_ACK):
-                    self.proposer_queue_lock.acquire()
-                    self.proposer_queue.put(msg)
-                    self.proposer_queue_lock.release()
-                elif(msg_type == message.MESSAGE_TYPE.CLIENT):
-                    self.proposer_queue_lock.acquire()
-                    self.proposer_queue.put(msg)
-                    self.proposer_queue_lock.release()
-                elif(msg_type == message.MESSAGE_TYPE.CLIENT_ACK):
+                proposer_msg_types = [
+                    MESSAGE_TYPE.PREPARE_ACK,
+                    MESSAGE_TYPE.PREPARE_NACK,
+                    MESSAGE_TYPE.ACCEPT_ACK,
+                    ]
+                acceptor_msg_types = [
+                    MESSAGE_TYPE.PREPARE,
+                    MESSAGE_TYPE.ACCEPT,
+                    ]
+                # draw a dice here
+                dice = random.random()
+
+                if msg_type in proposer_msg_types:      # internal prop msgs
+                    # drop message
+                    if dice <= self.drop_rate:
+                        continue
+                    # dup message
+                    if dice <= self.dup_rate:
+                        push_to_proposer_queue(msg)
+                    # actually send message
+                    push_to_proposer_queue(msg)
+                elif msg_type == MESSAGE_TYPE.CLIENT:   # client msgs
+                    push_to_proposer_queue(msg)
+                elif msg_type in acceptor_msg_types:    # internal acc msgs
+                    # drop message
+                    if dice <= self.drop_rate:
+                        continue
+                    # dup message
+                    if dice <= self.dup_rate:
+                        push_to_acceptor_queue(msg)
+                    # actually send message
+                    push_to_acceptor_queue(msg)
+                elif msg_type == message.MESSAGE_TYPE.CLIENT_ACK:
                     raise ValueError("ERROR: Got a client ACK message.")
-                elif(msg_type == message.MESSAGE_TYPE.EXIT):
+                elif msg_type == message.MESSAGE_TYPE.EXIT:
                     self.proposer_queue.put(msg)
                     self.acceptor_queue.put(msg)
                     done = 1
