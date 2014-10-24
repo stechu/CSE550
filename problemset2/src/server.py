@@ -101,8 +101,8 @@ class PAXOS_member(object):
                 # starts the connection process
                 listening_process.start()
 
-                print "{} Got a connection from {}".format(
-                    self.DEBUG_TAG, address)
+#                print "{} Got a connection from {}".format(
+#                    self.DEBUG_TAG, address)
         except Exception, e:
             print "{}: ERROR - Error listening on port {}. {}".format(
                 self.DEBUG_TAG, self.internal_port, e)
@@ -125,8 +125,8 @@ class PAXOS_member(object):
                 msg = pickle.loads(smsg)
 
                 assert isinstance(msg, message.message)
-                print "{} Got a message on the socket... {}".format(
-                    self.DEBUG_TAG, msg)
+#                print "{} Got a message on the socket... {}".format(
+#                    self.DEBUG_TAG, msg)
 
                 # switch on the message type
                 msg_type = msg.msg_type
@@ -171,7 +171,7 @@ class PAXOS_member(object):
 
         # if the socket closes, handle the disconnect exception and terminate
         except Exception, e:
-            print "{} WARN - connection may end: {}".format(self.DEBUG_TAG, e)
+#            print "{} WARN - connection may end: {}".format(self.DEBUG_TAG, e)
             pass
 
         # close the server socket
@@ -230,7 +230,7 @@ class PAXOS_member(object):
         # counter for proposer number
         proposer_num = self.server_id
 
-        print "Proposer number is initially: " + str(proposer_num)
+#        print "Proposer number is initially: " + str(proposer_num)
 
         # resolved command
         # self.instance_resolutions = dict()
@@ -268,8 +268,8 @@ class PAXOS_member(object):
                     socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 connection.connect((target_host, target_port))
                 server_connections.append(connection)
-                print "{} Proposer init connection to server at {}:{}".format(
-                    self.DEBUG_TAG, target_host, target_port)
+#                print "{} Proposer init connection to server at {}:{}".format(
+#                    self.DEBUG_TAG, target_host, target_port)
             except Exception, e:
                 print "{} Failed to connect to {}:{}".format(
                     self.DEBUG_TAG, target_host, target_port)
@@ -369,7 +369,7 @@ class PAXOS_member(object):
                     ###########################################################
                     if state == READY:
 
-                        print self.DEBUG_TAG + " Proposer in READY state..."
+#                        print self.DEBUG_TAG + " Proposer in READY state..."
 
                         # craft the proposal packet and send to acceptors
                         msg = message.message(
@@ -385,7 +385,7 @@ class PAXOS_member(object):
                     ###########################################################
                     elif (state == PROPOSING):
 
-                        print self.DEBUG_TAG + " Proposer in PROPOSING state.."
+#                        print self.DEBUG_TAG + " Proposer in PROPOSING state.."
                         # TODO: total time out is needed
                         # PREPARE_NACKs received
                         pre_nacks = []
@@ -458,7 +458,7 @@ class PAXOS_member(object):
                     ###########################################################
                     elif (state == ACCEPT):
 
-                        print self.DEBUG_TAG + " Proposer in ACCEPT state..."
+#                        print self.DEBUG_TAG + " Proposer in ACCEPT state..."
 
                         # craft the accept packet
                         accept_msg = message.message(
@@ -477,7 +477,7 @@ class PAXOS_member(object):
                     ###########################################################
                     elif (state == ACCEPTING):
 
-                        print self.DEBUG_TAG + " Proposer in ACCEPTING state.."
+#                        print self.DEBUG_TAG + " Proposer in ACCEPTING state.."
 
                         response_cnt = 0
 
@@ -538,9 +538,9 @@ class PAXOS_member(object):
                             # reset learnt command
                             learnt_command = client_command
 
-                            print "{} resolve! ins={}, cmd={}, lt={}".format(
-                                self.DEBUG_TAG, instance,
-                                client_command, learnt_command)
+#                            print "{} resolve! ins={}, cmd={}, lt={}".format(
+#                                self.DEBUG_TAG, instance,
+#                                client_command, learnt_command)
                         else:
                             # break by timeout:
                             # propose again
@@ -555,10 +555,14 @@ class PAXOS_member(object):
                         assert(False)
 
                 # close command processing loop
+            f = open("server" + str(self.server_id) + ".txt", "w+")
+            for key in self.instance_resolutions:
+                f.write(str(key) + " -> cid:" + str(self.instance_resolutions[key][1])
+                                                    + " - " + str(self.instance_resolutions[key][0]) + "\n")
+            f.close()
             print "DROPPED OUT OF STATE FSM LOOP"
             # close while loop
         print "DROPPED OUT OF PROPOSER LOOPS"
-        print_instance_resolutions()
         # close connection processing loop
     # close proposer process definition
 
