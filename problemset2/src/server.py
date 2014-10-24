@@ -506,6 +506,11 @@ class PAXOS_member(object):
                             if learnt_command == client_command:
                                 state = IDLE
                                 print "client cmd accepted"
+                                # send a response message
+                                client_ack_msg = message.message(message.MESSAGE_TYPE.CLIENT_ACK,
+                                                                 None, instance, client_command, 
+                                                                 self.server_id , msg.client_id)
+                                client_connection.send(pickle.dumps(client_ack_msg))
                             else:
                                 state = READY
                                 print "learnt cmd accepted"

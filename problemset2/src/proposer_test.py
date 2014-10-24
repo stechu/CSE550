@@ -169,6 +169,12 @@ class proposer_test(unittest.TestCase):
         self.message_socket.sendall(pickle.dumps(msg))
         self.message_socket.sendall(pickle.dumps(msg))
 
+        # get a response on the client side
+        rmsg = pickle.loads(self.client_socket.recv(1000))
+        assert(rmsg.msg_type == message.MESSAGE_TYPE.CLIENT_ACK)
+        assert(rmsg.instance != None)
+        assert(rmsg.client_id == client_id)
+
     def test_proposal_timeouts(self):
         """
             Test a timeouts and reissuing of prepare messages by
@@ -270,6 +276,11 @@ class proposer_test(unittest.TestCase):
 
         print "[Info] Sent and accept response..."
 
+        rmsg = pickle.loads(self.client_socket.recv(1000))
+        assert(rmsg.msg_type == message.MESSAGE_TYPE.CLIENT_ACK)
+        assert(rmsg.instance != None)
+        assert(rmsg.client_id == client_id)
+
     def test_instance_advancement(self):
         """
             Tests if the instances advance appropriately
@@ -315,6 +326,11 @@ class proposer_test(unittest.TestCase):
         self.message_socket.sendall(pickle.dumps(msg))
         self.message_socket.sendall(pickle.dumps(msg))
 
+        rmsg = pickle.loads(self.client_socket.recv(1000))
+        assert(rmsg.msg_type == message.MESSAGE_TYPE.CLIENT_ACK)
+        assert(rmsg.instance != None)
+        assert(rmsg.client_id == client_id)
+
         # we should now be done with the first instance, start the second instance
 
         expected_instance += 1
@@ -351,6 +367,12 @@ class proposer_test(unittest.TestCase):
                               None, rmsg.client_id)
         self.message_socket.sendall(pickle.dumps(msg))
         self.message_socket.sendall(pickle.dumps(msg))
+
+        # receive the client ack on the client socket
+        rmsg = pickle.loads(self.client_socket.recv(1000))
+        assert(rmsg.msg_type == message.MESSAGE_TYPE.CLIENT_ACK)
+        assert(rmsg.instance != None)
+        assert(rmsg.client_id == client_id)
 
 
     def tearDown(self):
