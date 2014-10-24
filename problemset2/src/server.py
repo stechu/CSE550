@@ -22,7 +22,7 @@ from message import MESSAGE_TYPE
 import pickle
 import command
 import sys
-
+import time
 
 class PAXOS_member(object):
 
@@ -482,7 +482,16 @@ class PAXOS_member(object):
                             highest_p, p_msg = max(pre_nacks)
                             learnt_command = p_msg.value
                             learnt_client = p_msg.client_id
-                        state = ACCEPT
+
+                        # if you won but are blocked, feint a failure
+                        if (learnt_client == orig_client_id and
+                            learnt_command == client_command and
+                            learnt_command.command_type == command.COMMAND_TYPE.LOCK and
+                            client_command.resource_id in self.lock_set):
+                            time.sleep(1)
+                            state = READY
+                        else:
+                            state = ACCEPT
 
                     ###########################################################
                     # ACCEPT - send the accept messages
@@ -573,6 +582,19 @@ class PAXOS_member(object):
                             logfile.write(str(instance) + " -> cid:" + str(msg.client_id)
                                     + " - " + str(learnt_command) + "\n")
                             write_lock.release()
+
+                            # execute the command on the list
+                            if (learnt_command.command_type == command.COMMAND_TYPE.LOCK):
+                                assert(not learnt_command.resource_id in self.lock_set)
+                                self.lock_set.append(learnt_command.resource_id)
+                                assert(learnt_command.resource_id in self.lock_set)
+                            elif (learnt_command.command_type == command.COMMAND_TYPE.UNLOCK):
+                                assert(learnt_command.resource_id in self.lock_set)
+                                self.lock_set.remove(learnt_command.resource_id)
+                                assert(not learnt_command.resource_id in self.lock_set)
+                            else:
+                                assert(False)
+                            print "Current lock set: " + str(self.lock_set)
 
                             # move to the next instance
                             instance += 1
