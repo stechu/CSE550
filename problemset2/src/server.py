@@ -19,7 +19,7 @@ import socket
 from multiprocessing import Queue, Process, Lock
 import message
 from message import MESSAGE_TYPE
-from commnad import COMMAND_TYPE
+from command import COMMAND_TYPE
 import pickle
 import command
 import time
@@ -413,7 +413,7 @@ class PAXOS_member(object):
                 assert isinstance(c_msg, message.message)
                 assert isinstance(c_msg.value, command.command)
                 assert c_msg.msg_type == message.MESSAGE_TYPE.CLIENT
-                assert c_msg.client_id
+                assert c_msg.client_id is not None
 
                 # the command sent by client
                 client_command = c_msg.value
@@ -439,7 +439,7 @@ class PAXOS_member(object):
                             MESSAGE_TYPE.PREPARE,
                             proposer_num, instance, None,
                             self.server_id, c_msg.client_id)
-                        assert msg.client_id
+                        assert msg.client_id is not None
                         send_to_acceptors(msg, server_connections)
                         # update the state
                         state = PROPOSING
@@ -541,7 +541,7 @@ class PAXOS_member(object):
                             self.server_id, c_msg.client_id)
 
                         # send the accept requests
-                        assert accept_msg.client_id
+                        assert accept_msg.client_id is not None
                         send_to_acceptors(accept_msg, server_connections)
 
                         # advance state
@@ -598,7 +598,7 @@ class PAXOS_member(object):
                                     learnt_client == orig_client_id):
                                 state = IDLE
                                 # send a response message
-                                assert msg.client_id
+                                assert msg.client_id is not None
                                 client_ack_msg = message.message(
                                     MESSAGE_TYPE.CLIENT_ACK, None, instance,
                                     client_command, self.server_id,
@@ -613,7 +613,7 @@ class PAXOS_member(object):
                                 learnt_command, msg.client_id)
 
                             write_lock.acquire()
-                            logfile.write("{} -> cid: {} - {}".format(
+                            logfile.write("{} -> cid:{} - {}\n".format(
                                 instance, msg.client_id, learnt_command))
                             write_lock.release()
 
