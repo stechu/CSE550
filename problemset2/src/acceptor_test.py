@@ -236,7 +236,7 @@ class acceptor_test(unittest.TestCase):
         # send a accept request, proposal = 0, instance = 2, client_id = 9
         self.send_accept(0, 2, 9, 5, MESSAGE_TYPE.ACCEPT_ACK, 0, 2, 9)
 
-    def test_reject_accept_test(self):
+    def test_reject_accept(self):
         """
             Test case where prepare goes through but another proposal
             fires a high proposal before accept comes through

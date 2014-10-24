@@ -107,8 +107,6 @@ class integration_test(unittest.TestCase):
 
         print "\n[Info] ######[INTEGRATION TEST MULTI CLIENT SINGLE SERVER TEST]#### \n\n"
 
-        print self.server_list
-
         # generate a lock file for each client
         CMD_FILES = ["client_0.txt", "client_1.txt"]
         LOCKS = 10
@@ -126,8 +124,6 @@ class integration_test(unittest.TestCase):
 
         cli0.c_process.join()
 
-        print "[Info] First client finished..."
-
         cli1 = client.client(CMD_FILES[1], 'localhost', port, 0)
 
         failed = False
@@ -143,14 +139,14 @@ class integration_test(unittest.TestCase):
 
     ###############################################################
     # Test to see if multiple clients connect request and sign
-    #  off correctly
+    #  off correctly to multiple servers
     ###############################################################
 
     def test_multi_server(self):
 
         print "\n[Info] ##########[INTEGRATION TEST MULTIPLE CLIENT MULTIPLE SERVER TEST]########## \n\n"
 
-        LOCKS = 10
+        LOCKS = 100
 
         # generate the lock files
         for i in range(0, len(self.server_list)):

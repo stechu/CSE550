@@ -95,9 +95,9 @@ class failure_test(unittest.TestCase):
 
         print "\n[Info] ##########[INTEGRATION TEST MULTIPLE CLIENT MULTIPLE SERVER TEST]########## \n\n"
 
-        LOCKS = 10
+        LOCKS = 100
 
-        kill_server = self.servers[0]
+        kill_server = self.servers[random.randint(0, len(self.servers)-1)]
 
         # generate the lock files
         for i in range(0, len(self.server_list)):
@@ -117,20 +117,20 @@ class failure_test(unittest.TestCase):
 
         time.sleep(1)
 
-        # simulate a graceful server kill instead of a hard terminate
-        exit_msg = message.message(message.MESSAGE_TYPE.EXIT,
-                                   None, None, None, None, None, None)
-#        kill_server.proposer_queue.put(exit_msg)
-#        kill_server.acceptor_queue.put(exit_msg)
-
-#        kill_server.proposer_process.join(1)
-#        kill_server.acceptor_process.join(1)
-
+        # implement a hard terminate on each server
         kill_server.proposer_process.terminate()
         kill_server.acceptor_process.terminate()
         kill_server.listening_process.terminate()
         try:
             kill_server.listening_process.join(1)
+        except:
+            pass
+        try:
+            kill_server.acceptor_process.join(1)
+        except:
+            pass
+        try:
+            kill_server.proposer_process.join(1)
         except:
             pass
 
@@ -152,25 +152,51 @@ class failure_test(unittest.TestCase):
     ##########################################################
 
     def test_multi_server_failure(self):
-        
-        # write a bunch of lock files
+
+        print "\n[Info] ##########[INTEGRATION TEST MULTIPLE CLIENT MULTIPLE SERVER TEST]########## \n\n"
+
+        LOCKS = 100
+
+        # generate the lock files
+        for i in range(0, len(self.server_list)):
+            filename = "client_" + str(i) + ".txt"
+            make_simple_file(LOCKS, filename)
+
+        # instantiate a client to each server
         client_list = []
         for i in range(0, len(self.server_list)):
-            make_simple_file(100, "client_" + str(i) + ".txt")
-
-        # start a bunch of clients
-        for i in range(0, len(self.server_list)):
-            host = self.server_list[i]["host"]
             port = self.server_list[i]["client_port"]
-            assert((port % 2) == 0)
-            new_client = client.client("client_" + str(i) + ".txt", host, port, i)
+            host = self.server_list[i]["host"]
+            assert((int(port) % 2) == 0)
 
-        # randomly kill the first set of servers until you've killed slightly less than a majority
-        for i in range(0, int(len(self.servers)/2)):
-            s = self.servers[i]
-            s.listening_process.terminate()
-            s.proposer_process.terminate()
-            s.acceptor_process.terminate()
+            cli = client.client(
+                "client_" + str(i) + ".txt", host, port, len(client_list))
+            client_list.append(cli)
+
+        time.sleep(1)
+
         
+        for i in range(0, len(self.server_list)/2  - 1 + (len(self.server_list) % 2)):
+            kill_server = self.servers[i]
+            kill_server.proposer_process.terminate()
+            kill_server.acceptor_process.terminate()
+            kill_server.listening_process.terminate()
+            try:
+                kill_server.listening_process.join(1)
+                print "[Info] Terminated server " + str(i) + "..."
+            except:
+                pass
+
+        # join each client
+        failed = False
+        for c in client_list:
+            try:
+                c.c_process.join()
+            except Exception, e:
+                c.terminate()
+                failed = True
+
+        assert(not failed)
+
 if __name__ == '__main__':
     unittest.main()
