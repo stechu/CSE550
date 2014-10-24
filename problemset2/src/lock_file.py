@@ -107,3 +107,141 @@ def make_deadlock_file(num_locks, filename):
     for cmd in cmd_list:
         f.write(cmd + "\n")
     f.close()
+
+# Validates if the sequence of locks forms a correct locking pattern
+def validate_lock_file(filename):
+
+    print "Validating lock file: " + filename
+    
+    f = open(filename, "r+")
+    
+    lock_set = []
+
+    for line in f:
+        linet = line.strip(" \t\n")
+        fields = linet.split("-")
+        assert(len(fields) == 3)
+
+        cmd = fields[2].strip("\n \t")
+
+        cmd_fields = cmd.split(" ")
+        assert(len(cmd_fields) == 2)
+            
+        cmd_type = cmd_fields[0]
+        lock_num = int(cmd_fields[1])
+
+        if (cmd_type == "lock"):
+            assert(not lock_num in lock_set)
+            lock_set.append(lock_num)
+            assert(lock_num in lock_set)
+        elif (cmd_type == "unlock"):
+            assert(lock_num in lock_set)
+            lock_set.remove(lock_num)
+            assert(not lock_num in lock_set)
+        else:
+            return False
+
+    print "OK!"
+
+    return True
+
+# Validate if the client file made it into the server logs
+def validate_client_file(client_files, server_files):
+
+    assert(len(client_files) > 0)
+    assert(len(server_files) > 0)
+
+    print "Validated all client requests appear in a server log..."
+    
+    # find the most complete server log
+    server_log = None
+    longest_log = -1
+    for s in server_files:
+        log_dump = os.popen("wc -l " + s).read()
+        log_fields = log_dump.split(" ")
+        log_size = log_fields[0]
+        log_length = int(log_size)
+        if (log_length > longest_log):
+            server_log = s
+            longest_log = log_length
+
+    # load the longest server file and build its command distribution
+    server_dist = dict()
+    cmd_list = dict()
+
+    f = open(server_log, "r+")
+    for line in f:
+        linet = line.strip(" \t\n")
+        fields = linet.split("-")
+        assert(len(fields) == 3)
+
+        cmd = fields[2].strip("\n \t")
+
+        cmd_fields = cmd.split(" ")
+        assert(len(cmd_fields) == 2)
+            
+        cmd_type = cmd_fields[0]
+        lock_num = int(cmd_fields[1])
+
+        entry = cmd_type + " " + str(lock_num)
+        assert(int(fields[0]) not in cmd_list)
+        cmd_list[int(fields[0])] = entry
+        
+        if entry in server_dist:
+            server_dist[entry] += 1
+        else:
+            server_dist[entry] = 1
+    f.close()
+            
+    cli_dist = dict()
+
+    # load the client files and aggregate it's command distributions
+    for cfile in client_files:
+        cf = open(cfile, "r+")
+        for line in cf:
+            linet = line.strip(" \t\n")
+            
+            if (linet in cli_dist):
+                cli_dist[linet] += 1
+            else:
+                cli_dist[linet] = 1
+
+    cf.close()
+
+    # compare the command distributions and make sure they're the same
+    for key in cli_dist:
+        assert key in server_dist
+        assert cli_dist[key] == server_dist[key]
+
+    print "OK!"
+
+    print "Validating state machine is correctly replicated..."
+
+    # validate that each of the shorter server logs matches the instance resolutions of the main server log
+    for f in server_files:
+
+        # don't validte the longest server log against itself
+        if (f == server_log):
+            continue
+
+        check_file = open(f, "r+")
+        for line in check_file:
+            linet = line.strip(" \t\n")
+            fields = linet.split("-")
+            assert(len(fields) == 3)
+
+            cmd = fields[2].strip("\n \t")
+
+            cmd_fields = cmd.split(" ")
+            assert(len(cmd_fields) == 2)
+            
+            cmd_type = cmd_fields[0]
+            lock_num = int(cmd_fields[1])
+            
+            instance = int(fields[0])
+            cmd = cmd_type + " " + str(lock_num)
+            
+            # check that the command for that instance matches against the master
+            assert(cmd_list[instance] == cmd)
+
+    print "OK!"

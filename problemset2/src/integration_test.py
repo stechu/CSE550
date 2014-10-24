@@ -54,6 +54,8 @@ class integration_test(unittest.TestCase):
             self.servers[i].initialize_paxos()
             time.sleep(.5) # allow the system to recover
 
+        self.client_files = None
+
     ###############################################################
     # Test to see if the Paxos server group shutsdown correctly
     ###############################################################
@@ -98,6 +100,8 @@ class integration_test(unittest.TestCase):
             cli.c_process.terminate()
             assert(False)
 
+        self.client_files = [CMD_FILE]
+
     ###############################################################
     # Test to see if multiple client connected to the same server
     #  connect and sign off correctly
@@ -120,11 +124,11 @@ class integration_test(unittest.TestCase):
         assert((int(port) % 2) == 0)
 
         # initialize the clients
-        cli0 = client.client(CMD_FILES[0], 'localhost', port, 0)
+        cli0 = client.client(CMD_FILES[0], host, port, 0)
 
         cli0.c_process.join()
 
-        cli1 = client.client(CMD_FILES[1], 'localhost', port, 0)
+        cli1 = client.client(CMD_FILES[1], host, port, 0)
 
         failed = False
         try:
@@ -136,6 +140,8 @@ class integration_test(unittest.TestCase):
             failed = True
 
         assert(not failed)
+
+        self.client_files = CMD_FILES
 
     ###############################################################
     # Test to see if multiple clients connect request and sign
@@ -155,6 +161,7 @@ class integration_test(unittest.TestCase):
 
         # instantiate a client to each server
         client_list = []
+        client_files = []
         for i in range(0, len(self.server_list)):
             port = self.server_list[i]["client_port"]
             host = self.server_list[i]["host"]
@@ -163,6 +170,7 @@ class integration_test(unittest.TestCase):
             cli = client.client(
                 "client_" + str(i) + ".txt", host, port, len(client_list))
             client_list.append(cli)
+            client_files.append("client_" + str(i) + ".txt")
 
         # join each client
         failed = False
@@ -172,6 +180,8 @@ class integration_test(unittest.TestCase):
             except Exception, e:
                 c.terminate()
                 failed = True
+
+        self.client_list = client_list
 
         assert(not failed)
 
@@ -185,13 +195,14 @@ class integration_test(unittest.TestCase):
         
         # generate a contentious lock file
         f = open("contention_test.txt", "w+")
-        for i in range(0, 50):
+        for i in range(0, 5):
             f.write("lock 1\n")
             f.write("unlock 1\n")
         f.close()
         
         # instantiate each client with a copy of the contentious lock file
         client_list = []
+        client_files = []
         for i in range(0, len(self.server_list)):
             port = self.server_list[i]["client_port"]
             host = self.server_list[i]["host"]
@@ -199,6 +210,7 @@ class integration_test(unittest.TestCase):
 
             cli = client.client("contention_test.txt", host, port, len(client_list))
             client_list.append(cli)
+            client_files.append("contention_test.txt")
 
         # join each client
         failed = False
@@ -210,6 +222,9 @@ class integration_test(unittest.TestCase):
                 failed = True
 
         assert(not failed)
+
+        self.client_files = client_files
+
         
     ###############################################################
     # Shutdown the Paxos group
@@ -234,7 +249,18 @@ class integration_test(unittest.TestCase):
             assert(not s.proposer_process.is_alive())
 
         # perform a validation over the files
+        for s in self.servers:
+            assert(validate_lock_file("server" + str(s.server_id) + ".txt"))
 
+        # check that the correc distributino of lcoks appeared in the log files
+        client_files = self.client_files
+        server_files = []
+        for s in self.servers:
+            server_files.append("server" + str(s.server_id) + ".txt")
+        assert(len(server_files) == len(self.servers))
+
+        if (self.client_files != None):
+            validate_client_file(client_files, server_files)
 
 if __name__ == '__main__':
     unittest.main()
