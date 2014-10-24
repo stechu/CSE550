@@ -53,7 +53,8 @@ def make_simple_file(num_locks, filename):
     a_locks = 0
 
     for i in range(0, num_locks):
-        new_lock = random.randint(0, 10)
+#        new_lock = random.randint(0, 10)
+        new_lock = i
         cmd_list.append("lock " + str(new_lock))
         cmd_list.append("unlock " + str(new_lock))
 

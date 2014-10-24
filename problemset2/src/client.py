@@ -47,7 +47,8 @@ class client:
     # Sends the requested command to the server using pickle
     def send_command(self, cmd, client_id):
         msg = message.message(MESSAGE_TYPE.CLIENT,
-                              None, None, cmd, None, client_id)
+                              None, None, cmd, client_id, client_id=client_id)
+        assert(msg.client_id != None)
         self.CONNECTION_SOCKET.send(pickle.dumps(msg))
 
     # Receive data from the server
@@ -96,7 +97,10 @@ class client:
 #            print str(self.client_id) + ": Client received ACK from server..."
 
             assert rmsg.msg_type == message.MESSAGE_TYPE.CLIENT_ACK
-            assert rmsg.client_id == self.client_id
+            try:
+                assert rmsg.client_id == self.client_id
+            except Exception, e:
+                print "rmsg = " + str(rmsg.client_id) + " client_id = " + str(self.client_id)
 
             # move on to send the next one
 
