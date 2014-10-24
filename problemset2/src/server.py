@@ -19,11 +19,12 @@ import socket
 from multiprocessing import Queue, Process, Lock
 import message
 from message import MESSAGE_TYPE
+from commnad import COMMAND_TYPE
 import pickle
 import command
-import sys
 import time
 import random
+
 
 class PAXOS_member(object):
 
@@ -43,15 +44,15 @@ class PAXOS_member(object):
 
         # set the message error rates
         params = server_list[server_id]
-        if ("drop_rate" in params):
-            r = params["drop_rate"]
-            assert(r >= 0 and r <= 100)            
+        if "drop_rate" in params:
+            r = float(params["drop_rate"])
+            assert r >= 0 and r <= 1
             self.drop_rate = params["drop_rate"]
         else:
             self.drop_rate = 0
 
         if ("dup_rate" in params):
-            r = params["dup_rate"]
+            r = float(params["dup_rate"])
             assert(r >= 0 and r <= 100)
             self.dup_rate = params["dup_rate"]
         else:
@@ -279,6 +280,20 @@ class PAXOS_member(object):
                 assert isinstance(tcmd, command.command)
                 print "cid: {}: {}".format(
                     self.instance_resolutions[i][1], tcmd)
+
+        def execute_command(exe_command):
+            # execute the command on the list
+            if exe_command.command_type == COMMAND_TYPE.LOCK:
+                assert exe_command.resource_id not in self.lock_set
+                self.lock_set.append(exe_command.resource_id)
+                assert exe_command.resource_id in self.lock_set
+            elif exe_command.command_type == COMMAND_TYPE.UNLOCK:
+                assert exe_command.resource_id in self.lock_set
+                self.lock_set.remove(exe_command.resource_id)
+                assert exe_command.resource_id not in self.lock_set
+            else:
+                assert(False)
+
         # Initialize server connections unless it's to yourself
         server_connections = []
 
@@ -301,11 +316,14 @@ class PAXOS_member(object):
 
         # Open a client port and listen on port for connections
         try:
-            self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            self.client_socket = socket.socket(
+                socket.AF_INET, socket.SOCK_STREAM)
+            self.client_socket.setsockopt(
+                socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self.client_socket.bind((self.host, self.client_port))
             self.client_socket.listen(30)
-            self.client_socket.settimeout(.1) # set the timeout to check for exit conditions
+            # set the timeout to check for exit conditions
+            self.client_socket.settimeout(.1)
         except Exception, e:
             raise Exception(
                 self.DEBUG_TAG + ": cannot open client port." + str(e))
@@ -347,7 +365,7 @@ class PAXOS_member(object):
             except Exception, e:
                 # check for an exit message
                 try:
-                    m = self.proposer_queue.get(block=True, timeout = 1)
+                    m = self.proposer_queue.get(block=True, timeout=1)
                     if (m.msg_type == MESSAGE_TYPE.EXIT):
                         done = 1
                         client_done = 1
@@ -395,7 +413,7 @@ class PAXOS_member(object):
                 assert isinstance(c_msg, message.message)
                 assert isinstance(c_msg.value, command.command)
                 assert c_msg.msg_type == message.MESSAGE_TYPE.CLIENT
-                assert(c_msg.client_id != None)
+                assert c_msg.client_id
 
                 # the command sent by client
                 client_command = c_msg.value
@@ -421,7 +439,7 @@ class PAXOS_member(object):
                             MESSAGE_TYPE.PREPARE,
                             proposer_num, instance, None,
                             self.server_id, c_msg.client_id)
-                        assert(msg.client_id != None)
+                        assert msg.client_id
                         send_to_acceptors(msg, server_connections)
                         # update the state
                         state = PROPOSING
@@ -432,7 +450,6 @@ class PAXOS_member(object):
                     elif (state == PROPOSING):
 
 #                        print self.DEBUG_TAG + " Proposer in PROPOSING state.."
-                        # TODO: total time out is needed
                         # PREPARE_NACKs received
                         pre_nacks = []
                         # response count
@@ -443,7 +460,7 @@ class PAXOS_member(object):
                                 # listen to responses on the server msg queue
                                 msg = self.proposer_queue.get(
                                     block=True, timeout=1)
-                                assert(msg.client_id != None)
+                                assert msg.client_id
 
                             # if an exception occurs and we're not done,
                             # consider the proposal failed
@@ -503,7 +520,7 @@ class PAXOS_member(object):
                         # if you won but are blocked, feint a failure
                         if (learnt_client == orig_client_id and
                             learnt_command == client_command and
-                            learnt_command.command_type == command.COMMAND_TYPE.LOCK and
+                            learnt_command.command_type == COMMAND_TYPE.LOCK and
                             client_command.resource_id in self.lock_set):
                             time.sleep(1)
                             state = READY
@@ -524,7 +541,7 @@ class PAXOS_member(object):
                             self.server_id, c_msg.client_id)
 
                         # send the accept requests
-                        assert(accept_msg.client_id != None)
+                        assert accept_msg.client_id
                         send_to_acceptors(accept_msg, server_connections)
 
                         # advance state
@@ -578,10 +595,10 @@ class PAXOS_member(object):
                         if response_cnt > self.group_size() / 2:
                             # yeah! accepted
                             if (learnt_command == client_command and
-                                learnt_client == orig_client_id):
+                                    learnt_client == orig_client_id):
                                 state = IDLE
                                 # send a response message
-                                assert(msg.client_id != None)
+                                assert msg.client_id
                                 client_ack_msg = message.message(
                                     MESSAGE_TYPE.CLIENT_ACK, None, instance,
                                     client_command, self.server_id,
@@ -589,28 +606,19 @@ class PAXOS_member(object):
                                 client_connection.send(
                                     pickle.dumps(client_ack_msg))
                             else:
-#                                print self.DEBUG_TAG + "Failed to get command and/or client id correct."
+# print self.DEBUG_TAG + "Failed to get command and/or client id correct."
                                 state = READY
 
                             self.instance_resolutions[instance] = (
                                 learnt_command, msg.client_id)
 
                             write_lock.acquire()
-                            logfile.write(str(instance) + " -> cid:" + str(msg.client_id)
-                                    + " - " + str(learnt_command) + "\n")
+                            logfile.write("{} -> cid: {} - {}".format(
+                                instance, msg.client_id, learnt_command))
                             write_lock.release()
 
-                            # execute the command on the list
-                            if (learnt_command.command_type == command.COMMAND_TYPE.LOCK):
-                                assert(not learnt_command.resource_id in self.lock_set)
-                                self.lock_set.append(learnt_command.resource_id)
-                                assert(learnt_command.resource_id in self.lock_set)
-                            elif (learnt_command.command_type == command.COMMAND_TYPE.UNLOCK):
-                                assert(learnt_command.resource_id in self.lock_set)
-                                self.lock_set.remove(learnt_command.resource_id)
-                                assert(not learnt_command.resource_id in self.lock_set)
-                            else:
-                                assert(False)
+                            # execute command
+                            execute_command(learnt_command)
 
                             # move to the next instance
                             instance += 1
