@@ -23,6 +23,7 @@ import pickle
 import command
 import sys
 import time
+import random
 
 class PAXOS_member(object):
 
@@ -39,6 +40,22 @@ class PAXOS_member(object):
         self.internal_port = server_list[server_id]["internal_port"]
         self.client_port = server_list[server_id]["client_port"]
         self.DEBUG_TAG = "[" + str(self.host) + "," + str(self.server_id) + "]"
+
+        # set the message error rates
+        params = server_list[server_id]
+        if ("drop_rate" in params):
+            r = params["drop_rate"]
+            assert(r >= 0 and r <= 100)            
+            self.drop_rate = params["drop_rate"]
+        else:
+            self.drop_rate = 0
+
+        if ("dup_rate" in params):
+            r = params["dup_rate"]
+            assert(r >= 0 and r <= 100)
+            self.dup_rate = params["dup_rate"]
+        else:
+            self.dup_rate = 0
 
         # Communication queues for this server node
         self.proposer_queue = Queue()  # message queue for the proposer process
@@ -129,8 +146,6 @@ class PAXOS_member(object):
                 msg = pickle.loads(smsg)
 
                 assert isinstance(msg, message.message)
-#                print "{} Got a message on the socket... {}".format(
-#                    self.DEBUG_TAG, msg)
 
                 # switch on the message type
                 msg_type = msg.msg_type
@@ -604,8 +619,8 @@ class PAXOS_member(object):
                             learnt_client = orig_client_id
 
 #                            print "{} resolve! ins={}, cmd={}, lt={}".format(
- #                               self.DEBUG_TAG, instance,
- #                               client_command, learnt_command)
+#                                self.DEBUG_TAG, instance,
+#                                client_command, learnt_command)
                         else:
                             # break by timeout:
                             # propose again
@@ -628,7 +643,7 @@ class PAXOS_member(object):
         logfile.close()
         write_lock.release()
 
-        print "[Info] Proposer on server " + str(self.server_id) + " exited..."
+#        print "[Info] Proposer on server " + str(self.server_id) + " exited..."
 
     # close proposer process definition
 

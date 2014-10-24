@@ -34,6 +34,8 @@ class msg_failure_test(unittest.TestCase):
 
     def test_message_drops(self):
 
+        print "\n\n##########[MESSAGE DROP TEST]##########\n\n"
+
         # set test server size
         self.TOTAL_SERVERS = 5
 
@@ -47,11 +49,9 @@ class msg_failure_test(unittest.TestCase):
             server_entry["host"] = "localhost"
             server_entry["internal_port"] = i + 1
             server_entry["client_port"] = i
-            server_entry["drop_rate"] = 50 # this is a percentage
+            server_entry["drop_rate"] = 25 # this is a percentage
 
             self.server_list.append(server_entry)
-
-        print self.server_list
 
         # bring up each server
         self.servers = []
@@ -107,6 +107,8 @@ class msg_failure_test(unittest.TestCase):
 
     def test_message_duplication(self):
 
+        print "\n\n##########[MESSAGE DUUPLICATION TEST]##########\n\n"
+
         # set test server size
         self.TOTAL_SERVERS = 5
 
@@ -123,81 +125,6 @@ class msg_failure_test(unittest.TestCase):
             server_entry["dup_rate"] = 50 # this is a percentage
 
             self.server_list.append(server_entry)
-
-        print self.server_list
-
-        # bring up each server
-        self.servers = []
-
-        # iterate through address list and instantiate servers
-        for i in range(0, len(self.server_list)):
-            # instantiate new servers
-            new_server = server.PAXOS_member(i, self.server_list)
-            self.servers.append(new_server)
-
-        assert(len(self.servers) == len(self.server_list))
-        assert(len(self.servers) == self.TOTAL_SERVERS)
-
-        # initialize new servers
-        for i in range(0, len(self.servers)):
-            s = self.server_list[i]
-            assert s
-            self.servers[i].initialize_paxos()
-            time.sleep(.5) # allow the system to recover
-
-        LOCKS = 100
-
-        # generate the lock files
-        for i in range(0, len(self.server_list)):
-            filename = "client_" + str(i) + ".txt"
-            make_simple_file(LOCKS, filename)
-
-        # instantiate a client to each server
-        client_list = []
-        for i in range(0, len(self.server_list)):
-            port = self.server_list[i]["client_port"]
-            host = self.server_list[i]["host"]
-            assert((int(port) % 2) == 0)
-
-            cli = client.client(
-                "client_" + str(i) + ".txt", host, port, len(client_list))
-            client_list.append(cli)
-
-        # join each client
-        failed = False
-        for c in client_list:
-            try:
-                c.c_process.join()
-            except Exception, e:
-                c.terminate()
-                failed = True
-
-        assert(not failed)
-
-    ###############################################################
-    # Test Functionality at 50% Message Duplication and Drop Rate
-    ###############################################################
-    def test_message_drops(self):
-
-        # set test server size
-        self.TOTAL_SERVERS = 5
-
-        # initialize server list
-        self.server_list = []
-
-        # generate the host numbers and ports of server connections
-        for i in range(9000, 9000 + 2 * self.TOTAL_SERVERS, 2):
-            server_entry = dict()
-
-            server_entry["host"] = "localhost"
-            server_entry["internal_port"] = i + 1
-            server_entry["client_port"] = i
-            server_entry["dup_rate"] = 0.5
-            server_entry["drop_rate"] = 0.5
-
-            self.server_list.append(server_entry)
-
-        print self.server_list
 
         # bring up each server
         self.servers = []
