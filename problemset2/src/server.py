@@ -21,6 +21,7 @@ import message
 from message import MESSAGE_TYPE
 import pickle
 import command
+import sys
 
 
 class PAXOS_member(object):
@@ -101,7 +102,7 @@ class PAXOS_member(object):
                 listening_process.start()
 
                 print "{} Got a connection from {}".format(
-                     self.DEBUG_TAG, address)
+                    self.DEBUG_TAG, address)
         except Exception, e:
             print "{}: ERROR - Error listening on port {}. {}".format(
                 self.DEBUG_TAG, self.internal_port, e)
@@ -125,7 +126,7 @@ class PAXOS_member(object):
 
                 assert isinstance(msg, message.message)
                 print "{} Got a message on the socket... {}".format(
-                     self.DEBUG_TAG, msg)
+                    self.DEBUG_TAG, msg)
 
                 # switch on the message type
                 msg_type = msg.msg_type
@@ -232,7 +233,8 @@ class PAXOS_member(object):
         print "Proposer number is initially: " + str(proposer_num)
 
         # resolved command
-        # self.instance_resolutions = dict()   # instance_number -> (cmd, client_id)
+        # self.instance_resolutions = dict()
+        # instance_number -> (cmd, client_id)
 
         def send_to_acceptors(msg, server_connections):
             assert isinstance(msg, message.message)
@@ -249,9 +251,9 @@ class PAXOS_member(object):
         def print_instance_resolutions():
             for i in self.instance_resolutions:
                 tcmd = self.instance_resolutions[i][0]
-                assert(isinstance(tcmd, command.command))
-                print "cid: " + str(self.instance_resolutions[i][1]) + ":" + tcmd.str()
-
+                assert isinstance(tcmd, command.command)
+                print "cid: {}: {}".format(
+                    self.instance_resolutions[i][1], tcmd)
         # Initialize server connections unless it's to yourself
         server_connections = []
 
@@ -309,7 +311,8 @@ class PAXOS_member(object):
         # Begin processing messages from the message queue
         while (done == 0):
 
-            print "\n\n" + self.DEBUG_TAG + " Waiting for a client connection..."
+            print "{} Waiting for a client connection...".format(
+                self.DEBUG_TAG)
 
             # accept an incoming client connection
             (client_connection, address) = client_socket.accept()
@@ -335,7 +338,8 @@ class PAXOS_member(object):
                 try:
                     c_msgs = client_connection.recv(1000)
                 except Exception, e:
-                    self.DEBUG_TAG + " Client connection timed out... closing socket..."
+                    print "{} Client conn timed out, closing socket...".format(
+                        self.DEBUG_TAG)
                     client_connection.close()
                     break
 
@@ -421,18 +425,19 @@ class PAXOS_member(object):
                                     nack_msg = (msg.proposal, msg)
                                     pre_nacks.append(nack_msg)
                                     response_cnt += 1
-                                elif (msg.msg_type == message.MESSAGE_TYPE.EXIT):
+                                elif msg.msg_type == MESSAGE_TYPE.EXIT:
                                     # exit
                                     print self.DEBUG_TAG + " Proposer exit..."
                                     done = 1
                                     client_done = 1
                                     break
-                                elif (msg.msg_type == message.MESSAGE_TYPE.ACCEPT_ACK):
+                                elif msg.msg_type == MESSAGE_TYPE.ACCEPT_ACK:
                                     pass
                                 else:
                                     print self.DEBUG_TAG + str(msg)
                                     raise ValueError(
-                                        "Wrong message got by proposer" + str(msg))
+                                        "Wrong message got by prop {}".format(
+                                            msg))
 
                         # if timeout try another round (higher prop number)
                         if response_cnt <= self.group_size() / 2:
@@ -500,7 +505,7 @@ class PAXOS_member(object):
                                 elif msg.msg_type == MESSAGE_TYPE.PREPARE_ACK:
                                     # ignore leftover prepare ack messages
                                     pass
-                                elif (msg.msg_type == message.MESSAGE_TYPE.PREPARE_NACK):
+                                elif msg.msg_type == MESSAGE_TYPE.PREPARE_NACK:
                                     pass
                                 elif msg.msg_type == message.MESSAGE_TYPE.EXIT:
                                     client_done = 1
@@ -516,34 +521,32 @@ class PAXOS_member(object):
                             # yeah! accepted
                             if learnt_command == client_command:
                                 state = IDLE
-                                print "client cmd accepted"
                                 # send a response message
-                                client_ack_msg = message.message(message.MESSAGE_TYPE.CLIENT_ACK,
-                                                                 None, instance, client_command, 
-                                                                 self.server_id , msg.client_id)
-                                client_connection.send(pickle.dumps(client_ack_msg))
-                                print self.DEBUG_TAG + "For instance " + str(instance) + " got resolution: " + str(learnt_command) + " with client id " + str(msg.client_id) + " origin_id = " + str(msg.origin_id)
-
+                                client_ack_msg = message.message(
+                                    MESSAGE_TYPE.CLIENT_ACK, None, instance,
+                                    client_command, self.server_id,
+                                    msg.client_id)
+                                client_connection.send(
+                                    pickle.dumps(client_ack_msg))
                             else:
                                 state = READY
-                                print "learnt cmd accepted"
-                                # update self.instance_resolutions
-                                print self.DEBUG_TAG + "For instance " + str(instance) + " learned resolution: " + str(learnt_command) + " with client id " + str(msg.client_id)  + " origin_id = " + str(msg.origin_id)
 
-
-                            self.instance_resolutions[instance] = (learnt_command, msg.client_id)
+                            self.instance_resolutions[instance] = (
+                                learnt_command, msg.client_id)
                             # move to the next instance
                             instance += 1
+                            # reset learnt command
+                            learnt_command = client_command
 
-                            print self.DEBUG_TAG + ": incrementing instance to " + str(instance)
+                            print "{} resolve! ins={}, cmd={}, lt={}".format(
+                                self.DEBUG_TAG, instance,
+                                client_command, learnt_command)
                         else:
                             # break by timeout:
                             # propose again
                             state = READY
                             # update proposal num
                             proposer_num += self.group_size()
-
-
 
                     ###########################################################
                     # Failure state
@@ -681,4 +684,3 @@ class PAXOS_member(object):
         except Exception, e:
             print "{} ERROR - failed to close server conn... {}".format(
                 self.DEBUG_TAG, e)
-

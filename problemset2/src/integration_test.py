@@ -5,20 +5,11 @@
 #########################################################################
 
 import server
-import sys
-import os
 import unittest
-import command
-import pickle
-import socket
-import subprocess
-import time
 import message
-from multiprocessing import Queue, Process, Lock
-import random
-import lock_file
 import client
 from lock_file import make_lock_file
+
 
 class integration_test(unittest.TestCase):
 
@@ -29,7 +20,7 @@ class integration_test(unittest.TestCase):
     def setUp(self):
 
         # set test server size
-        self.TOTAL_SERVERS = 5
+        self.TOTAL_SERVERS = 3
 
         # initialize server list
         self.server_list = []
@@ -59,7 +50,7 @@ class integration_test(unittest.TestCase):
         # initialize new servers
         for i in range(0, len(self.servers)):
             s = self.server_list[i]
-            assert(s != None)
+            assert s
             self.servers[i].initialize_paxos()
 
     ###############################################################
@@ -67,7 +58,7 @@ class integration_test(unittest.TestCase):
     ###############################################################
 
     def test_bring_up(self):
-   
+
         print "\n[Info] ##########[INTEGRATION TEST SERVER BRING UP TEST]########## \n\n"
 
         # assert processes are running
@@ -113,7 +104,7 @@ class integration_test(unittest.TestCase):
 
     def test_multi_client(self):
 
-        print "\n[Info] ##########[INTEGRATION TEST MULTI CLIENT SINGLE SERVER TEST]########## \n\n"
+        print "\n[Info] ######[INTEGRATION TEST MULTI CLIENT SINGLE SERVER TEST]#### \n\n"
 
         print self.server_list
 
@@ -172,7 +163,8 @@ class integration_test(unittest.TestCase):
             host = self.server_list[i]["host"]
             assert((int(port) % 2) == 0)
 
-            cli = client.client("client_" + str(i) + ".txt", host, port, len(client_list))
+            cli = client.client(
+                "client_" + str(i) + ".txt", host, port, len(client_list))
             client_list.append(cli)
 
         # join each client
@@ -191,8 +183,8 @@ class integration_test(unittest.TestCase):
     ###############################################################
 
     def test_lock_contention(self):
-        
-        print "\n[Info] ##########[INTEGRATION TEST MULTIPLE CLIENT MULTIPLE SERVER TEST]########## \n\n"
+
+        print "\n[Info] #######[INTEGRATION TEST MULTIPLE CLIENT MULTIPLE SERVER TEST]########## \n\n"
         
         # generate a contentious lock file
         f = open("contention_test.txt", "w+")

@@ -3,6 +3,7 @@
 #
 # - message class for Paxos communication
 ######################################################################
+import command
 
 
 class MESSAGE_TYPE(object):
@@ -56,5 +57,11 @@ class message(object):
             return "EXIT"
 
     def __str__(self):
-        return "msg({}, p={}, i={}, cid={} oid={})".format(
-            self.msg_type_str(), self.proposal, self.instance, self.client_id, self.origin_id)
+        if isinstance(self.value, command.command):
+            return "msg({}, p={}, i={}, cid={}, oid={}, cmd={}-{})".format(
+                self.msg_type_str(), self.proposal, self.instance,
+                self.client_id, self.origin_id, self.value.command_type,
+                self.value.resource_id)
+        return "msg({}, p={}, i={}, cid={}, oid={})".format(
+            self.msg_type_str(), self.proposal, self.instance,
+            self.client_id, self.origin_id)
