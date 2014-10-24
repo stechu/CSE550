@@ -101,7 +101,7 @@ class PAXOS_member(object):
                 listening_process.start()
 
                 print "{} Got a connection from {}".format(
-                    self.DEBUG_TAG, address)
+                     self.DEBUG_TAG, address)
         except Exception, e:
             print "{}: ERROR - Error listening on port {}. {}".format(
                 self.DEBUG_TAG, self.internal_port, e)
@@ -116,6 +116,7 @@ class PAXOS_member(object):
         done = 0
         try:
             while (done == 0):
+
                 # receive the message
                 smsg = socket.recv(1000)
 
@@ -124,7 +125,7 @@ class PAXOS_member(object):
 
                 assert isinstance(msg, message.message)
                 print "{} Got a message on the socket... {}".format(
-                    self.DEBUG_TAG, msg)
+                     self.DEBUG_TAG, msg)
 
                 # switch on the message type
                 msg_type = msg.msg_type
@@ -235,6 +236,8 @@ class PAXOS_member(object):
         # counter for proposer number
         proposer_num = self.server_id
 
+        print "Proposer number is initially: " + str(proposer_num)
+
         # resolved command
         # self.instance_resolutions = dict()   # instance_number -> (cmd, client_id)
 
@@ -249,6 +252,12 @@ class PAXOS_member(object):
                     print "{}: ERROR - {}".format(self.DEBUG_TAG, e)
                     pass
                     # TODO: remove the dead connections
+
+        def print_instance_resolutions():
+            for i in self.instance_resolutions:
+                tcmd = self.instance_resolutions[i][0]
+                assert(isinstance(tcmd, command.command))
+                print "cid: " + str(self.instance_resolutions[i][1]) + ":" + tcmd.str()
 
         # Initialize server connections unless it's to yourself
         server_connections = []
@@ -278,7 +287,7 @@ class PAXOS_member(object):
             client_socket.listen(30)
         except Exception, e:
             raise Exception(
-                self.DEBUG_TAG+": cannot open client port." + str(e))
+                self.DEBUG_TAG + ": cannot open client port." + str(e))
 
         print "{} Opening client socket on: {}".format(
             self.DEBUG_TAG, self.client_port)
@@ -307,8 +316,13 @@ class PAXOS_member(object):
         # Begin processing messages from the message queue
         while (done == 0):
 
+            print "\n\n" + self.DEBUG_TAG + " Waiting for a client connection..."
+
             # accept an incoming client connection
             (client_connection, address) = client_socket.accept()
+            client_connection.settimeout(1)
+
+            print "========== Got a Connection from " + str((client_connection, address))
 
             client_done = 0
 
@@ -329,8 +343,8 @@ class PAXOS_member(object):
                 # - if you get an EOF exit gracefully
                 try:
                     c_msgs = client_connection.recv(1000)
-                except EOFError:
-                    self.DEBUG_TAG + " Received an eof on client... ending connection"
+                except Exception, e:
+                    self.DEBUG_TAG + " Client connection done receiving..."
                     break
 
                 # unpack the message and get the command to propose from client
@@ -339,7 +353,6 @@ class PAXOS_member(object):
                 except EOFError, e:
                     print c_msgs + " - " + str(e)
                     client_done = 1
-                    done = 1
                     break
 
                 # validate that you got a valid message with command payload
@@ -517,7 +530,7 @@ class PAXOS_member(object):
                             # update self.instance_resolutions
                             print "For instance " + str(instance) + " got resolution: " + str(learnt_command) + " with client id " + str(msg.client_id)
                             self.instance_resolutions[instance] = (learnt_command, msg.client_id)
-                            print self.instance_resolutions
+                            print_instance_resolutions()
                             # move to the next instance
                             instance += 1
                         else:
@@ -532,8 +545,9 @@ class PAXOS_member(object):
                     ###########################################################
                     else:
                         assert(False)
-                        assert(state == IDLE)
 
+            print "DROPPED OUT OF STATE FSM LOOP"
+        print "DROPPED OUT OF PROPOSER LOOPS"
                 # close command processing loop
             # close while loop
         # close connection processing loop
@@ -550,7 +564,8 @@ class PAXOS_member(object):
             assert server_connections[prop_id]
             response_conn = server_connections[prop_id]
             try:
-                response_conn.send(pickle.dumps(rmsg))
+                response_conn.sendall(pickle.dumps(rmsg))
+                print self.DEBUG_TAG + " Send a prepare respone message..."
             except Exception, e:
                 print self.DEBUG_TAG + "WARN - fail to response " + e
 

@@ -31,6 +31,9 @@ class command(object):
                 and self.command_type == other.command_type
         return False
 
+    def str(self):
+        return self.__str__()
+
     def __str__(self):
         ret = ""
         if (self.command_type == COMMAND_TYPE.LOCK):

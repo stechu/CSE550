@@ -22,7 +22,7 @@ def make_lock_file(num_locks, filename):
             if (len(lock_set) == 0):
                 pass
             else:
-                index = random.randint(0, len(lock_set))
+                index = random.randint(0, len(lock_set) - 1)
                 released_lock = lock_set[index]
                 del lock_set[index]
                 
@@ -32,6 +32,7 @@ def make_lock_file(num_locks, filename):
             new_lock = random.randint(0, 256)
             cmd_list.append("lock " + str(new_lock))
             a_locks += 1
+            lock_set.append(new_lock)
 
     # release any remaining locks
     for i in range(0, len(lock_set)):
