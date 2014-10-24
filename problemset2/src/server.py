@@ -595,7 +595,7 @@ class PAXOS_member(object):
                             self.server_id, c_msg.client_id)
 
                         # send the accept requests
-                        assert accept_msg.client_id
+                        assert accept_msg.client_id is not None
                         send_to_acceptors(accept_msg, server_connections)
 
                         # advance state
@@ -655,7 +655,7 @@ class PAXOS_member(object):
                                     learnt_client == orig_client_id):
                                 state = IDLE
                                 # send a response message
-                                assert msg.client_id
+                                assert msg.client_id is not None
                                 client_ack_msg = message.message(
                                     MESSAGE_TYPE.CLIENT_ACK, None, instance,
                                     client_command, self.server_id,
