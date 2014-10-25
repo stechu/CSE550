@@ -53,7 +53,7 @@ class PAXOS_member(object):
 
         if ("dup_rate" in params):
             r = float(params["dup_rate"])
-            assert(r >= 0 and r <= 100)
+            assert(r >= 0 and r <= 1)
             self.dup_rate = params["dup_rate"]
         else:
             self.dup_rate = 0
@@ -136,20 +136,21 @@ class PAXOS_member(object):
             - issues a blocking call to the receive function
             - expects to receive message class type objects after unpickling
         """
-        def push_to_acceptor_queue(msg):
+
+        def push_to_acceptor_queue(q_msg):
             """
                 push to acceptor
             """
             self.acceptor_queue_lock.acquire()
-            self.acceptor_queue.put(msg)
+            self.acceptor_queue.put(q_msg)
             self.acceptor_queue_lock.release()
 
-        def push_to_proposer_queue(msg):
+        def push_to_proposer_queue(q_msg):
             """
                 push to proposer
             """
             self.proposer_queue_lock.acquire()
-            self.proposer_queue.put(msg)
+            self.proposer_queue.put(q_msg)
             self.proposer_queue_lock.release()
 
         done = 0
@@ -182,10 +183,12 @@ class PAXOS_member(object):
 
                 if msg_type in proposer_msg_types:      # internal prop msgs
                     # drop message
-                    if dice <= self.drop_rate:
+                    if dice < self.drop_rate:
+                        print "drop a messge to proposer"
                         continue
                     # dup message
-                    if dice <= self.dup_rate:
+                    if dice < self.dup_rate:
+                        print "duplicate a messge to proposer"
                         push_to_proposer_queue(msg)
                     # actually send message
                     push_to_proposer_queue(msg)
@@ -193,10 +196,12 @@ class PAXOS_member(object):
                     push_to_proposer_queue(msg)
                 elif msg_type in acceptor_msg_types:    # internal acc msgs
                     # drop message
-                    if dice <= self.drop_rate:
+                    if dice < self.drop_rate:
+                        print "drop a messge to acceptor"
                         continue
                     # dup message
-                    if dice <= self.dup_rate:
+                    if dice < self.dup_rate:
+                        print "duplicate a messge to acceptor"
                         push_to_acceptor_queue(msg)
                     # actually send message
                     push_to_acceptor_queue(msg)
@@ -291,10 +296,11 @@ class PAXOS_member(object):
                     msg.origin_id)
                 if msg_signature in msg_history:
                     # dup, pass
-                    return False
+                    print "dup msg to proposer!"
+                    return True
                 else:
                     msg_history.add(msg_signature)
-                    return True
+                    return False
 
         # counter for proposer number
         proposer_num = self.server_id
@@ -488,8 +494,7 @@ class PAXOS_member(object):
                             MESSAGE_TYPE.PREPARE,
                             proposer_num, instance, None,
                             self.server_id, c_msg.client_id)
-                        if msg.client_id is None:
-                            print "$$$$ msg.client_id : ".format(msg.client_id)
+
                         assert msg.client_id is not None
                         send_to_acceptors(msg, server_connections)
                         # update the state
@@ -670,7 +675,7 @@ class PAXOS_member(object):
                                 learnt_command, msg.client_id)
 
                             write_lock.acquire()
-                            logfile.write("{} -> cid: {} - {}".format(
+                            logfile.write("{} -> cid:{} - {}\n".format(
                                 instance, msg.client_id, learnt_command))
                             write_lock.release()
 
@@ -756,6 +761,15 @@ class PAXOS_member(object):
 
         accept_history = dict()          # instance -> prep_p, acc_p, acc_v
 
+        # the msg types that will be duped
+        acceptor_msg_types = [
+            MESSAGE_TYPE.PREPARE,
+            MESSAGE_TYPE.ACCEPT,
+        ]
+
+        # msg_history to handle dups
+        msg_history = set()
+
         # Enter the proposal processing loop
         # - dequeue message for this proposer and process them
         done = 0
@@ -765,7 +779,8 @@ class PAXOS_member(object):
             # get a message of the queue
             msg = self.acceptor_queue.get()
 
-            # handle duplication
+
+             # handle duplication
             if msg.msg_type in acceptor_msg_types:
                 msg_signature = (
                     msg.msg_type,
@@ -777,6 +792,7 @@ class PAXOS_member(object):
                     msg.origin_id)
                 if msg_signature in msg_history:
                     # dup, pass
+                    print "dup msg to acceptor!"
                     continue
                 else:
                     msg_history.add(msg_signature)
@@ -834,9 +850,19 @@ class PAXOS_member(object):
 
                 # check to see if the proposal number for
                 # this instance is high enough
-                h_prep, h_accp, h_accv = accept_history[p_instance]
+                if p_instance in accept_history:
+                    h_prep, h_accp, h_accv = accept_history[p_instance]
 
-                if p_proposal >= h_prep:
+                    if p_proposal >= h_prep:
+                        # send accept_ack message
+                        rmsg = message.message(
+                            MESSAGE_TYPE.ACCEPT_ACK, p_proposal, p_instance,
+                            p_value, self.server_id, client_id=p_client_id)
+                        response_proposer(rmsg, msg.origin_id)
+                        # update accept_history
+                        accept_history[p_instance] = (
+                            p_proposal, p_proposal, p_value)
+                else:
                     # send accept_ack message
                     rmsg = message.message(
                         MESSAGE_TYPE.ACCEPT_ACK, p_proposal, p_instance,

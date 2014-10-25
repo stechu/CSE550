@@ -30,7 +30,7 @@ class msg_failure_test(unittest.TestCase):
         print "\n\n##########[MESSAGE DROP TEST]##########\n\n"
 
         # set test server size
-        self.TOTAL_SERVERS = 5
+        self.TOTAL_SERVERS = 3
         self.client_files = None
 
         # initialize server list
@@ -43,7 +43,7 @@ class msg_failure_test(unittest.TestCase):
             server_entry["host"] = "localhost"
             server_entry["internal_port"] = i + 1
             server_entry["client_port"] = i
-            server_entry["drop_rate"] = 0.25
+            server_entry["drop_rate"] = 0.001  # this is a percentage
 
             self.server_list.append(server_entry)
 
@@ -66,7 +66,7 @@ class msg_failure_test(unittest.TestCase):
             self.servers[i].initialize_paxos()
             time.sleep(.5)  # allow the system to recover
 
-        LOCKS = 100
+        LOCKS = 10
 
         # generate the lock files
         for i in range(0, len(self.server_list)):
@@ -124,6 +124,7 @@ class msg_failure_test(unittest.TestCase):
             server_entry["host"] = "localhost"
             server_entry["internal_port"] = i + 1
             server_entry["client_port"] = i
+
             server_entry["dup_rate"] = 0.5
 
             self.server_list.append(server_entry)
@@ -145,7 +146,7 @@ class msg_failure_test(unittest.TestCase):
             s = self.server_list[i]
             assert s
             self.servers[i].initialize_paxos()
-            time.sleep(.5) # allow the system to recover
+            time.sleep(.5)  # allow the system to recover
 
         LOCKS = 100
 
