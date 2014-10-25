@@ -328,6 +328,9 @@ class PAXOS_member(object):
                 self.lock_set.append(exe_command.resource_id)
                 assert exe_command.resource_id in self.lock_set
             elif exe_command.command_type == COMMAND_TYPE.UNLOCK:
+                if exe_command.resource_id in self.lock_set:
+                    print "{} not in {}".format(
+                        exe_command.resource_id, self.lock_set)
                 assert exe_command.resource_id in self.lock_set
                 self.lock_set.remove(exe_command.resource_id)
                 assert exe_command.resource_id not in self.lock_set
@@ -348,8 +351,6 @@ class PAXOS_member(object):
                     socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 connection.connect((target_host, target_port))
                 server_connections.append(connection)
-#                print "{} Proposer init connection to server at {}:{}".format(
-#                    self.DEBUG_TAG, target_host, target_port)
             except Exception, e:
                 print "{} Failed to connect to {}:{}".format(
                     self.DEBUG_TAG, target_host, target_port)
@@ -499,7 +500,7 @@ class PAXOS_member(object):
                                 state = READY
                                 break
 
-                            assert(isinstance(msg, message.message))
+                            assert isinstance(msg, message.message)
 
                             if if_dup(msg, msg_history):
                                 continue
@@ -553,7 +554,17 @@ class PAXOS_member(object):
                             learnt_command.command_type == COMMAND_TYPE.LOCK and
                             client_command.resource_id in self.lock_set):
                             time.sleep(1)
+                            print "---------------------------------------"
+                            print "{} won but blocked".format(self.DEBUG_TAG)
+                            print "cmd_r_id: {}".format(
+                                client_command.resource_id)
+                            print "lockset: {}".format(self.lock_set)
+                            print "leart: {}".format(learnt_command)
+                            print "---------------------------------------"
+                            # update the state
                             state = READY
+                            # update proposal num
+                            proposer_num += self.group_size()
                         else:
                             state = ACCEPT
 
@@ -566,7 +577,7 @@ class PAXOS_member(object):
                         accept_msg = message.message(
                             MESSAGE_TYPE.ACCEPT,
                             proposer_num, instance, learnt_command,
-                            self.server_id, c_msg.client_id)
+                            self.server_id, learnt_client)
 
                         # send the accept requests
                         assert accept_msg.client_id is not None
@@ -642,11 +653,14 @@ class PAXOS_member(object):
 
                             write_lock.acquire()
                             logfile.write("{} -> cid:{} - {}\n".format(
-                                instance, msg.client_id, learnt_command))
+                                instance, learnt_client, learnt_command))
                             write_lock.release()
 
                             # execute command
                             execute_command(learnt_command)
+
+                            print "{} execute {} from cid: {}".format(
+                                self.DEBUG_TAG, learnt_command, learnt_client)
 
                             # move to the next instance
                             instance += 1
@@ -717,7 +731,7 @@ class PAXOS_member(object):
                     self.DEBUG_TAG, target_host, target_port)
                 continue
 
-        accept_history = dict()          # instance -> prep_p, acc_p, acc_v
+        accept_history = dict()         # instance -> prep_p, acc_p, acc_v, cid
 
         # the msg types that will be duped
         acceptor_msg_types = [
@@ -766,7 +780,7 @@ class PAXOS_member(object):
                 # that is not the first message with this instance
                 if p_instance in accept_history:
                     # unpack history info
-                    h_prep, h_accp, h_accv = accept_history[p_instance]
+                    h_prep, h_accp, h_accv, cid = accept_history[p_instance]
 
                     # only response if p_proposal higher than current
                     if p_proposal > h_prep:
@@ -779,12 +793,13 @@ class PAXOS_member(object):
                         # send the nack back
                         rmsg = message.message(
                             msg_type, p_proposal, p_instance,
-                            h_accv, self.server_id, r_proposal=h_accp)
+                            h_accv, self.server_id, client_id=cid,
+                            r_proposal=h_accp)
                         response_proposer(rmsg, msg.origin_id)
 
                         # update accept_history
                         accept_history[p_instance] = (
-                            p_proposal, h_accp, h_accv)
+                            p_proposal, h_accp, h_accv, cid)
                 else:
                     # send ack back
                     rmsg = message.message(
@@ -793,7 +808,7 @@ class PAXOS_member(object):
                     response_proposer(rmsg, msg.origin_id)
 
                     # update accept_history
-                    accept_history[p_instance] = (p_proposal, -1, None)
+                    accept_history[p_instance] = (p_proposal, -1, None, None)
 
             ###################################################################
             # handle ACCEPT request
@@ -808,7 +823,7 @@ class PAXOS_member(object):
                 # check to see if the proposal number for
                 # this instance is high enough
                 if p_instance in accept_history:
-                    h_prep, h_accp, h_accv = accept_history[p_instance]
+                    h_prep, h_accp, h_accv, cid = accept_history[p_instance]
 
                     if p_proposal >= h_prep:
                         # send accept_ack message
@@ -818,7 +833,7 @@ class PAXOS_member(object):
                         response_proposer(rmsg, msg.origin_id)
                         # update accept_history
                         accept_history[p_instance] = (
-                            p_proposal, p_proposal, p_value)
+                            p_proposal, p_proposal, p_value, p_client_id)
                 else:
                     # send accept_ack message
                     rmsg = message.message(
@@ -827,7 +842,7 @@ class PAXOS_member(object):
                     response_proposer(rmsg, msg.origin_id)
                     # update accept_history
                     accept_history[p_instance] = (
-                        p_proposal, p_proposal, p_value)
+                        p_proposal, p_proposal, p_value, p_client_id)
             ###################################################################
             # handle EXIT message
             ###################################################################
