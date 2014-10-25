@@ -41,7 +41,9 @@ class client:
             client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             client_socket.connect((host, port))
-            client_socket.settimeout(30)            # set a timeout for which you assume the server has failed afterwards
+            # set a timeout for which you assume
+            # the server has failed afterwards
+            client_socket.settimeout(30)
             self.CONNECTION_SOCKET = client_socket  # set the connection socket
         except Exception, e:
             print "Error: failed to open socket with error - " + str(e)
@@ -51,11 +53,12 @@ class client:
     def send_command(self, cmd, client_id):
         msg = message.message(MESSAGE_TYPE.CLIENT,
                               None, None, cmd, client_id, client_id=client_id)
-        assert(msg.client_id != None)
+        assert msg.client_id is not None
         try:
             self.CONNECTION_SOCKET.send(pickle.dumps(msg))
         except Exception, e:
             # the server node failed so abort
+            print "client - warn {}".format(e)
             pass
 
     # Receive data from the server
@@ -63,8 +66,7 @@ class client:
         try:
             rmsg = self.CONNECTION_SOCKET.recv(1024)
         except Exception, e:
-            print "client side error: " + str(e) + " " + str(self.client_id) 
-#            print " | \n client connected to: " + str((self.server_host, self.server_port))
+            print "client side error: " + str(e) + " " + str(self.client_id)
             return None
         return rmsg
 
@@ -73,8 +75,9 @@ class client:
             validate command string format, return command
         """
         # parse cmd_str
-        action, res_id = cmd_str.rstrip("\n").split(" ")
-
+        cmd_items = cmd_str.rstrip(" ").rstrip("\n").split(" ")
+        print cmd_items
+        action, res_id = cmd_items
         # validate it
         assert action.lower() in ["lock", "unlock"]
 
@@ -98,7 +101,6 @@ class client:
         for c in cmd_list:
             # send the command
             self.send_command(c, self.client_id)
-#            print str(self.client_id) + ": Client sent command to server..."
 
             # wait for an ACK from the server indicating you got an ACK
             try:
@@ -106,14 +108,13 @@ class client:
             except Exception, e:
                 #the server node died or something bad happened so abort
                 break
-#            print str(self.client_id) + ": Client received ACK from server..."
 
             assert rmsg.msg_type == message.MESSAGE_TYPE.CLIENT_ACK
             try:
                 assert rmsg.client_id == self.client_id
             except Exception, e:
-                print "rmsg = " + str(rmsg.client_id) + " client_id = " + str(self.client_id)
-
+                print "rmsg={}, client_id={}, error={}".format(
+                    rmsg.client_id, self.client_id, e)
             # move on to send the next one
 
     # Any clean up routines that should be executed
