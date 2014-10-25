@@ -21,12 +21,10 @@ class msg_failure_test(unittest.TestCase):
     def setUp(self):
         pass
 
-    ###############################################################
-    # Test Functionality at 50% Message Drop Rate
-    ###############################################################
-
     def test_message_drops(self):
-
+        """
+            Test paxos group with message drop
+        """
         print "\n\n##########[MESSAGE DROP TEST]##########\n\n"
 
         # set test server size
@@ -56,8 +54,8 @@ class msg_failure_test(unittest.TestCase):
             new_server = server.PAXOS_member(i, self.server_list)
             self.servers.append(new_server)
 
-        assert(len(self.servers) == len(self.server_list))
-        assert(len(self.servers) == self.TOTAL_SERVERS)
+        assert len(self.servers) == len(self.server_list)
+        assert len(self.servers) == self.TOTAL_SERVERS
 
         # initialize new servers
         for i in range(0, len(self.servers)):
@@ -83,8 +81,8 @@ class msg_failure_test(unittest.TestCase):
             assert((int(port) % 2) == 0)
 
             cli = client.client(
-                "client_" + str(i) + ".txt", host, port, len(client_list))
-            client_list.append(cli)
+                "client_" + str(i) + ".txt", host, port, i)
+            print "up client {}".format(len(client_list))
             client_list.append(cli)
             client_files.append("client_" + str(i) + ".txt")
 
@@ -101,12 +99,10 @@ class msg_failure_test(unittest.TestCase):
 
         assert(not failed)
 
-    ###############################################################
-    # Test Functionality at 50% Message Duplication Rate
-    ###############################################################
-
     def test_message_duplication(self):
-
+        """
+            Test Functionality at 50 percent Message Duplication Rate
+        """
         print "\n\n##########[MESSAGE DUUPLICATION TEST]##########\n\n"
 
         # set test server size
@@ -183,16 +179,14 @@ class msg_failure_test(unittest.TestCase):
 
         assert(not failed)
 
-    ###############################################################
-    # Shutdown the Paxos group
-    ###############################################################
-
     def tearDown(self):
-
+        """
+            Shutdown the Paxos group
+        """
         # directly inject an exit message to each of the queues
         exit_msg = message.message(message.MESSAGE_TYPE.EXIT,
                                    None, None, None, 'localhost', 9000, None)
- 
+
         for s in self.servers:
             s.acceptor_queue.put(exit_msg)
             s.proposer_queue.put(exit_msg)
@@ -208,17 +202,15 @@ class msg_failure_test(unittest.TestCase):
         for s in self.servers:
             assert(validate_lock_file("server" + str(s.server_id) + ".txt"))
 
-        # check that the correct distributino of lcoks appeared in the log files
+        # check that the correct distributino of
+        # locks appeared in the log files
         client_files = self.client_files
         server_files = []
         for s in self.servers:
             server_files.append("server" + str(s.server_id) + ".txt")
         assert(len(server_files) == len(self.servers))
 
-        if (self.client_files != None):
+        if client_files is not None:
             validate_client_file(self.client_files, server_files)
         else:
             print "Warning: skipping client and server log cross validation..."
-
-if __name__ == '__main__':
-    unittest.main()
