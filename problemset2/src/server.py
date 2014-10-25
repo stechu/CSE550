@@ -136,21 +136,22 @@ class PAXOS_member(object):
             - issues a blocking call to the receive function
             - expects to receive message class type objects after unpickling
         """
-        def push_to_acceptor_queue(msg):
+        def push_to_acceptor_queue(q_msg):
             """
                 push to acceptor
             """
             self.acceptor_queue_lock.acquire()
-            self.acceptor_queue.put(msg)
+            self.acceptor_queue.put(q_msg)
             self.acceptor_queue_lock.release()
 
-        def push_to_proposer_queue(msg):
+        def push_to_proposer_queue(q_msg):
             """
                 push to proposer
             """
             self.proposer_queue_lock.acquire()
-            self.proposer_queue.put(msg)
+            self.proposer_queue.put(q_msg)
             self.proposer_queue_lock.release()
+
         done = 0
         try:
             while (done == 0):
