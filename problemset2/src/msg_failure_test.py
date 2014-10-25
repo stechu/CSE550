@@ -49,9 +49,9 @@ class msg_failure_test(unittest.TestCase):
         self.servers = []
 
         # iterate through address list and instantiate servers
-        for i in range(0, len(self.server_list)):
+        for i, server_config in enumerate(self.server_list):
             # instantiate new servers
-            new_server = server.PAXOS_member(i, self.server_list)
+            new_server = server.PAXOS_member(i, self.server_config)
             self.servers.append(new_server)
 
         assert len(self.servers) == len(self.server_list)
