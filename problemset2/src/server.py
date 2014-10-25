@@ -78,8 +78,6 @@ class PAXOS_member(object):
 
         self.client_socket = None
 
-#        print "[Info] Server number " + str(self.server_id) + " online..."
-
     def group_size(self):
         """
             Return the size of the paxos group
@@ -123,8 +121,6 @@ class PAXOS_member(object):
                 # starts the connection process
                 listening_process.start()
 
-#                print "{} Got a connection from {}".format(
-#                    self.DEBUG_TAG, address)
         except Exception, e:
             print "{}: ERROR - Error listening on port {}. {}".format(
                 self.DEBUG_TAG, self.internal_port, e)
@@ -220,7 +216,6 @@ class PAXOS_member(object):
 
         # if the socket closes, handle the disconnect exception and terminate
         except Exception, e:
-#            print "{} WARN - connection may end: {}".format(self.DEBUG_TAG, e)
             pass
 
         # close the server socket
@@ -243,7 +238,6 @@ class PAXOS_member(object):
             target=self.initialize_acceptor, args=())
         acceptor_process.start()
 
-#        print self.DEBUG_TAG + " Initialized proposer process..."
         assert(acceptor_process.is_alive())
         self.acceptor_process = acceptor_process
 
@@ -253,14 +247,11 @@ class PAXOS_member(object):
         """
             abstract initialization processes for testing purposes
         """
-#        print self.DEBUG_TAG + " Launching proposer process..."
-
         # initialize the proposer process
         proposer_process = Process(
             target=self.initialize_proposer, args=())
         proposer_process.start()
 
-#        print self.DEBUG_TAG + " Initialized acceptor process..."
         assert(proposer_process.is_alive())
         self.proposer_process = proposer_process
 
@@ -296,7 +287,7 @@ class PAXOS_member(object):
                     msg.origin_id)
                 if msg_signature in msg_history:
                     # dup, pass
-                    print "dup msg to proposer!"
+                    print "dup msg received by proposer!"
                     return True
                 else:
                     msg_history.add(msg_signature)
@@ -310,12 +301,6 @@ class PAXOS_member(object):
         write_lock.acquire()
         logfile = open("server" + str(self.server_id) + ".txt", "w+")
         write_lock.release()
-
-#        print "Proposer number is initially: " + str(proposer_num)
-
-        # resolved command
-        # self.instance_resolutions = dict()
-        # instance_number -> (cmd, client_id)
 
         def send_to_acceptors(msg, server_connections):
             assert isinstance(msg, message.message)
@@ -383,9 +368,6 @@ class PAXOS_member(object):
             raise Exception(
                 self.DEBUG_TAG + ": cannot open client port." + str(e))
 
-#        print "{} Opening client socket on: {}".format(
-#            self.DEBUG_TAG, self.client_port)
-
         # Enter the main loop of the proposer
         done = 0
 
@@ -409,9 +391,6 @@ class PAXOS_member(object):
 
         # Begin processing messages from the message queue
         while (done == 0):
-
-#            print "{} Waiting for a client connection...".format(
-#                self.DEBUG_TAG)
 
             # accept an incoming client connection
             try:
@@ -451,8 +430,6 @@ class PAXOS_member(object):
                 try:
                     c_msgs = client_connection.recv(1000)
                 except Exception, e:
-#                    print "{} Client conn timed out, closing socket...".format(
-#                        self.DEBUG_TAG)
                     client_connection.close()
                     break
 
@@ -487,8 +464,6 @@ class PAXOS_member(object):
                     ###########################################################
                     if state == READY:
 
-#                        print self.DEBUG_TAG + " Proposer in READY state..."
-
                         # craft the proposal packet and send to acceptors
                         msg = message.message(
                             MESSAGE_TYPE.PREPARE,
@@ -505,7 +480,6 @@ class PAXOS_member(object):
                     ###########################################################
                     elif (state == PROPOSING):
 
-#                        print self.DEBUG_TAG + " Proposer in PROPOSING state.."
                         # PREPARE_NACKs received
                         pre_nacks = []
                         # response count
@@ -521,9 +495,6 @@ class PAXOS_member(object):
                             # if an exception occurs and we're not done,
                             # consider the proposal failed
                             except Exception as e:
-#                                print "{} : WARN 2 - {}".format(
-#                                    self.DEBUG_TAG, e)
-#                                print str(e)
                                 # attempt another proposal round
                                 state = READY
                                 break
@@ -591,8 +562,6 @@ class PAXOS_member(object):
                     ###########################################################
                     elif (state == ACCEPT):
 
-#                        print self.DEBUG_TAG + " Proposer in ACCEPT state..."
-
                         # craft the accept packet
                         accept_msg = message.message(
                             MESSAGE_TYPE.ACCEPT,
@@ -610,8 +579,6 @@ class PAXOS_member(object):
                     # ACCEPTING - wait for the accepting messages to come back
                     ###########################################################
                     elif (state == ACCEPTING):
-
-#                        print self.DEBUG_TAG + " Proposer in ACCEPTING state.."
 
                         response_cnt = 0
 
@@ -668,7 +635,6 @@ class PAXOS_member(object):
                                 client_connection.send(
                                     pickle.dumps(client_ack_msg))
                             else:
-# print self.DEBUG_TAG + "Failed to get command and/or client id correct."
                                 state = READY
 
                             self.instance_resolutions[instance] = (
@@ -688,9 +654,6 @@ class PAXOS_member(object):
                             learnt_command = client_command
                             learnt_client = orig_client_id
 
-#                            print "{} resolve! ins={}, cmd={}, lt={}".format(
-#                                self.DEBUG_TAG, instance,
-#                                client_command, learnt_command)
                         else:
                             # break by timeout:
                             # propose again
@@ -705,16 +668,11 @@ class PAXOS_member(object):
                         assert(False)
 
                 # close command processing loop
-#            print self.DEBUG_TAG + "DROPPED OUT OF STATE FSM LOOP"
             # close while loop
-#        print self.DEBUG_TAG + "DROPPED OUT OF PROPOSER LOOPS"
         # close connection processing loop
         write_lock.acquire()
         logfile.close()
         write_lock.release()
-
-#        print "[Info] Proposer on server " + str(self.server_id) + " exited..."
-
     # close proposer process definition
 
     def initialize_acceptor(self):
@@ -778,7 +736,6 @@ class PAXOS_member(object):
 
             # get a message of the queue
             msg = self.acceptor_queue.get()
-
 
              # handle duplication
             if msg.msg_type in acceptor_msg_types:
@@ -887,5 +844,3 @@ class PAXOS_member(object):
         except Exception, e:
             print "{} ERROR - failed to close server conn... {}".format(
                 self.DEBUG_TAG, e)
-
-#        print "[Info] Acceptor on server " + str(self.server_id) + " exited..."
