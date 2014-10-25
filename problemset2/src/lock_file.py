@@ -145,6 +145,7 @@ def validate_lock_file(filename):
 
     return True
 
+
 # Validate if the client file made it into the server logs
 def validate_client_file(client_files, server_files):
 
@@ -152,13 +153,13 @@ def validate_client_file(client_files, server_files):
     assert(len(server_files) > 0)
 
     print "Validated all client requests appear in a server log..."
-    
+
     # find the most complete server log
     server_log = None
     longest_log = -1
     for s in server_files:
         log_dump = os.popen("wc -l " + s).read()
-        log_fields = log_dump.split(" ")
+        log_fields = log_dump.lstrip(" ").split(" ")
         log_size = log_fields[0]
         log_length = int(log_size)
         if (log_length > longest_log):
@@ -179,20 +180,20 @@ def validate_client_file(client_files, server_files):
 
         cmd_fields = cmd.split(" ")
         assert(len(cmd_fields) == 2)
-            
+
         cmd_type = cmd_fields[0]
         lock_num = int(cmd_fields[1])
 
         entry = cmd_type + " " + str(lock_num)
         assert(int(fields[0]) not in cmd_list)
         cmd_list[int(fields[0])] = entry
-        
+
         if entry in server_dist:
             server_dist[entry] += 1
         else:
             server_dist[entry] = 1
     f.close()
-            
+
     cli_dist = dict()
 
     # load the client files and aggregate it's command distributions

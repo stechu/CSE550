@@ -53,7 +53,7 @@ class PAXOS_member(object):
 
         if ("dup_rate" in params):
             r = float(params["dup_rate"])
-            assert(r >= 0 and r <= 100)
+            assert(r >= 0 and r <= 1)
             self.dup_rate = params["dup_rate"]
         else:
             self.dup_rate = 0
@@ -182,10 +182,12 @@ class PAXOS_member(object):
 
                 if msg_type in proposer_msg_types:      # internal prop msgs
                     # drop message
-                    if dice <= self.drop_rate:
+                    if dice < self.drop_rate:
+                        print "drop a messge to proposer"
                         continue
                     # dup message
-                    if dice <= self.dup_rate:
+                    if dice < self.dup_rate:
+                        print "duplicate a messge to proposer"
                         push_to_proposer_queue(msg)
                     # actually send message
                     push_to_proposer_queue(msg)
@@ -193,10 +195,12 @@ class PAXOS_member(object):
                     push_to_proposer_queue(msg)
                 elif msg_type in acceptor_msg_types:    # internal acc msgs
                     # drop message
-                    if dice <= self.drop_rate:
+                    if dice < self.drop_rate:
+                        print "drop a messge to acceptor"
                         continue
                     # dup message
-                    if dice <= self.dup_rate:
+                    if dice < self.dup_rate:
+                        print "duplicate a messge to acceptor"
                         push_to_acceptor_queue(msg)
                     # actually send message
                     push_to_acceptor_queue(msg)
@@ -835,9 +839,19 @@ class PAXOS_member(object):
 
                 # check to see if the proposal number for
                 # this instance is high enough
-                h_prep, h_accp, h_accv = accept_history[p_instance]
+                if p_instance in accept_history:
+                    h_prep, h_accp, h_accv = accept_history[p_instance]
 
-                if p_proposal >= h_prep:
+                    if p_proposal >= h_prep:
+                        # send accept_ack message
+                        rmsg = message.message(
+                            MESSAGE_TYPE.ACCEPT_ACK, p_proposal, p_instance,
+                            p_value, self.server_id, client_id=p_client_id)
+                        response_proposer(rmsg, msg.origin_id)
+                        # update accept_history
+                        accept_history[p_instance] = (
+                            p_proposal, p_proposal, p_value)
+                else:
                     # send accept_ack message
                     rmsg = message.message(
                         MESSAGE_TYPE.ACCEPT_ACK, p_proposal, p_instance,
