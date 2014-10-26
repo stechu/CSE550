@@ -1,6 +1,6 @@
 # Builds the submission tar file
 
-UWNETID=1323363
+UWNETID=1323346
 TAR_FILE_1=problemset1_submission_$(UWNETID).tar.gz
 TAR_FILE_2=problemset2_submission_$(UWNETID).tar.gz
 
