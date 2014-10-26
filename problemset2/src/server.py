@@ -180,11 +180,11 @@ class PAXOS_member(object):
                 if msg_type in proposer_msg_types:      # internal prop msgs
                     # drop message
                     if dice < self.drop_rate:
-                        print "drop a messge to proposer"
+                        # print "drop a messge to proposer"
                         continue
                     # dup message
                     if dice < self.dup_rate:
-                        print "duplicate a messge to proposer"
+                        # print "duplicate a messge to proposer"
                         push_to_proposer_queue(msg)
                     # actually send message
                     push_to_proposer_queue(msg)
@@ -193,11 +193,11 @@ class PAXOS_member(object):
                 elif msg_type in acceptor_msg_types:    # internal acc msgs
                     # drop message
                     if dice < self.drop_rate:
-                        print "drop a messge to acceptor"
+                        # print "drop a messge to acceptor"
                         continue
                     # dup message
                     if dice < self.dup_rate:
-                        print "duplicate a messge to acceptor"
+                        # print "duplicate a messge to acceptor"
                         push_to_acceptor_queue(msg)
                     # actually send message
                     push_to_acceptor_queue(msg)
@@ -287,7 +287,7 @@ class PAXOS_member(object):
                     msg.origin_id)
                 if msg_signature in msg_history:
                     # dup, pass
-                    print "dup msg received by proposer!"
+                    # print "dup msg received by proposer!"
                     return True
                 else:
                     msg_history.add(msg_signature)
@@ -328,9 +328,6 @@ class PAXOS_member(object):
                 self.lock_set.append(exe_command.resource_id)
                 assert exe_command.resource_id in self.lock_set
             elif exe_command.command_type == COMMAND_TYPE.UNLOCK:
-                if exe_command.resource_id in self.lock_set:
-                    print "{} not in {}".format(
-                        exe_command.resource_id, self.lock_set)
                 assert exe_command.resource_id in self.lock_set
                 self.lock_set.remove(exe_command.resource_id)
                 assert exe_command.resource_id not in self.lock_set
@@ -659,8 +656,8 @@ class PAXOS_member(object):
                             # execute command
                             execute_command(learnt_command)
 
-                            print "{} execute {} from cid: {}".format(
-                                self.DEBUG_TAG, learnt_command, learnt_client)
+                            # print "{} execute {} from cid: {}".format(
+                            #    self.DEBUG_TAG, learnt_command, learnt_client)
 
                             # move to the next instance
                             instance += 1
@@ -727,8 +724,8 @@ class PAXOS_member(object):
                 connection.connect((target_host, target_port))
                 server_connections[server_id] = connection
             except Exception:
-                print "{} Acceptor failed to connect to {}:{}, {}".format(
-                    self.DEBUG_TAG, target_host, target_port)
+                #print "{} Acceptor failed to connect to {}:{}, {}".format(
+                #    self.DEBUG_TAG, target_host, target_port)
                 continue
 
         accept_history = dict()         # instance -> prep_p, acc_p, acc_v, cid
@@ -763,7 +760,7 @@ class PAXOS_member(object):
                     msg.origin_id)
                 if msg_signature in msg_history:
                     # dup, pass
-                    print "dup msg to acceptor!"
+                    # print "dup msg to acceptor!"
                     continue
                 else:
                     msg_history.add(msg_signature)
