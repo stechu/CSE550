@@ -63,12 +63,15 @@ class client:
 
     # Receive data from the server
     def receive_message(self):
-        try:
-            rmsg = self.CONNECTION_SOCKET.recv(1024)
-        except Exception, e:
-            print "client side error: " + str(e) + " " + str(self.client_id)
-            return None
-        return rmsg
+        rmsg = None
+        while True:
+            try:
+                rmsg = self.CONNECTION_SOCKET.recv(1024)
+            except Exception, e:
+                print "client side error: {} {}".format(e, self.client_id)
+                time.sleep(1)
+                continue
+            return rmsg
 
     def create_command(self, cmd_str):
         """
@@ -76,7 +79,6 @@ class client:
         """
         # parse cmd_str
         cmd_items = cmd_str.rstrip(" ").rstrip("\n").split(" ")
-        print cmd_items
         action, res_id = cmd_items
         # validate it
         assert action.lower() in ["lock", "unlock"]

@@ -64,13 +64,17 @@ class msg_failure_test(unittest.TestCase):
             self.servers[i].initialize_paxos()
             time.sleep(.5)  # allow the system to recover
 
-        LOCKS = 10
+        # LOCKS = 1
 
         # generate the lock files
         for i in range(0, len(self.server_list)):
             filename = "client_" + str(i) + ".txt"
             make_simple_file(LOCKS, filename)
 
+        # for i in range(0, len(self.server_list)):
+        #    filename = "client_" + str(i) + ".txt"
+        #    make_simple_file(LOCKS, filename)
+        #
         client_files = []
 
         # instantiate a client to each server
@@ -197,6 +201,9 @@ class msg_failure_test(unittest.TestCase):
             s.listening_process.join(5)
             s.acceptor_process.join(5)
             s.proposer_process.join(5)
+            s.listening_process.join()
+            s.acceptor_process.join()
+            s.proposer_process.join()
 
         # perform a validation over the files
         for s in self.servers:
