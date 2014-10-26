@@ -427,7 +427,7 @@ Instance resolutions are again cross-checked as in the integration tests to vali
 
 Tests that the Paxos group still functions correctly in the presence of message drops.
 A message drop rate R is set on each server instance which drops R percent of all messages transmitted at random.
-This verifies that our design is robust to message loss.
+This verifies that our design is robust to message loss. As of the current design, this test fails with non-deterministic results.
 
 \subsubsection{test\_message\_duplication}
 
@@ -440,6 +440,14 @@ This verifies that our design is robust to message duplication.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \section{Known Issues}
+
+\subsection{Resilience to Message Dropping}
+
+While our implementation appropriately handles message duplication correctly, it fails to address message dropping.
+We simulate message dropping by randomly dropping the message at the receiving end with some probability specified by the server initialization settings.
+Unfortunately, once we added the message dropping functionality to our design, we observed race condition patterns which we were not able to debug.
+We believe that this race condition bug would take an unreasonable amount of time to track down and debug so we basically just gave up.
+As a result, our design is not robust to message dropping but implements all other expected functionality as demonstrated by other tests.
 
 \subsection{Failure Test Orphaned Processes}
 
