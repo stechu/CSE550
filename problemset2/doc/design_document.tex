@@ -337,6 +337,9 @@ Tests if the acceptor returns the highest proposal number accepted and the value
 
 \subsection{proposer\_test.py}
 
+Due to multiple interface refactoring, this test is now DEPRECATED but was used early in development to verify basic proposer functionality. As a result this section is irrelevant.
+The integration\_test.py now verifies the correctness of the proposer implicitly.
+
 The proposer test initializes a fake server to connect to the proposer process.
 The fake server injects messages into the proposer connection to simulate a Paxos group exchange.
 This unit test verifies that the basic functionality of the proposer is correct.
