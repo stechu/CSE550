@@ -14,8 +14,6 @@
 
 \maketitle
 
-\tableofcontents
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Intro
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -28,6 +26,10 @@ Due to the massive scale of deployment, small software and hardware architectura
 With the rise of big data applications, and dynamically shifting workload patterns, it is imperative that we understand how production workloads on these systems behave in order to determine what aspects of the system work well and what should be changed.
 Of particular interest in this proposal are the ratios between compute, network bandwidth, and memory that are necessary to meet the demands of the applications running at scale.
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Motivation
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 \section{Motivation}
 
 Data center architects are primarily concerned with optimizing power consumption and maximizing performance thoughput.
@@ -36,6 +38,10 @@ While we acknowledge that minimizing energy per FLOP of computation has immediat
 For instance, data centers have many other metrics that can be measured such as cost per bit sent over the network, or cost per bit moved from main memory or mass storage.
 Metrics such as these are not captured in a simple performance per watt calculation.
 In addition, measuring the ratios between not only energy and performance, but between network communication bandwidth, memory usage, and compute for various different tasks can have far reaching implications in how we designate the roles between each of these subsystems in data center architectures.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Proposal
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \section{Proposal}
 
@@ -46,6 +52,10 @@ The data set contains detailed information for each task on job length, maximum 
 Although some fields in the dataset are omitted, this is an infrequent occurrence and we plan to simply omit incomplete data fields.
 We also note that since the data is captured over a month long period, it will be more meaningful to analyze a sliding window of time in our calculations to determine if there are any cyclic patterns in the data that may provide insight into the data.
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Prior Work
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 \section{Prior Work}
 
 Prior work on the $googlecluster$ data set has involved attempting to characterize and classify application using select fields in the data set and applying k-means clustering techniques ~\cite{clusterdata:Di2013, clusterdata:Mishra2010}.
@@ -54,6 +64,9 @@ The authors in both ~\cite{clusterdata:Liu2012, clusterdata:Mishra2010} perform 
 In ~\cite{clusterdata:Lui2012}, the authors in partiular expose the criticality of scheduling constraints and resource allocation in the behavior of the workloads.
 In ~\cite{clusterdata:Di2012a} Di et al. show that based on an analysis of the trace Google data centers show better resource allocation granularity to their Grid/HPC counterpart systems.
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Deliverables
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \section{Deliverables}
 
@@ -61,6 +74,9 @@ We plan to deliver a comprehensive analysis of the ratios between computation, m
 Using this data, we plan to analyze any interesting trends and perhaps suggest architectural design modifications that could alleviate bottlenecks or problems we may observe.
 We also plan to perform a very rough estimate of the energy usage to determine rough energy per FLOP and byte ratios.
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Bibliography
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \bibliography{proposal.bib}
 
