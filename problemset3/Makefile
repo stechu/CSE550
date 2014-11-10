@@ -19,6 +19,14 @@ launch:
 login:
 	spark-ec2 -k $(KEY_NAME) -i $(shell pwd)/$(KEY_FILE) -s $(SLAVE_NODES) --region $(REGION) login $(CLUSTER_NAME)
 
+# stop the cluster
+stop:
+	spark-ec2 stop $(CLUSTER_NAME) --region $(REGION)
+
+# resume the cluster
+resume:
+	spark-ec2 -i $(shell pwd)/$(KEY_FILE) start $(CLUSTER_NAME) --region $(REGION)
+
 # terminate the cluster
 destroy:
 	spark-ec2 destroy $(CLUSTER_NAME) --region $(REGION)
