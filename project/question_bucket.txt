@@ -1,0 +1,48 @@
+Questions that we should answer:
+
+What percentage of the data set is incomplete and needs to be omitted during our analysis?
+Will omitting this data have a significant impact on our analysis? - My intuition says no
+How much of the data should be omitted due to anamolous data?
+Some of the CPI data is inaccurate due to a bug in the collection infrastructure which should be omitted.
+
+What is the ratio between raw memory accesses, performance, and communication bandwidth usage?
+
+What is are these ratios between long jobs versus small jobs?
+
+Is there a correlation between any of these ratios and the job priorty? Job length?
+
+Is the system imbalanced? Too much compute? Not enough memory?
+
+How does the system balance compare to Amdahl's rule of thumb?
+
+What is the commodity backend server core that is being used?
+
+It might not be necessary to have complete numbers if we're just computing ratios. What are some of the places in our calculations where we can just insert stubs?
+
+
+Hard numbers we should compute:
+
+The total amount of compute time over the total amount of memory I/O instructions over:
+- all tasks executed in the trace
+- distribution over all tasks in the trace
+- median and average over all tasks in the trace
+- sliding window by hour over all tasks in the trace
+
+The amount of compute per disk I/O time:
+
+Using the memory accesses per instruction and CPI to determine the rough division between memory I/O instructions and compute/network I/O. Note that some of the CPI numbers are absurd and need to be suppressed.
+
+Number of instructions per job and number of memory accesses per job using CPI, estimated CPU usages, and total runtime.
+- distribution over task time
+- distribution over instruction length
+- correlation between memory accesses per instruction and CPI
+
+Note there is a clock drift issue in the time stamps used but the jobs run long enough that we can probably ignore them.
+
+The machine attribute table provides the CPU speed attribute tag which can be used to estimate order of magnitude power usage.
+
+The processor used in the Google server is apparently a Power-PC8.
+
+Also correlate the task or job priority with the resource usage curves.
+
+How do the resource request ratios compare to the actual resource usage ratios?
