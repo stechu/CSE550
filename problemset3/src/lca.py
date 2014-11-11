@@ -8,11 +8,11 @@ print "\n\n################[BEGINNING SPARK APPLICATION]######################\n
 
 sc = SparkContext("local", "LCA_APPLICATION")
 
-cites_file = "../data/cites.csv"
-papers_file = "../data/papers.csv"
+cites_bucket="s3://s3-us-west-2.amazonaws.com/550.cs.washington.edu/cites.csv"
+papers_bucket="s3://s3-us-west-2.amazonaws.com/550.cs.washington.edu/papers.csv"
 
-cites_data = sc.textFile(cites_file)
-papers_data = sc.textFile(papers_file)
+cites_data = sc.textFile(cites_bucket)
+papers_data = sc.textFile(papers_bucket)
 
 #STUB ADD APPLICATION LOGIC HERE
 
