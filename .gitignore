@@ -10,3 +10,4 @@ _*
 *tar.gz
 *.log
 *.pyc
+spark*
