@@ -8,8 +8,8 @@ print "\n\n################[BEGINNING SPARK APPLICATION]######################\n
 
 sc = SparkContext("local", "LCA_APPLICATION")
 
-cites_bucket="s3://s3-us-west-2.amazonaws.com/550.cs.washington.edu/cites.csv"
-papers_bucket="s3://s3-us-west-2.amazonaws.com/550.cs.washington.edu/papers.csv"
+cites_bucket="s3n://AKIAI6XU3D7NLMMQ5DMQ:rT3dXyT+2U4MoYRDa1qmCnWQXrmX+czTgZMLxuPw@550.cs.washington.edu/cites.csv"
+cites_bucket="s3n://AKIAI6XU3D7NLMMQ5DMQ:rT3dXyT+2U4MoYRDa1qmCnWQXrmX+czTgZMLxuPw@550.cs.washington.edu/papers.csv"
 
 cites_data = sc.textFile(cites_bucket)
 papers_data = sc.textFile(papers_bucket)
