@@ -34,28 +34,28 @@ if __name__ == "__main__":
     cites = cites.map(
         lambda x: x.split(",")).filter(filter_header)
     cites = cites.map(lambda x: (int(x[0]), int(x[1])))
-    edges = cites.cache()
+    edges = cites
 
     # compute reversed shortest path
     N = 10
-    vertices = edges.map(
-        lambda (x, y): x).distinct().filter(lambda x: x < N)
+    vertices = sc.parallelize(range(N))
 
     print "\n --------- {} valid seeds ----------\n".format(vertices.count())
 
-    # distances: (vertex, seed, distance)
+    # distances: (vertex, (seed, distance))
     distances = vertices.map(lambda x: (x, (x, 0))).cache()
     old_count = 0L
     new_count = distances.count()
     while old_count != new_count:
-        next_step = distances.join(cites).map(
+        next_step = distances.join(edges).map(
             lambda (v1, ((s, d), v2)): ((v2, s), d+1))
         dist_seed_pairs = distances.map(lambda (v, (s, d)): ((v, s), d))
         distances = next_step.union(dist_seed_pairs).reduceByKey(
             lambda a, b: a if a < b else b).map(
-            lambda ((v, s), d): (v, (s, d)))
+            lambda ((v, s), d): (v, (s, d))).cache()
         old_count = new_count
         new_count = distances.count()
+        print "\n ------------ count: {} ---------------- \n".format(new_count)
 
     print "\n--------------------get all the distances ---------------------\n"
 
