@@ -40,7 +40,7 @@ if __name__ == "__main__":
     N = 10
     vertices = sc.parallelize(range(N))
 
-    print "\n --------- {} valid seeds ----------\n".format(vertices.count())
+    print "\n --------- {} valid seeds ----------\n".format(N)
 
     # distances: (vertex, (seed, distance))
     distances = vertices.map(lambda x: (x, (x, 0))).cache()
