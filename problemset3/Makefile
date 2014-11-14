@@ -5,7 +5,7 @@
 KEY_NAME=team_404_error
 KEY_FILE=keys/key.pem
 REGION=us-west-2
-SLAVE_NODES=1
+SLAVE_NODES=4
 CLUSTER_NAME=ECHO_BASE_2
 
 all:
