@@ -40,7 +40,7 @@ if __name__ == "__main__":
     N = 10
     vertices = sc.parallelize(range(N))
 
-    print "\n --------- {} valid seeds ----------\n".format(N)
+    print "\n --------- "+str(N)+" valid seeds ----------\n"
 
     # distances: (vertex, (seed, distance))
     distances = vertices.map(lambda x: (x, (x, 0))).cache()
@@ -55,7 +55,7 @@ if __name__ == "__main__":
             lambda ((v, s), d): (v, (s, d))).cache()
         old_count = new_count
         new_count = distances.count()
-        print "\n ------------ count: {} ---------------- \n".format(new_count)
+        print "\n ------------ count: "+str(new_count)+"------------ \n"
 
     print "\n--------------------get all the distances ---------------------\n"
 
