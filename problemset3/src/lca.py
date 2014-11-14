@@ -23,8 +23,8 @@ if __name__ == "__main__":
     parallism = 4
 
     # read data from s3
-    cites = sc.textFile(cites_bucket)
-    papers = sc.textFile(papers_bucket)
+    cites = sc.textFile(cites_bucket, 16)
+    papers = sc.textFile(papers_bucket, 16)
 
     # filter the annoying header
     papers = papers.map(lambda x: x.split(",")).filter(filter_header)
@@ -57,9 +57,9 @@ if __name__ == "__main__":
         new_count = distances.count()
         print "\n ------------ count: "+str(new_count)+"------------------- \n"
 
-    print "\n--------------------get all the distances ---------------------\n"
+    print "\n-------------------- bfs finished ---------------------\n"
 
-    for e in distances.take(10):
-        print e
+    for d in distances.take(10):
+        print d
 
     print "\n---------------[TERMINATING SPARK APPLICATION]-----------------\n"
