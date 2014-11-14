@@ -34,7 +34,7 @@ if __name__ == "__main__":
     cites = cites.map(
         lambda x: x.split(",")).filter(filter_header)
     cites = cites.map(lambda x: (int(x[0]), int(x[1])))
-    edges = cites
+    edges = cites.cache()
 
     # compute reversed shortest path
     N = 10
@@ -55,7 +55,7 @@ if __name__ == "__main__":
             lambda ((v, s), d): (v, (s, d))).cache()
         old_count = new_count
         new_count = distances.count()
-        print "\n ------------ count: "+str(new_count)+"------------ \n"
+        print "\n ------------ count: "+str(new_count)+"------------------- \n"
 
     print "\n--------------------get all the distances ---------------------\n"
 
