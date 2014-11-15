@@ -37,12 +37,11 @@ if __name__ == "__main__":
 
     # compute reversed shortest path
     N = 10
-    vertices = sc.parallelize(range(N))
 
     print "\n --------- "+str(N)+" valid seeds ----------\n"
 
     # distances: (vertex, (seed, distance))
-    distances = vertices.map(lambda x: (x, (x, 0))).cache()
+    distances = sc.parallelize(range(N)).map(lambda x: (x, (x, 0))).cache()
     old_count = 0L
     new_count = N
     while old_count != new_count:
@@ -52,7 +51,7 @@ if __name__ == "__main__":
         distances.unpersist()
         distances = next_step.union(dist_seed_pairs).reduceByKey(
             lambda a, b: a if a < b else b).map(
-            lambda ((v, s), d): (v, (s, d))).cache()
+            lambda ((v, s), d): (v, (s, d))).distinct().cache()
         next_step.unpersist()
         dist_seed_pairs.unpersist()
         old_count = new_count
