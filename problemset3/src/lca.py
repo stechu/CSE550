@@ -34,7 +34,7 @@ if __name__ == "__main__":
     cites = cites.map(
         lambda x: x.split(",")).filter(filter_header)
     cites = cites.map(lambda x: (int(x[0]), int(x[1])))
-    edges = cites.sample()
+    edges = cites
 
     # compute reversed shortest path
     N = 10
@@ -60,8 +60,7 @@ if __name__ == "__main__":
     print "\n-------------------- bfs finished ---------------------\n"
 
     # pd: (vertex, (seed, year, distance))
-    pd = distances.map(lambda ((v, s), d): (v, (s, d))).join(papers).map(
-        lambda (v, ((s, d), y)): (v, (s, y, d)))
-
+    # pd = distances.map(lambda ((v, s), d): (v, (s, d))).join(papers).map(
+    #    lambda (v, ((s, d), y)): (v, (s, y, d)))
 
     print "\n---------------[TERMINATING SPARK APPLICATION]-----------------\n"
