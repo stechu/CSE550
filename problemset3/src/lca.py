@@ -33,8 +33,7 @@ if __name__ == "__main__":
     # filter cites
     cites = cites.map(
         lambda x: x.split(",")).filter(filter_header)
-    cites = cites.map(lambda x: (int(x[0]), int(x[1])))
-    edges = cites
+    edges = cites.map(lambda x: (int(x[0]), int(x[1]))).cache()
 
     # compute reversed shortest path
     N = 10
@@ -50,13 +49,17 @@ if __name__ == "__main__":
         next_step = distances.join(edges).map(
             lambda (v1, ((s, d), v2)): ((v2, s), d+1))
         dist_seed_pairs = distances.map(lambda (v, (s, d)): ((v, s), d))
+        distances.unpersist()
         distances = next_step.union(dist_seed_pairs).reduceByKey(
             lambda a, b: a if a < b else b).map(
             lambda ((v, s), d): (v, (s, d))).cache()
+        next_step.unpersist()
+        dist_seed_pairs.unpersist()
         old_count = new_count
         new_count = distances.count()
         print "\n ------------ count: "+str(new_count)+"------------------- \n"
 
+    edges.unpersist()
     print "\n-------------------- bfs finished ---------------------\n"
 
     # pd: (vertex, (seed, year, distance))
