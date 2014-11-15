@@ -11,3 +11,11 @@ _*
 *.log
 *.pyc
 spark*
+problemset1/partb/setuptools-6.0.2.zip
+problemset2/doc/design_document.fdb_latexmk
+problemset2/doc/design_document.synctex.gz
+problemset2/src/error_log
+problemset2/src/log_host1
+.DS_Store
+problemset1/.DS_Store
+problemset3/.DS_Store

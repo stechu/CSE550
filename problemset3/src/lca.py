@@ -23,8 +23,8 @@ if __name__ == "__main__":
     parallism = 4
 
     # read data from s3
-    cites = sc.textFile(cites_bucket, 16)
-    papers = sc.textFile(papers_bucket, 16)
+    cites = sc.textFile(cites_bucket, 32)
+    papers = sc.textFile(papers_bucket, 32)
 
     # filter the annoying header
     papers = papers.map(lambda x: x.split(",")).filter(filter_header)
@@ -38,7 +38,7 @@ if __name__ == "__main__":
 
     # compute reversed shortest path
     N = 10
-    vertices = sc.parallelize(range(N)).cache()
+    vertices = sc.parallelize(range(N))
 
     print "\n --------- "+str(N)+" valid seeds ----------\n"
 
