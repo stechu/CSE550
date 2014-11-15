@@ -22,51 +22,74 @@
 
 \section{Introduction}
 
-The Least Common Ancestor (LCA) algorithm is a method of gauging the distance between two given nodes in a directed acyclic graph (DAG).
-In this project we implement the LCA algorithm for a DAG of paper citations; citations graphs are acyclic as paper citations are causal.
+The Least Common Ancestor (LCA) algorithm is a method of determining a which node in the graph minimize a distance function given two other nodes in a directed acyclic graph (DAG).
 Given two papers $p_1$ and $p_2$, we want to find the LCA of the two papers defined $LCA(p_1, p_2)$ if it exists.
 A common ancestor is defined as any paper $p_i$ that has a path to both $p_1$ and $p_2$.
-Note that the set $S(p_1, p_2)$ denoting the common ancestors of $p_1$ and $p_2$ can be arbitrarily large or empty.
+Note that the set $S(p_1, p_2)$ denoting the set of common ancestors of $p_1$ and $p_2$ can be arbitrarily large or empty.
 The least common ancestor is defined to be paper $p_{lca}$ in $S(p_1, p_2)$ which minimizes a cost function.
+Of course if the set $S(p_1, p_2)$ is empty, no such LCA exists for the two papers.
 The cost function for any paper $p_i \in S(p_1, p_2)$ is defined as the maximum of the distances between $p_1$ and $p_{lca}$, and $p_2$ and $p_{lca}$ where each edge in the directed graph has equal weight.
 Each paper also contains two attributes used to help break ties between equidistant candidates in the graph: a publication year, and unique paper identifier.
 Should multiple papers have equal cost by the distance metric, the year of publication is used to break a tie where a lower year of publication minimizes this secondary cost function.
 Should multiple papers have both equal distance cost and year of publication, the unique paper identification is used to determine the LCA.
 The paper with the least unique identification is chosen as the LCA.
 
+In this project we implement the LCA algorithm for a DAG of paper citations; citations graphs are acyclic as paper citations are causal.
 We implement the LCA problem in Spark on top of Amazon's EC2 platform.
+
+\section{Running Our Code}
+
+Our repository is composed of a top level Makefile which is used to launch and bring up the Spark cluster.
+In order to use the script, the EC2 sparks scripts from the Spark distribution must be added to the $PATH$ variable.
+By running $make launch$, our script will bring up a new Spark cluster on EC2.
+This launch script occassionally times out and gives up if the EC2 cluster does not finish its self-checks in time.
+Once the cluster is up, we can stop it using $make stop$ and resume it using $make resume$.
+To log in, we use $make login$ which opens an ssh session with our cluster.
+
+Once logged into our cluster, we configure the $PATH$ variable to contain the binaries for $spark-submit$.
+We also clone our project repository or SCP the Spark application to some deployable location on the cluster.
+Our $src$ directory, contains a Makefile that contains a $test$ target defined in $test.py$ which can be used as a sanity check to verify that the Spark cluster was properly resumed or intialized.
+This $test$ target executes the example Spark job from the assignment specification that counts the number of times the string ``12'' occurs in the cites.csv file.
+The default $all$ target in our Makefile launches our LCA application defined in $lca.py$.
+Launching the LCA application will execute the specified algorithm across all nodes available on the cluster on the original data set.
+The result of the LCA algorithm is logged in TODO: WHERE IS THIS LOGGED?
+The source for the LCA Spark application is located in $lca.py$.
+
+When we are done with our cluster, we issue a $make destroy$ command at the top level Makefile to tell EC2 to bring down and destroy our cluster.
 
 \section{Performance Evaluation}
 
-To evaluate the performance and scalability of our implementation, we vary the number of EC2 cluster nodes on our system. 
-
 \subsection{Raw Performance}
-
-
-
-TODO: insert graph with computation time scalability with larger dat
-
-TODO: execution time decrease with increase in number of nodes
-
-\subsection{Performance Breakdown}
 
 To analyze the scalability of our implementation and platform, we evaluate the latency of a single query on a varying size dataset and number of cluster nodes.
 Due to configuration limitations our experiments were capped at a 19 cluster node maximum (1 master node, 19 slave nodes).
 
 \begin{figure}
 \centering
-%includegraphics{}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% @SHUMO TODO - add the graph
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% includegraphics{ADD LATENCY VERSUS INCREASING DATA SET SIZE GRAPH HERE}
+
 \caption{LCA query latency with increasing data set size}
 \label{latency_scaling}
 \end{figure}
 
 Figure ~\ref{latency_scaling} shows the query latency time with increasing data set size.
 As expected, we see an increase in the query latency with respect to increasing data set size. 
+
 TODO: explain the scaling here
 
 \begin{figure}
 \centering
-%\includegraphics{}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% @SHUMO TODO - add the graph
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%\includegraphics{ADD QUERY LATENCY WITH INCREASING NUMBER OF CLUSTER NODES HERE}
+
 \caption{LCA query latency with increasing number of cluster nodes}
 \label{node_scaling}
 \end{figure}
@@ -91,31 +114,46 @@ However, since our application is not embarrassingly parallel, the scalability n
 
 TODO: what scalability barriers does our implementation encounter
 
-\subsection{Analytics Platform Evaluation}
+\subsection{Throughput Per Hour}
 
-The big data analytics platform we used for this project was Apache Spark.
-This choice of platform was both a good and bad fit as the LCA algorithm has portions of the algorithm which fall inline well with the Spark API well and some portions do not.
-For instance, when performing the graph traversal, it may have been much easier from a programmability and execution model aspect to use GraphLab's optimized single source shortest path API.
-However, the Spark execution and programming model allows more flexible parallelization by offering automatically parallelizable arbitrary lambda expressions.
-Thus Spark was an acceptable fit for highly optimized graph travesral operations, but a good fit for portions of the algorithm that have no direct GraphLab API mapping such as the JOIN operations we need to execute when computing the cost function of LCA candidates.
-
-
-TODO: was platform a good fit for analytics application?
-
-TODO: if our analytics suck, why?
-
-\section{Throughput Per Hour}
-
-While query latency is an important metric of performance for many applications, we believe that the LCA algorithm is not latency sensitive; in other words, latency is a complete metric of implementation performance.
+While query latency is an important metric of performance for many applications, we believe that most applications of the LCA algorithm are not latency sensitive; in other words, latency is an incomplete metric of implementation performance.
 One could conceivably build the citation graph, pre-compute all of the LCAs and then cache the results for incoming queries.
 This would only require a one time cost of building the index to service arbitrarily many queries; since the LCA index can be built offline, throughput is arguably a more important factor than latency.
 Thus to get an idea of how our implementation performs on the throughput axis, we measure the throughput per hour of our system.
 
 We measure the throughput and scalability of our implementation, we tried to determine the number LCAs for a given dataset size N we were able to compute in an hour.
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% @SHUMO TODO - add the graph
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% Add a throughput per hours number here
+
 TODO: INSERT THE RESULTS FOR THIS SECTION HERE
 
 TODO: ANALYSIS OF THE DATA HERE
 
+\section{Analytics Platform Evaluation}
+
+The big data analytics platform we used for this project was Apache Spark.
+This choice of platform was both a good and bad fit as the LCA algorithm has portions of the algorithm which lend themselves well to the Spark API well and some portions do not.
+For instance, when performing the graph traversal, it may have been much easier from a programmability and execution model aspect to use GraphLab's optimized single source shortest path API.
+However, the Spark execution and programming model allows more flexible parallelization by offering automatically parallelizable arbitrary lambda expressions.
+We argue that this flexibility is more important than being restricted to GraphLab's API.
+Thus we conclude Spark was a mediocre fit for highly optimized graph travesral operations, but a good fit for portions of the algorithm that have no direct GraphLab API mapping such as the JOIN operations we need to execute when computing the cost function of LCA candidates.
+
+Aside from performance, there were many problems just with getting the platform to run in the EC2 infrastructure properly and get Spark to deploy properly.
+While for an Apache project, Spark appears to have an acceptable amount of documentation, we found the any sort of debugging or trouble shooting infrastructure help was impossibly difficult to find or insufficiently documented on forums.
+Thus we spent a vast majority of our time attempting to deploy and figure out how to properly use Spark's arcane API.
+In particular the EC2 deployment scripts often resulted in unintelligible error messages when not configured properly.
+The Spark documentation, while straightforward, was insufficient in communicating how to use some of Spark's API to efficiently implement the algorithm.
+Furthermore, we experienced random terminations of our EC2 instance Spark clusters while running our experiments, and Spark runtime application crashes which were not properly documented.
+Finally, we also ran in to problems when resuming stopped instances of our cluster.
+There were a few instances where attempts to resume the cluster would fail with an error claiming that the cluster instances could not open communication channels with each other and the resume directive would just give up.
+These deployment issues combined with the insufficiently documented Spark API made implementing and deploying our application much more frustrating then the Paxos assignment.
+
+TODO: was platform a good fit for analytics application?
+
+TODO: if our analytics suck, why?
 
 \end{document}
