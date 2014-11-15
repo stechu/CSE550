@@ -19,7 +19,7 @@ if __name__ == "__main__":
 
     print "\n---------------[BEGINNING SPARK APPLICATION]-----------------\n"
 
-    sc = SparkContext("local", "LCA_APPLICATION")
+    sc = SparkContext(appName="LCA_APPLICATION")
     parallism = 4
 
     # read data from s3
