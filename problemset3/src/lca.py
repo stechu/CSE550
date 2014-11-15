@@ -23,8 +23,8 @@ if __name__ == "__main__":
     parallism = 4
 
     # read data from s3
-    cites = sc.textFile(cites_bucket, 32)
-    papers = sc.textFile(papers_bucket, 32)
+    cites = sc.textFile(cites_bucket, 16)
+    papers = sc.textFile(papers_bucket, 16)
 
     # filter the annoying header
     papers = papers.map(lambda x: x.split(",")).filter(filter_header)
@@ -45,7 +45,7 @@ if __name__ == "__main__":
     # distances: (vertex, (seed, distance))
     distances = vertices.map(lambda x: (x, (x, 0))).cache()
     old_count = 0L
-    new_count = distances.count()
+    new_count = N
     while old_count != new_count:
         next_step = distances.join(edges).map(
             lambda (v1, ((s, d), v2)): ((v2, s), d+1))
