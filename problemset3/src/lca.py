@@ -51,7 +51,7 @@ if __name__ == "__main__":
         distances.unpersist()
         distances = next_step.union(dist_seed_pairs).reduceByKey(
             lambda a, b: a if a < b else b).map(
-            lambda ((v, s), d): (v, (s, d))).distinct().cache()
+            lambda ((v, s), d): (v, (s, d))).coalesce(16).cache()
         next_step.unpersist()
         dist_seed_pairs.unpersist()
         old_count = new_count
