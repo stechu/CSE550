@@ -59,6 +59,7 @@ if __name__ == "__main__":
         print "\n ------------ count: "+str(new_count)+"------------------- \n"
 
     edges.unpersist()
+    distances.filter(lambda (v, (s, d)): False if v == s else False)
     print "\n-------------------- bfs finished ---------------------\n"
 
     def transform_accestors(e):
@@ -83,12 +84,13 @@ if __name__ == "__main__":
             return v1 if a1 < a2 else v2
 
     # pd: (vertex, (seed, year, distance))
-    pd = distances.map(lambda ((v, s), d): (v, (s, d))).join(papers).map(
+    pd = distances.join(papers).map(
         lambda (v, ((s, d), y)): (v, (s, y, d)))
     accestors = pd.join(pd).filter(
         lambda (v, ((s1, d1, y1), (s2, d2, y2))): True if s1 < s2 else False)
     lca = accestors.map(transform_accestors).reduceByKey(
         compare_accestors)
-    lca.saveAsTextFile("lca_N_10_sample")
-
+    #lca.saveAsTextFile("lca_N_10_sample")
+    for item in lca.collect():
+        print item
     print "\n---------------[TERMINATING SPARK APPLICATION]-----------------\n"
