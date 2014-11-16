@@ -20,11 +20,11 @@ if __name__ == "__main__":
     print "\n---------------[BEGINNING SPARK APPLICATION]-----------------\n"
 
     sc = SparkContext(appName="LCA_APPLICATION")
-    parallism = 4
+    parallism = 19
 
     # read data from s3
-    cites = sc.textFile(cites_bucket, 16).sample(False, 0.01, 2)
-    papers = sc.textFile(papers_bucket, 16)
+    cites = sc.textFile(cites_bucket, parallism).sample(False, 0.1, 2)
+    papers = sc.textFile(papers_bucket, parallism)
 
     # filter the annoying header
     papers = papers.map(lambda x: x.split(",")).filter(filter_header)
@@ -51,7 +51,7 @@ if __name__ == "__main__":
         distances.unpersist()
         distances = next_step.union(dist_seed_pairs).reduceByKey(
             lambda a, b: a if a < b else b).map(
-            lambda ((v, s), d): (v, (s, d))).coalesce(16).cache()
+            lambda ((v, s), d): (v, (s, d))).coalesce(parallism).cache()
         next_step.unpersist()
         dist_seed_pairs.unpersist()
         old_count = new_count
