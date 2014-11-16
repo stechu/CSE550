@@ -17,11 +17,13 @@ import os
 import sys
 
 MACHINE_EVENTS_FILE="/scratch/vlee2/google-trace/data/machine_events/part-00000-of-00001.csv"
-MACHINE_EVENTS_RESULTS="machine_events_results.csv"
+MACHINE_EVENTS_RESULTS="../results/machine_events_results.csv"
+WARNING_FILE="machine_events_warnings.txt"
 
 # open the target file
 
 data_file = open(MACHINE_EVENTS_FILE, "r+")
+warning_file = open(WARNING_FILE, "w+")
 
 # initialize the data structures
 
@@ -49,7 +51,7 @@ for line in data_file:
 
     if (fields[0]  is "" or fields[1] is "" or fields[2] is "" or fields[3] is "" or fields[4] is "" or fields[5] is ""):
         warnings += 1
-        print "Warning: a field was blank... ignoring this data point: " + line
+        warning_file.write("Warning: a field was blank... ignoring this data point: " + line + "\n")
         continue
 
     timestamp = int(fields[0].strip(" \n\t"))
@@ -71,26 +73,30 @@ for line in data_file:
             seen_machines.append(machine_id)
         # bookkeep the machine distribution
         if machine_id not in working_machines:
+            # add to the platform count
             if platform_id not in machine_dist:
                 machine_dist[platform_id] = 1
             else:
                 machine_dist[platform_id] += 1
+
             working_machines.append(machine_id)
-        relative_cpu += float(cpu_capacity)
-        relative_memory += float(memory_capacity)
         machine_configs[machine_id] = (cpu_capacity, memory_capacity)
 
-    # process a removed machine
+    # process a removed machine from the machine distribution
     elif int(event_type) == 1:
-        if machine_id not in machine_dist:
-            print "Warning: machine was removed before being added..."
+        if platform_id not in machine_dist:
+            warning_file.write("Warning: machine was removed before being added: " + str(machine_id) + "\n")
             warnings += 1
-        elif machine_dist[machine_id] <= 0:
-            print "Warning: machine was already removed from distribution..."
+        elif machine_dist[platform_id] <= 0:
+            warning_file.write("Warning: machine was already removed from distribution: " + str(machine_id) + "\n")
             warnings += 1
         else:
-            machine_dist[machine_id] -= 1
-        machine_configs[machine_id] = (0, 0)
+            machine_dist[platform_id] -= 1
+        
+        if machine_id in working_machines:
+            working_machines.remove(machine_id)
+
+        machine_configs.pop(machine_id, None)
 
     # process an update
     else:
@@ -99,9 +105,6 @@ for line in data_file:
             prior_cpu = prior_config[0]
             prior_memory = prior_config[1]
             
-            # don't have to tweek the platform distribution since hardware isn't changed, just the resource availability
-            relative_cpu = relative_cpu - prior_cpu + cpu_capacity
-            relative_memory = relative_memory - prior_memory + memory_capacity
         else:
             # if this is the first time you see the machine log it
             if machine_id not in seen_machines:
@@ -117,14 +120,52 @@ for line in data_file:
                 else:
                     machine_dist[platform_id] += 1
                 working_machines.append(machine_id)
-            relative_cpu += float(cpu_capacity)
-            relative_memory += float(memory_capacity)
     
         machine_configs[machine_id] = (cpu_capacity, memory_capacity)
+
+# compute a machine cpu capacity histogram, memory capacity histogram, and relative cpu to memory histogram
+
+cpu_hist = dict()
+memory_hist = dict()
+ratio_hist = dict()
+for key in machine_configs:
+    (c, m) = machine_configs[key]
+    
+    if c in cpu_hist.keys():
+        cpu_hist[c] += 1
+    else:
+        cpu_hist[c] = 1
+
+    if m in memory_hist.keys():
+        memory_hist[m] += 1
+    else:
+        memory_hist[m] = 1
+
+    # deal with divide by zero issues
+    ratio = 0
+    if (m == 0):
+        ratio = 0
+    else:
+        ratio = c/m
+
+    if ratio in ratio_hist.keys():
+        ratio_hist[ratio] += 1
+    else:
+        ratio_hist[ratio] = 1
+
+# compute a capacity to ratio histogram
 
 print "[Info] TOTAL WARNINGS: " + str(warnings) + "\n"
 
 data_file.close()
+
+# compute the total relative CPU and memory from machine_configs
+v_cpu = 0
+v_memory = 0
+for key in machine_configs:
+    (c, m) = machine_configs[key]
+    relative_cpu += c
+    relative_memory += m
 
 # log the information to outputs file
 result_file = open(MACHINE_EVENTS_RESULTS, "w+")
@@ -132,6 +173,7 @@ result_file = open(MACHINE_EVENTS_RESULTS, "w+")
 # dump the relative cpu and memory
 result_file.write("RELATIVE CPU, " + str(relative_cpu) + "\n")
 result_file.write("RELATIVE MEMORY, " + str(relative_memory) + "\n")
+result_file.write("TOTAL MACHINES SEEN, " + str(len(machine_configs.keys())) + "\n")
 
 # write the origin distribution
 result_file.write("\nINITIAL MACHINE DISTRIBUTION\n")
@@ -145,4 +187,23 @@ result_file.write("\nFINAL MACHINE DISTRIBUTION\n")
 for key in machine_dist.keys():
     result_file.write(str(key) + "," + str(init_machine_dist[key]) + "\n")
 
+# write the cpu histogram
+result_file.write("\nRELATIVE CPU HISTOGRAM\n")
+
+for key in cpu_hist:
+    result_file.write(str(key) + "," + str(cpu_hist[key]) + "\n")
+
+# write the memory histogram
+result_file.write("\nMEMORY HISTOGRAM\n")
+
+for key in memory_hist:
+    result_file.write(str(key) + "," + str(memory_hist[key]) + "\n")
+
+# write the relative ratio histogram
+result_file.write("\nRELATIVE RATIO HISTOGRAM\n")
+
+for key in ratio_hist:
+    result_file.write(str(key) + "," + str(ratio_hist[key]) + "\n")
+
 result_file.close()
+warning_file.close()
