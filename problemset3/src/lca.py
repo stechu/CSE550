@@ -23,7 +23,7 @@ if __name__ == "__main__":
     parallism = 4
 
     # read data from s3
-    cites = sc.textFile(cites_bucket, 16)
+    cites = sc.textFile(cites_bucket, 16).sample(False, 0.01, 2)
     papers = sc.textFile(papers_bucket, 16)
 
     # filter the annoying header
@@ -61,8 +61,34 @@ if __name__ == "__main__":
     edges.unpersist()
     print "\n-------------------- bfs finished ---------------------\n"
 
+    def transform_accestors(e):
+        """
+            transform tuple to accesstor: choose the larger distance
+        """
+        v, ((s1, d1, y1), (s2, d2, y2)) = e
+        assert y1 == y2
+        return ((s1, s2), (v, max(d1, d2), y1))
+
+    def compare_accestors(v1, v2):
+        """
+            communitive function for choose lowest accestor
+        """
+        a1, d1, y1 = v1
+        a2, d2, y2 = v2
+        if d1 != d2:
+            return v1 if d1 < d2 else v2
+        elif y1 != y2:
+            return v1 if y1 < y2 else v2
+        else:
+            return v1 if a1 < a2 else v2
+
     # pd: (vertex, (seed, year, distance))
-    # pd = distances.map(lambda ((v, s), d): (v, (s, d))).join(papers).map(
-    #    lambda (v, ((s, d), y)): (v, (s, y, d)))
+    pd = distances.map(lambda ((v, s), d): (v, (s, d))).join(papers).map(
+        lambda (v, ((s, d), y)): (v, (s, y, d)))
+    accestors = pd.join(pd).filter(
+        lambda (v, ((s1, d1, y1), (s2, d2, y2))): True if s1 < s2 else False)
+    lca = accestors.map(transform_accestors).reduceByKey(
+        compare_accestors)
+    lca.saveAsTextFile("lca_N_10_sample")
 
     print "\n---------------[TERMINATING SPARK APPLICATION]-----------------\n"
