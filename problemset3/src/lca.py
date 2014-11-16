@@ -19,6 +19,7 @@ if __name__ == "__main__":
 
     print "\n---------------[BEGINNING SPARK APPLICATION]-----------------\n"
 
+    SparkContext.setSystemProperty('spark.executor.memory', '2.5g')
     sc = SparkContext(appName="LCA_APPLICATION")
     parallism = 19
 
