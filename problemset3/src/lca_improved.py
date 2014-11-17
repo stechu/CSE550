@@ -66,7 +66,7 @@ if __name__ == "__main__":
         next_step_d_s_pairs.unpersist()
         distances.unpersist()
         distances = new_distances
-        last_step = next_step
+        last_step = next_step.coalesce(parallism)
         old_count = new_count
         new_count = distances.count()
         print "bfs-count:"+str(new_count)
