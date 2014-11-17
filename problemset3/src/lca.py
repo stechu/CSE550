@@ -19,12 +19,13 @@ if __name__ == "__main__":
 
     print "\n---------------[BEGINNING SPARK APPLICATION]-----------------\n"
 
+    SparkContext.setSystemProperty('spark.executor.memory', '2500m')
     sc = SparkContext(appName="LCA_APPLICATION")
-    parallism = 4
+    parallism = 19
 
     # read data from s3
-    cites = sc.textFile(cites_bucket, 16).sample(False, 0.01, 2)
-    papers = sc.textFile(papers_bucket, 16)
+    cites = sc.textFile(cites_bucket, parallism).sample(False, 0.1, 2)
+    papers = sc.textFile(papers_bucket, parallism)
 
     # filter the annoying header
     papers = papers.map(lambda x: x.split(",")).filter(filter_header)
@@ -51,7 +52,7 @@ if __name__ == "__main__":
         distances.unpersist()
         distances = next_step.union(dist_seed_pairs).reduceByKey(
             lambda a, b: a if a < b else b).map(
-            lambda ((v, s), d): (v, (s, d))).coalesce(16).cache()
+            lambda ((v, s), d): (v, (s, d))).coalesce(parallism).cache()
         next_step.unpersist()
         dist_seed_pairs.unpersist()
         old_count = new_count
@@ -67,6 +68,10 @@ if __name__ == "__main__":
             transform tuple to accesstor: choose the larger distance
         """
         v, ((s1, d1, y1), (s2, d2, y2)) = e
+        if y1 != y2:
+            print "\n\n----------------error------------------\n\n"
+            print e
+            print "\n\n---------------------------------------\n\n"
         assert y1 == y2
         return ((s1, s2), (v, max(d1, d2), y1))
 
@@ -90,7 +95,5 @@ if __name__ == "__main__":
         lambda (v, ((s1, d1, y1), (s2, d2, y2))): True if s1 < s2 else False)
     lca = accestors.map(transform_accestors).reduceByKey(
         compare_accestors)
-    #lca.saveAsTextFile("lca_N_10_sample")
-    for item in lca.collect():
-        print item
+    lca.saveAsTextFile("lca_N_10_sample")
     print "\n---------------[TERMINATING SPARK APPLICATION]-----------------\n"
