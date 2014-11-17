@@ -4,6 +4,7 @@
 
 import sys
 from pyspark import SparkContext
+import csv
 
 cites_bucket = """s3n://AKIAI6XU3D7NLMMQ5DMQ:\
 rT3dXyT+2U4MoYRDa1qmCnWQXrmX+czTgZMLxuPw@550.cs.washington.edu/cites.csv"""
@@ -32,7 +33,8 @@ if __name__ == "__main__":
     parallism = 19
 
     # read data from s3
-    cites = sc.textFile(cites_bucket, parallism).sample(False, 0.5, 2)
+    cites = sc.textFile(cites_bucket, parallism).sample(
+        False, sampling_rate, 2)
     papers = sc.textFile(papers_bucket, parallism)
 
     # filter the annoying header
@@ -52,6 +54,7 @@ if __name__ == "__main__":
     distances = sc.parallelize(range(N)).map(lambda x: (x, (x, 0))).cache()
     old_count = 0L
     new_count = N
+    # shorted path computation, only for interested vertices
     while old_count != new_count:
         next_step = distances.join(edges).map(
             lambda (v1, ((s, d), v2)): ((v2, s), d+1))
@@ -98,5 +101,7 @@ if __name__ == "__main__":
         lambda (v, ((s1, d1, y1), (s2, d2, y2))): True if s1 < s2 else False)
     lca = accestors.map(transform_accestors).reduceByKey(
         compare_accestors).collect()
-    lca.saveAsTextFile(output_file_name)
+    with open(output_file_name, 'wb') as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerows(lca)
     print "\n---------------[TERMINATING SPARK APPLICATION]-----------------\n"
