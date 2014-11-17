@@ -51,8 +51,8 @@ if __name__ == "__main__":
     print "\n --------- "+str(N)+" valid seeds ----------\n"
 
     # distances: (vertex, (seed, distance))
-    distances = sc.parallelize(range(N)).map(lambda x: (x, (x, 0))).cache()
-    last_step = distances
+    distances = sc.parallelize(range(N)).map(lambda x: ((x, x), 0)).cache()
+    last_step = distances.map(lambda ((x, y), d): (x, (y, d)))
     old_count = 0L
     new_count = N
     # shorted path computation, only for interested vertices
@@ -61,8 +61,7 @@ if __name__ == "__main__":
             lambda (v1, ((s, d), v2)): (v2, (s, d+1)))
         next_step_d_s_pairs = next_step.map(lambda (v, (s, d)): ((v, s), d))
         new_distances = distances.union(next_step_d_s_pairs).reduceByKey(
-            lambda a, b: a if a < b else b).map(
-            lambda ((v, s), d): (v, (s, d))).coalesce(parallism).cache()
+            lambda a, b: a if a < b else b).coalesce(parallism).cache()
         last_step.unpersist()
         next_step_d_s_pairs.unpersist()
         distances.unpersist()
