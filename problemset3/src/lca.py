@@ -24,7 +24,7 @@ if __name__ == "__main__":
     parallism = 19
 
     # read data from s3
-    cites = sc.textFile(cites_bucket, parallism).sample(False, 0.1, 2)
+    cites = sc.textFile(cites_bucket, parallism).sample(False, 0.5, 2)
     papers = sc.textFile(papers_bucket, parallism)
 
     # filter the annoying header
