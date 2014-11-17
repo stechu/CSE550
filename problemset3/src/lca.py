@@ -93,7 +93,11 @@ if __name__ == "__main__":
         lambda (v, ((s, d), y)): (v, (s, y, d)))
     accestors = pd.join(pd).filter(
         lambda (v, ((s1, d1, y1), (s2, d2, y2))): True if s1 < s2 else False)
-    lca = accestors.map(transform_accestors).reduceByKey(
-        compare_accestors)
-    lca.saveAsTextFile("lca_N_10_sample")
+    error_tuples = accestors.filter(
+        lambda (v, ((s1, d1, y1), (s2, d2, y2))): True if y1 != y2 else False)
+    for e in error_tuples.take(10):
+        print e
+    #lca = accestors.map(transform_accestors).reduceByKey(
+    #    compare_accestors)
+    #lca.saveAsTextFile("lca_N_10_sample")
     print "\n---------------[TERMINATING SPARK APPLICATION]-----------------\n"
