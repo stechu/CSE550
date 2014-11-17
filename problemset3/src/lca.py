@@ -19,11 +19,11 @@ if __name__ == "__main__":
         return s[0].isdigit() and s[1].isdigit()
 
     # convert program arguments
-    if len(sys.argv) != 3:
+    if len(sys.argv) != 4:
         print "lca.py takes two arguments: N, savedFileName, sampling_rate"
-    N = int(sys.argv[0])
-    output_file_name = sys.argv[1]
-    sampling_rate = float(sys.argv[2])
+    N = int(sys.argv[1])
+    output_file_name = sys.argv[2]
+    sampling_rate = float(sys.argv[3])
 
     print "\n---------------[BEGINNING SPARK APPLICATION]-----------------\n"
 
