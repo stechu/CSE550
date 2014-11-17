@@ -55,6 +55,7 @@ if __name__ == "__main__":
     last_step = distances.map(lambda ((x, y), d): (x, (y, d)))
     old_count = 0L
     new_count = N
+    bfs_round = 1
     # shorted path computation, only for interested vertices
     while old_count != new_count:
         next_step = last_step.join(edges).map(
@@ -66,9 +67,12 @@ if __name__ == "__main__":
         next_step_d_s_pairs.unpersist()
         distances.unpersist()
         distances = new_distances
-        last_step = next_step.coalesce(parallism)
+        last_step = next_step.filter(
+            lambda (v, (s, d)): True if d == bfs_round else False).coalesce(
+            parallism)
         old_count = new_count
         new_count = distances.count()
+        bfs_round += 1
         print "bfs-count:"+str(new_count)
 
     edges.unpersist()
