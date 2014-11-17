@@ -2,6 +2,7 @@
 # lca.py - least common ancestor file
 ####################################################################
 
+import sys
 from pyspark import SparkContext
 
 cites_bucket = """s3n://AKIAI6XU3D7NLMMQ5DMQ:\
@@ -16,6 +17,13 @@ if __name__ == "__main__":
             filter non-digit items
         """
         return s[0].isdigit() and s[1].isdigit()
+
+    # convert program arguments
+    if len(sys.argv) != 3:
+        print "lca.py takes two arguments: N, savedFileName, sampling_rate"
+    N = int(sys.argv[0])
+    output_file_name = sys.argv[1]
+    sampling_rate = float(sys.argv[2])
 
     print "\n---------------[BEGINNING SPARK APPLICATION]-----------------\n"
 
@@ -37,7 +45,6 @@ if __name__ == "__main__":
     edges = cites.map(lambda x: (int(x[0]), int(x[1]))).cache()
 
     # compute reversed shortest path
-    N = 10
 
     print "\n --------- "+str(N)+" valid seeds ----------\n"
 
@@ -57,11 +64,11 @@ if __name__ == "__main__":
         dist_seed_pairs.unpersist()
         old_count = new_count
         new_count = distances.count()
-        print "\n ------------ count: "+str(new_count)+"------------------- \n"
+        print "bfs-count:"+str(new_count)
 
     edges.unpersist()
     distances.filter(lambda (v, (s, d)): False if v == s else False)
-    print "\n-------------------- bfs finished ---------------------\n"
+    print "\n-------------------- bfs finished -------------------------\n"
 
     def transform_accestors(e):
         """
@@ -90,6 +97,6 @@ if __name__ == "__main__":
     accestors = pd.join(pd).filter(
         lambda (v, ((s1, d1, y1), (s2, d2, y2))): True if s1 < s2 else False)
     lca = accestors.map(transform_accestors).reduceByKey(
-        compare_accestors)
-    lca.saveAsTextFile("lca_N_10_sample_0.5")
+        compare_accestors).collect()
+    lca.saveAsTextFile(output_file_name)
     print "\n---------------[TERMINATING SPARK APPLICATION]-----------------\n"
