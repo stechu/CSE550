@@ -58,7 +58,7 @@ if __name__ == "__main__":
     # shorted path computation, only for interested vertices
     while old_count != new_count:
         next_step = last_step.join(edges).map(
-            lambda (v1, ((s, d), v2)): ((v2, s), d+1))
+            lambda (v1, ((s, d), v2)): (v2, (s, d+1)))
         next_step_d_s_pairs = next_step.map(lambda (v, (s, d)): ((v, s), d))
         new_distances = distances.union(next_step_d_s_pairs).reduceByKey(
             lambda a, b: a if a < b else b).map(
