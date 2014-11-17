@@ -68,6 +68,10 @@ if __name__ == "__main__":
             transform tuple to accesstor: choose the larger distance
         """
         v, ((s1, d1, y1), (s2, d2, y2)) = e
+        if y1 != y2:
+            print "\n\n----------------error------------------\n\n"
+            print e
+            print "\n\n---------------------------------------\n\n"
         assert y1 == y2
         return ((s1, s2), (v, max(d1, d2), y1))
 
@@ -91,7 +95,5 @@ if __name__ == "__main__":
         lambda (v, ((s1, d1, y1), (s2, d2, y2))): True if s1 < s2 else False)
     lca = accestors.map(transform_accestors).reduceByKey(
         compare_accestors)
-    #lca.saveAsTextFile("lca_N_10_sample")
-    for item in lca.collect():
-        print item
+    lca.saveAsTextFile("lca_N_10_sample")
     print "\n---------------[TERMINATING SPARK APPLICATION]-----------------\n"
