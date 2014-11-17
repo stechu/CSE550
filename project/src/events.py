@@ -45,6 +45,9 @@ relative_memory = 0
 
 warnings = 0
 machine_configs = dict()
+machines_added = 0
+machines_removed = 0
+machines_updated = 0
 
 for line in data_file:
     fields = line.split(",")
@@ -81,6 +84,7 @@ for line in data_file:
 
             working_machines.append(machine_id)
         machine_configs[machine_id] = (cpu_capacity, memory_capacity)
+        machines_added += 1
 
     # process a removed machine from the machine distribution
     elif int(event_type) == 1:
@@ -97,6 +101,7 @@ for line in data_file:
             working_machines.remove(machine_id)
 
         machine_configs.pop(machine_id, None)
+        machines_removed += 1
 
     # process an update
     else:
@@ -122,6 +127,7 @@ for line in data_file:
                 working_machines.append(machine_id)
     
         machine_configs[machine_id] = (cpu_capacity, memory_capacity)
+        machines_updated += 1
 
 # compute a machine cpu capacity histogram, memory capacity histogram, and relative cpu to memory histogram
 
@@ -174,6 +180,9 @@ result_file = open(MACHINE_EVENTS_RESULTS, "w+")
 result_file.write("RELATIVE CPU, " + str(relative_cpu) + "\n")
 result_file.write("RELATIVE MEMORY, " + str(relative_memory) + "\n")
 result_file.write("TOTAL MACHINES SEEN, " + str(len(machine_configs.keys())) + "\n")
+result_file.write("MACHINES ADDED, " + str(machines_added) + "\n")
+result_file.write("MACHINES REMOVED, " + str(machines_removed) + "\n")
+result_file.write("MACHINES_UUPDATED, " + str(machines_updated) + "\n")
 
 # write the origin distribution
 result_file.write("\nINITIAL MACHINE DISTRIBUTION\n")
