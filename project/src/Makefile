@@ -2,10 +2,16 @@
 # Makefile for project
 ######################################################
 
-all:
+all: events usage
 
-machine_events:
-	./machine_events.py
+events:
+	./events.py
+
+usage:
+	./usage.py
+
+forensics:
+	./attribute_forensics.py
 
 clean:
 	rm -f *~ \#* *.txt *.csv
