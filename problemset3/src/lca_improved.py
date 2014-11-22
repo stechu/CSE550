@@ -51,22 +51,28 @@ if __name__ == "__main__":
     print "\n --------- "+str(N)+" valid seeds ----------\n"
 
     # distances: (vertex, (seed, distance))
-    distances = sc.parallelize(range(N)).map(lambda x: (x, (x, 0))).cache()
+    distances = sc.parallelize(range(N)).map(lambda x: ((x, x), 0)).cache()
+    last_step = distances.map(lambda ((x, y), d): (x, (y, d)))
     old_count = 0L
     new_count = N
+    bfs_round = 1
     # shorted path computation, only for interested vertices
     while old_count != new_count:
-        next_step = distances.join(edges).map(
-            lambda (v1, ((s, d), v2)): ((v2, s), d+1))
-        dist_seed_pairs = distances.map(lambda (v, (s, d)): ((v, s), d))
+        next_step = last_step.join(edges).map(
+            lambda (v1, ((s, d), v2)): (v2, (s, d+1)))
+        next_step_d_s_pairs = next_step.map(lambda (v, (s, d)): ((v, s), d))
+        new_distances = distances.union(next_step_d_s_pairs).reduceByKey(
+            lambda a, b: a if a < b else b).coalesce(parallism).cache()
+        last_step.unpersist()
+        next_step_d_s_pairs.unpersist()
         distances.unpersist()
-        distances = next_step.union(dist_seed_pairs).reduceByKey(
-            lambda a, b: a if a < b else b).map(
-            lambda ((v, s), d): (v, (s, d))).coalesce(parallism).cache()
-        next_step.unpersist()
-        dist_seed_pairs.unpersist()
+        distances = new_distances
+        last_step = next_step.filter(
+            lambda (v, (s, d)): True if d == bfs_round else False).coalesce(
+            parallism)
         old_count = new_count
         new_count = distances.count()
+        bfs_round += 1
         print "bfs-count:"+str(new_count)
 
     edges.unpersist()

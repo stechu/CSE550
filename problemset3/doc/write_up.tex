@@ -21,7 +21,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \section{Introduction}
-
+\label{sec:intro}
 The Least Common Ancestor (LCA) algorithm is a method of determining a which node in the graph minimize a distance function given two other nodes in a directed acyclic graph (DAG).
 Given two papers $p_1$ and $p_2$, we want to find the LCA of the two papers defined $LCA(p_1, p_2)$ if it exists.
 A common ancestor is defined as any paper $p_i$ that has a path to both $p_1$ and $p_2$.
@@ -36,6 +36,35 @@ The paper with the least unique identification is chosen as the LCA.
 
 In this project we implement the LCA algorithm for a DAG of paper citations; citations graphs are acyclic as paper citations are causal.
 We implement the LCA problem in Spark on top of Amazon's EC2 platform.
+
+\section{Algorithm and Implementation}
+Our algorithm contains two parts: the first part is to compute the shorted path
+from vertices in to citation graph to seed vertices, and the second part is to 
+find the lowest common accestors for any pairs of papers in the seed set.
+
+\subsection{Part 1: Parallel Bellman-Ford Algorithm in Spark}
+We use a parallel version of Bellman-Ford algorithm and implemented it in
+Spark. Bellman-Ford is an ideal choice because: 
+
+\begin{enumerate}
+    \item The citation graph does not contain any negetive cycles 
+    thus Bellman-Ford algorithm is correct.
+    \item Bellman-Ford algorithm is easily parallelized.
+\end{enumerate}
+
+We store the graph in the form of edges in a RDD and initialize the distances
+from the seed vertices to themselves as $0$. Then in each iteration, we join
+the distances RDD with the edges in the graph and only keep the shortest
+distances of any paper to one of the seed vertices. This iterative process will
+be ended if there is no new distance computed.
+
+\subsection{Part 2: Lowest Accestor Computation}
+For part 1, we have distances from any seed vertex to its reachable vertices. 
+We then join the $(paper, year)$ data with this distance data to attach the 
+year published to the distance RDD. Then the distance RDD with the year data 
+is self joined on its paper id to get comman ancestor for each pairs of seeded 
+vertices. At last, a communitive reduce function is implemented according to
+the lowest comman accestor criteria described in Section~\ref{sec:intro}.
 
 \section{Running Our Code}
 
@@ -52,37 +81,42 @@ Our $src$ directory, contains a Makefile that contains a $test$ target defined i
 This $test$ target executes the example Spark job from the assignment specification that counts the number of times the string ``12'' occurs in the cites.csv file.
 The default $all$ target in our Makefile launches our LCA application defined in $lca.py$.
 Launching the LCA application will execute the specified algorithm across all nodes available on the cluster on the original data set.
-The result of the LCA algorithm is logged in TODO: WHERE IS THIS LOGGED?
 The source for the LCA Spark application is located in $lca.py$.
 
 When we are done with our cluster, we issue a $make destroy$ command at the top level Makefile to tell EC2 to bring down and destroy our cluster.
 
 \section{Performance Evaluation}
 
-\paragraph{Dataset}
-We use 
+\paragraph{Dataset and Experiment Settings}
+We use two datasets, one is the citation graph in the schema of 
+$(paper, cited paper)$, the other is the meta data of each paper, in the schema
+of $(paper, year)$. Citation graph contains $8,227,538$ citations. Meta data 
+of paper contains year information for $1,787,349$ papers.
+
+We deploy a spark cluster with $20$ Amazon EC2 instances. One instance is used
+as master node, the other $19$ of the instances are used as slave nodes. 
+Each EC2 instance is a $m3.large$ type instance with single CPU and $3.75$ GB
+RAM.
 
 \subsection{Raw Performance}
 
-To analyze the scalability of our implementation and platform, we evaluate the latency of a single query on a varying size dataset and number of cluster nodes.
-Due to configuration limitations our experiments were capped at a 17 cluster node maximum (1 master node, 16 slave nodes).
+To analyze the scalability of our implementation and platform, we evaluate the latency of a single query on a varying size dataset.
 
 \begin{figure}
 \centering
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% @SHUMO TODO - add the graph
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% includegraphics{ADD LATENCY VERSUS INCREASING DATA SET SIZE GRAPH HERE}
-
-\caption{LCA query latency with increasing data set size}
+\includegraphics[width=0.7\textwidth]{runtime.png}
+\caption{LCA compuatation time with increasing seed set size}
 \label{latency_scaling}
 \end{figure}
 
-Figure ~\ref{latency_scaling} shows the query latency time with increasing data set size.
-As expected, we see an increase in the query latency with respect to increasing data set size. 
+Figure ~\ref{latency_scaling} shows the compuation time with 
+increasing number of seeded vertices.
+As expected, we see an increase in the query latency with respect to 
+increasing data set size. The runtime of the program is dominated by the 
+shortest path computation time. And that part of cost increase near linearly 
+as the number of seeded vertices increases. So we can see that the computation 
+time increases almost linearly as the number of seeded vertices increases.
 
-TODO: explain the scaling here
 
 \begin{figure}
 \centering
@@ -91,7 +125,7 @@ TODO: explain the scaling here
 % @SHUMO TODO - add the graph
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%\includegraphics{ADD QUERY LATENCY WITH INCREASING NUMBER OF CLUSTER NODES HERE}
+\includegraphics[width=0.7\textwidth]{scalability.png}
 
 \caption{LCA query latency with increasing number of cluster nodes}
 \label{node_scaling}
@@ -100,13 +134,8 @@ TODO: explain the scaling here
 Figure ~\ref{node_scaling} shows the query latency scaling with respect to the number of nodes in the Amazon EC2 cluster instance.
 As expected, we see a decrease in query latency time for a fixed data set with more nodes due to additional parallelism.
 
-
-TODO: why does our performance curve look like it does
-
 We note that the performance of the system is composed of roughly two phases: building the graph and actual graph traversal time.
 
-TODO: if graph building is parallel: For a fixed data size, we expect the graph building time to decrease with the number of nodes in the system as we have implemented a parallel graph building algorithm from the original citation dataset.
-TODO: if the graph building is serial: For a fixed data size, the graph building phase will take a fixed amount of time regardless of the number of nodes operating in they system as it is not parallelizable.
 Since our primary parallelization optimizations occur in the graph traversal when searching for the LCA, we expect that simply throwing additional cluster nodes at our application will be constrained by Amdahl's limits in terms of  perfspeed up.
 This is evident in Figure ~\ref{node_scaling} where we see asymptotic gains in improvement. 
 If the performance was entirely composed of entirely parallel computation, we should see an asymptotic performance improvement towards zero latency.
@@ -115,7 +144,15 @@ As shown in the performance curve, this is not the case due to serialized portio
 The latency scalability we observe is not surprising as Amdahl's law would require we improve the serialized portions of the algorithm in order to achieve truly linear speed up.
 However, since our application is not embarrassingly parallel, the scalability numbers we observe from our experiements are fairly reasonable.
 
-TODO: what scalability barriers does our implementation encounter
+\begin{figure}
+    \centering
+        \includegraphics[width=0.8\textwidth]{sssp.png}
+    \caption{shortest path progress in each round}
+    \label{fig:shortest_path}
+\end{figure}
+
+Figure~\ref{fig:shortest_path} shows the progress for each round BFS, we can
+clearly see there is a long tail as the search is going to end.
 
 \subsection{Throughput Per Hour}
 
@@ -126,15 +163,25 @@ Thus to get an idea of how our implementation performs on the throughput axis, w
 
 We measure the throughput and scalability of our implementation, we tried to determine the number LCAs for a given dataset size N we were able to compute in an hour.
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% @SHUMO TODO - add the graph
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{figure}
+    \centering
+    \includegraphics[width=0.7\textwidth]{throughput.png}
+    \caption{Throughput using different seed size}
+    \label{fig:throughput}
+\end{figure}
 
-% Add a throughput per hours number here
+\begin{table}[h]
+    \begin{tabular}{|l|l|l|}
+    \hline
+    No. of Seeds  & No. of LCAs & Throughput (LCAs/Hr) \\ \hline
+    10 & 10          & 17.647               \\ \hline
+    20 & 65          & 66.102               \\ \hline
+    30 & 198         & 116.471              \\ \hline
+    40 & 373         & 149.2                \\ \hline
+    50 & 586         & 195.333              \\ \hline
+    \end{tabular}
+\end{table}
 
-TODO: INSERT THE RESULTS FOR THIS SECTION HERE
-
-TODO: ANALYSIS OF THE DATA HERE
 
 \section{Analytics Platform Evaluation}
 
@@ -154,9 +201,5 @@ Furthermore, we experienced random terminations of our EC2 instance Spark cluste
 Finally, we also ran in to problems when resuming stopped instances of our cluster.
 There were a few instances where attempts to resume the cluster would fail with an error claiming that the cluster instances could not open communication channels with each other and the resume directive would just give up.
 These deployment issues combined with the insufficiently documented Spark API made implementing and deploying our application much more frustrating then the Paxos assignment.
-
-TODO: was platform a good fit for analytics application?
-
-TODO: if our analytics suck, why?
 
 \end{document}
