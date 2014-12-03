@@ -1,0 +1,17 @@
+{
+  "relationKey" : {
+    "userName" : "chushumo",
+    "programName" : "google_cluster",
+    "relationName" : "task_events_sample"
+  },
+  "schema" : {
+    "columnTypes" : [
+      "LONG_TYPE", "LONG_TYPE", "LONG_TYPE", "LONG_TYPE", "LONG_TYPE",  "LONG_TYPE", "STRING_TYPE", "LONG_TYPE", "LONG_TYPE", "DOUBLE_TYPE", "DOUBLE_TYPE", "DOUBLE_TYPE", "BOOLEAN_TYPE"],
+    "columnNames" : ["time", "missing_info", "job_id", "task_index", "machine_id", "event_type", "user", "scheduling_class", "priortiy", "cpu_request", "memory_request", "disk_space_request", "different_machines_restriction"]
+  },
+  "source" : {
+    "dataType" : "File",
+    "filename" : "/disk3/google_cluster_data/task_events_total.csv"
+  },
+  "delimiter": ","
+}
