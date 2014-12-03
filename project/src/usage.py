@@ -14,8 +14,8 @@ from math import *
 BASE_DIRECTORY="/scratch/vlee2/google-trace/data/task_usage/"
 BASE_FILE_PREFIX="part-"
 BASE_FILE_SUFFIX="-of-00500.csv"
-RESULTS_FILE="../results/task_usage.csv"
-FILE_PARTS=1 # 500
+RESULTS_FILE_BASE="../results/task_usage.csv"
+FILE_PARTS=500
 LOG_BASE=10
 
 # track how many tasks we ignore due to too many empty data fields
@@ -172,72 +172,72 @@ for i in range(0, FILE_PARTS):
     data_file.close()
     print "[Info] Done processing file: " + target_file
 
-print "[Info] Done processing data files..."
+    ############################################################################
+    # build the report file
+    ############################################################################
 
-############################################################################
-# build the report file
-############################################################################
+    report=open(RESULTS_FILE_BASE + "-part-" + str(i) + ".csv", "w+")
+    
+    report.write("TOTAL TASKS PROCESSED, " + str(tasks_processed) + "\n")
+    report.write("AGGREGATION TASKS, " + str(aggregation_tasks) + "\n")
+    report.write("TASKS IGNORED, " + str(discarded_tasks) + "\n")
+    
+    # dump the task duration distribution
+    text = "\nTASK RECORD DURATION AVERAGE, " + str(total_task_durations / tasks_processed) + "\n"
+    report.write(text)
+    
+    text = "\nTASK DURATION DISTRIBUTION (log_" + str(LOG_BASE) + "),\n"
+    for key in sorted(task_duration_distribution.keys()):
+        text += str(key) + "," + str(task_duration_distribution[key]) + "\n"
+    report.write(text)
+        
+    # dump the cpu core-seconds per second
+    text = "\nAVERAGE CPU RATE (core-seconds), " + str(total_cpu_rate / tasks_processed) + "\n"
+    report.write(text)
+        
+    text = "\nCPU RATE DISTRIBUTION (core-seconds),\n"
+    for key in sorted(cpu_rate_distribution.keys()):
+        text += str(key) + "," + str(cpu_rate_distribution[key]) + "\n"
+    report.write(text)
 
-report=open(RESULTS_FILE, "w+")
+    # dump the disk I/O time
+    text = "\nAVERAGE DISK I/O PERCENTAGE (percent), " + str(total_disk_io / tasks_processed) + "\n"
+    report.write(text)
 
-report.write("TOTAL TASKS PROCESSED, " + str(tasks_processed) + "\n")
-report.write("AGGREGATION TASKS, " + str(aggregation_tasks) + "\n")
-report.write("TASKS IGNORED, " + str(discarded_tasks) + "\n")
+    text = "\nDISK I/O DISTRIBUTION (disk I/O-seconds)\n"
+    for key in sorted(disk_io_distribution.keys()):
+        text += str(key) + "," + str(disk_io_distribution[key]) + "\n"
+    report.write(text)
 
-# dump the task duration distribution
-text = "\nTASK RECORD DURATION AVERAGE, " + str(total_task_durations / tasks_processed) + "\n"
-report.write(text)
+    # dump the disk space usage
+    text = "\nAVERAGE DISK SPACE USAGE, " + str(total_disk_space_usage / tasks_processed) + "\n"
+    report.write(text)
 
-text = "\nTASK DURATION DISTRIBUTION (log_" + str(LOG_BASE) + "),\n"
-for key in sorted(task_duration_distribution.keys()):
-    text += str(key) + "," + str(task_duration_distribution[key]) + "\n"
-report.write(text)
+    text = "\nDISK SPACE USAGE,\n"
+    for key in sorted(disk_space_usage_distribution.keys()):
+        text += str(key) + "," + str(disk_space_usage_distribution[key]) + "\n"
+    report.write(text)
 
-# dump the cpu core-seconds per second
-text = "\nAVERAGE CPU RATE (core-seconds), " + str(total_cpu_rate / tasks_processed) + "\n"
-report.write(text)
+    # dump the instruction-cycles per second
+    text = "\nAVERAGE INSTRUCTION-CYCLES PER SECOND, " + str(total_ispc / tasks_processed) + "\n"
+    report.write(text)
 
-text = "\nCPU RATE DISTRIBUTION (core-seconds),\n"
-for key in sorted(cpu_rate_distribution.keys()):
-    text += str(key) + "," + str(cpu_rate_distribution[key]) + "\n"
-report.write(text)
+    text = "\nINSTRUCTION-SECONDS PER CYCLE,\n"
+    for key in sorted(ispc_distribution.keys()):
+        text += str(key) + "," + str(ispc_distribution[key]) + "\n"
+    report.write(text)
 
-# dump the disk I/O time
-text = "\nAVERAGE DISK I/O PERCENTAGE (percent), " + str(total_disk_io / tasks_processed) + "\n"
-report.write(text)
+    # dump the memory accesses per instruction
+    text = "\nAVERAGE MEMORY ACCESSES PER INSTRUCTION, " + str(total_mai / tasks_processed) + "\n"
+    report.write(text)
 
-text = "\nDISK I/O DISTRIBUTION (disk I/O-seconds)\n"
-for key in sorted(disk_io_distribution.keys()):
-    text += str(key) + "," + str(disk_io_distribution[key]) + "\n"
-report.write(text)
+    text = "\nMEMORY ACCESSES PER INSTRUCTION, \n"
+    for key in sorted(mai_distribution.keys()):
+        text += str(key) + "," + str(mai_distribution[key]) + "\n"
+    report.write(text)
 
-# dump the disk space usage
-text = "\nAVERAGE DISK SPACE USAGE, " + str(total_disk_space_usage / tasks_processed) + "\n"
-report.write(text)
+    report.close()
 
-text = "\nDISK SPACE USAGE,\n"
-for key in sorted(disk_space_usage_distribution.keys()):
-    text += str(key) + "," + str(disk_space_usage_distribution[key]) + "\n"
-report.write(text)
-
-# dump the instruction-cycles per second
-text = "\nAVERAGE INSTRUCTION-CYCLES PER SECOND, " + str(total_ispc / tasks_processed) + "\n"
-report.write(text)
-
-text = "\nINSTRUCTION-SECONDS PER CYCLE,\n"
-for key in sorted(ispc_distribution.keys()):
-    text += str(key) + "," + str(ispc_distribution[key]) + "\n"
-report.write(text)
-
-# dump the memory accesses per instruction
-text = "\nAVERAGE MEMORY ACCESSES PER INSTRUCTION, " + str(total_mai / tasks_processed) + "\n"
-report.write(text)
-
-text = "\nMEMORY ACCESSES PER INSTRUCTION, \n"
-for key in sorted(mai_distribution.keys()):
-    text += str(key) + "," + str(mai_distribution[key]) + "\n"
-report.write(text)
-
-report.close()
+    print "[Info] Done generating report " + str(i) + "\n"
 
 print "[Info] Done generating report..."
