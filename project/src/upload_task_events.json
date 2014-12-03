@@ -2,7 +2,7 @@
   "relationKey" : {
     "userName" : "chushumo",
     "programName" : "google_cluster",
-    "relationName" : "task_events_sample"
+    "relationName" : "task_events"
   },
   "schema" : {
     "columnTypes" : [
