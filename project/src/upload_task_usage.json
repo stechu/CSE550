@@ -1,0 +1,30 @@
+{
+  "relationKey" : {
+    "userName" : "chushumo",
+    "programName" : "google_cluster",
+    "relationName" : "task_usage"
+  },
+  "schema" : {
+    "columnTypes" : [
+        "STRING_TYPE", "STRING_TYPE", "LONG_TYPE", "LONG_TYPE", "LONG_TYPE",
+        "DOUBLE_TYPE", "DOUBLE_TYPE", "DOUBLE_TYPE", "DOUBLE_TYPE",
+        "DOUBLE_TYPE", "DOUBLE_TYPE", "DOUBLE_TYPE", "DOUBLE_TYPE",
+        "DOUBLE_TYPE", "DOUBLE_TYPE", "DOUBLE_TYPE", "DOUBLE_TYPE",
+        "DOUBLE_TYPE", "BOOLEAN_TYPE", "DOUBLE_TYPE"
+      ],
+    "columnNames" : [
+      "start_time", "end_time", "job_id", "task_index", "machine_id",
+      "cpu_rate", "canonical_memory_usage", "assigned_memory_usage",
+      "unmapped_page_cache", "total_page_cache", "maximum_memory_usage",
+      "disk_io_time", "local_disk_space_usage", "maximum_cpu_rate",
+      "maximum_disk_io_time", "cycles_per_instruction",
+      "memory_accesses_per_instruction", "sample_portion", "aggregation_type", 
+      "sampled_cpu_usage"
+      ]
+  },
+  "source" : {
+    "dataType" : "File",
+    "filename" : "/disk3/google_cluster_data/task_events_total.csv"
+  },
+  "delimiter": ","
+}
