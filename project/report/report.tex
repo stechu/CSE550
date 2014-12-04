@@ -1,83 +1,165 @@
-\documentclass{article}
-\usepackage[pdftex]{graphicx}
-\usepackage{wrapfig}
-\usepackage{enumerate}
-\usepackage{hyperref}
-\usepackage{fullpage}
-\usepackage{cite}
+\documentclass{sig-alternate}
+
+\usepackage{url}
 
 \begin{document}
+%
+% --- Author Metadata here ---
+\conferenceinfo{Potentially Systems Research}{'14 Pompeii, Italy}
+%\CopyrightYear{2007} % Allows default copyright year (20XX) to be over-ridden - IF NEED BE.
+%\crdata{0-12345-67-8/90/01}  % Allows default copyright data (0-89791-88-6/97/05) to be over-ridden - IF NEED BE.
+% --- End of Author Metadata ---
 
-\title{Inferring Data Center Workload Compute Ratios from the Google Cluster Data Set}
-\author{Vincent Lee, Shumo Chu}
-\date{\today}
+\title{Amdahl's Ratios: The Balancing of Power for Large Data Centers}
+
+\numberofauthors{2} %  in this sample file, there are a *total*
+% of EIGHT authors. SIX appear on the 'first-page' (for formatting
+% reasons) and the remaining two appear in the \additionalauthors section.
+%
+\author{
+% You can go ahead and credit any number of authors here,
+% e.g. one 'row of three' or two rows (consisting of one row of three
+% and a second row of one, two or three).
+%
+% The command \alignauthor (no curly braces needed) should
+% precede each author name, affiliation/snail-mail address and
+% e-mail address. Additionally, tag each line of
+% affiliation/address with \affaddr, and tag the
+% e-mail address with \email.
+%
+% 1st. author
+\alignauthor
+Vincent Lee\\
+       \affaddr{Department of Computer Science and Engineering}\\
+       \affaddr{University of Washington}\\
+       \affaddr{Seattle, Washington}\\
+       \email{vlee2@cs.washington.edu}
+% 2nd. author
+\alignauthor
+Shumo Chu\\
+       \affaddr{Department of Computer Science and Engineering}\\
+       \affaddr{University of Washington}\\
+       \affaddr{Seattle, Washington}\\
+       \email{chushumo@cs.washington.edu}
+% 3rd. author
+\alignauthor NULL POINTER\\
+       \affaddr{The Ivory Tower}\\
+       \affaddr{Institute of Exascale Computing}\\
+       \affaddr{Atlantis, Hawaii}\\
+       \email{SEGFAULT@atlantis.gg}
+}
+\date{5 December 2014}
 
 \maketitle
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Intro
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-\section{Introduction}
+\begin{abstract}
 
 The advent of large distributed systems has enabled unprecedented amounts of computational resources to the end user.
 Large data centers today use enormous numbers of commodity servers and routers to operate over massive data sets.
 Due to the massive scale of deployment, small software and hardware architectural changes that influence power, network bandwidth, and memory efficiency have enormous impact.
 With the rise of big data applications, and dynamically shifting workload patterns, it is imperative that we understand how production workloads on these systems behave in order to determine what aspects of the system architecture work well and what should be changed.
-Of particular interest in this proposal are the ratios between compute, network bandwidth, and memory that are necessary to meet the demands of these applications running at scale.
+In particular, we explore whether the Amdahl's Rules of Thumb for a balanced system still hold for today's data center applications or if they are shifting to meet the demands of these systems.
+We analyze a google cluster trace to extrapolate order of magnitude estimates as to whether these system ratios between compute, memory, and disk still hold.
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Motivation
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\end{abstract}
 
-\section{Motivation}
+% A category with the (minimum) three required fields
+\category{H.4}{Information Systems Applications}{Miscellaneous}
+%A category including the fourth, optional field follows...
+\category{D.2.8}{Software Engineering}{Metrics}[complexity measures, performance measures]
 
-Data center architects are primarily concerned with optimizing power consumption and maximizing performance throughput.
-As a result, a far amount research in data center architecture design has been driven by the objective to achieve scalability and ``energy proportionality'' which strives to achieve linear corrleation between CPU energy usage and load.
-While we acknowledge that minimizing energy per FLOP of computation has immediate implications on data center performance, it is a poor metric that fails to capture all of the rich dynamics present in an active data center.
-For instance, data centers have many other metrics that can be measured such as cost per bit transmitted over the network, or cost per bit moved from main memory or mass storage.
-Metrics such as these are not captured in a simple performance per watt calculation.
-In addition, measuring the ratios between not only energy and performance, but between network communication bandwidth, memory usage, and compute for various different tasks can have far reaching implications in how we designate the roles between each of these subsystems in data center architectures.
+\terms{Theory}
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Proposal
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\keywords{ACM proceedings, \LaTeX, text tagging}
 
-\section{Proposal}
+\section{Introduction}
 
-We propose analyzing the $googlecluster$ data set to try to infer and quantify the ratios between computation, memory usage, energy, and communication bandwidth. 
-While some of this data such as power usage is not readily available, we still believe we can still infer an order of magnitude calculation that can still provide insight into how system components should be raeaoned about.
-To our knowledge, the data set we will analyze contains traces of all tasks running on a ``12k-machine cell over about a month-long period in May 2011''.
-The data set contains detailed information for each task on job length, maximum memory usage, disk I/O time, CPI, memory accesses per instruction, and CPU rate which we will use to estimate the afore mentioned metrics.
-Although some fields in the dataset are omitted, this is an infrequent occurrence and we plan to simply omit incomplete data entries.
-We also note that since the data is captured over a month long period, it will be also be meaningful to analyze a sliding window of time in our calculations to determine if there are any cyclic patterns in the data that may provide insight into the data.
+Building balanced systems is hard.
+Building a balanced system as scale that meets all of the resource requirements is even harder.
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Prior Work
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+<better introduction needs to go here about building balanced systems and why we care>
 
-\section{Prior Work}
+For decades, Amdahl's Rules of Thumb have continued to hold despite rapid scaling in silicon, memory, and networking technology.
+As outlined by J. Gray et. al. ~\cite{export:68636}, the original Amdahl's Rules of Thumb for a balanced system consist of <INSTER CITATION HERE>:
+\begin{enumerate}
+\item Amdahl's parallelism law: if a computation has serial component S and parallel component P, then the maximum speedup is (S+P)/S
+\item Amdahl's balanced system law: a system needs one bit of memory IO per second for each instruction per second
+\item Amdahl's memory law: in a balanced system, the ratio $\alpha$ of the size of memory in MB to the instructions per second in million instructions per second (MIPS) is 1 MB per 1 MIPS or $\alpha = 1$
+\item Amdahl's IO law: programs do one memory IO per 10000 instructions
+\end{enumerate}
+However, the advent of large scale distributed computing and data centric applications has drastically changed the landscape of computing platforms.
+Such systems may consist of millions of homogeneous cluster nodes or a heteogeneous spread of specialized hardware such as GPUs and custom accelerators.
+Cluster nodes may entirely be dedicated to serve as storage nodes or compute nodes, and cluster resource usage may be mediated by a centralized scheduler.
+In these large, dynamic, and potentially heterogeneous data center landscapes, it is unclear whether Amdahl's Rules of Thumb still hold today.
 
-Prior work on the $googlecluster$ data set has involved attempting to characterize and classify applications using select fields in the data set and applying k-means clustering techniques ~\cite{clusterdata:Di2013, clusterdata:Mishra2010}.
-Similarly, Reiss et al. ~\cite{clusterdata:Reiss2012b} expose numerous insights from the data set including machine workload heterogeneity, erratic and dynamic resource availability, poor scheduling predictability, and special resource constraint bottlenecks.
-The authors in both ~\cite{clusterdata:Liu2012, clusterdata:Mishra2010} perform similar workload characterization analysis to expose insight in scheduling behaviors and resource allocation.
-In ~\cite{clusterdata:Liu2012}, the authors in partiular expose the criticality of scheduling constraints and resource allocation in the behavior of the workloads.
-In ~\cite{clusterdata:Di2012a} Di et al. show that based on an analysis of the trace Google data centers show better resource allocation granularity to their Grid/HPC counterpart systems.
+Using the Google cluster data set ~\cite{clusterdata:Wilkes2011, clusterdata:Reiss2011}, we attempt to extrapolate a more current picture of how the ratios between computation, memory, and disk behave today.
+The Google cluster data set contains details about usage statistics for individual tasks scheduled on a Google cluster over a period of roughly a month in 2011.
+In particular we compare the ratios between requested compute, memory, and disk resources, and actual compute, memory, and disk usage for each task scheduled in the cluster.
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Deliverables
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\section{Evaluation}
 
-TODO: inject analysis here
+%Furthermore,
+%As outlined by J. Gray et. al. ~\cite{export:68636}, 
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Bibliography
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%Data center architecture design has been driven by 
 
-\bibliography{proposal.bib}
+\section{Google Cluster Data}
 
-\bibliographystyle{IEEEtran}
+The Google cluster data contains a total of 6 different traces:
+\begin{enumerate}
+\item Job Events: record of the state changes to each job running on the system
+\item Task Usage: task resource usage such as memory, CPU rate, and disk for each task
+\item Machine Attributes: defines properties and configurations for each machine
+\item Machine Events: trace of when machines are added, removed, or updated
+\item Task Constraints: lists the placement constraints for various tasks
+\item Task Events: lists attributes about the scheduled tasks such as number of requested resources, job priority, and scheduling class
+\end{enumerate}
+We use Myria <INSERT CITATION> as our data analytics platform to analyze the Task Usage and Task Events traces to extract the resource usage ratios.
+
+\subsection{Cleaning Known Trace Anamolies}
+
+While a vast majority of data set fields are complete entries, the original creators note several anamolies in the trace attributed to profiler bugs or profiler overload.
+Most of these anamolies are missing data fields which occur in less than 0.1\% of the data set entries.
+However, there is a significant omission is the disk-time fraction measurement in the Task Events trace due to ``a change in [their] monitoring system'' which results in 15 days out of the 29 days missing this field.
+Since Myria requires a clean dataset with no missing fields, we ran a script to clean up each part of the trace.
+For missing numerical fields, we insert a value of -1 into the trace.
+Since all numerical values in the trace are positive floating points or integers, when performing our analysis we siplmy skip over fields which are -1.
+For missing boolean fields, we assume arbitrarily by default the presence of the attribute is false.
+This does not affect our results as we do not perform any queries over these boolean fields.
+
+\subsection{Obfuscated Data Calculations}
+
+Most fields in the trace have been obfuscated; for instance, the size of memory that may be requested is normalized to be a fraction of the largest memory unit available in the system as opposed to the absolute amount of memory requested in bytes.
+If it becomes necessary in our calculations to use the actual memory size in bytes, we attempt to use reasonable order of magnitude values.
+In the above case we might assume one unit worth of memory may be 1 or 2 GB.
+As far as we can tell, CPU rate, memory, disk space, and disk time fraction are all affected by this normalization technique.
+
+\section{Preliminary Measurements - TODO: Make this section title better}
+
+TODO
+
+\section{Analysis - TODO: make this section title more better}
+
+TODO
+
+
+\section{Related Work}
+
+RELATED WORK STUB
+
+~\cite{clusterdata:Di2013}
+
+\section{Conclusions}
+
+CONCLUSIONS STUB
+
+%ACKNOWLEDGMENTS are optional
+\section{Acknowledgments}
+
+ACKNOWLEDGEMENTS STUB
+
+% BIBLIOGRAPHY
+
+\bibliographystyle{abbrv}
+\bibliography{report}
 
 \end{document}
