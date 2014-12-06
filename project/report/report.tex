@@ -1,83 +1,323 @@
-\documentclass{article}
-\usepackage[pdftex]{graphicx}
-\usepackage{wrapfig}
-\usepackage{enumerate}
-\usepackage{hyperref}
-\usepackage{fullpage}
-\usepackage{cite}
+\documentclass{sig-alternate}
+
+\usepackage{url}
 
 \begin{document}
+%
+% --- Author Metadata here ---
+\conferenceinfo{Potentially Systems Research}{'14 Pompeii, Italy}
+%\CopyrightYear{2007} % Allows default copyright year (20XX) to be over-ridden - IF NEED BE.
+%\crdata{0-12345-67-8/90/01}  % Allows default copyright data (0-89791-88-6/97/05) to be over-ridden - IF NEED BE.
+% --- End of Author Metadata ---
 
-\title{Inferring Data Center Workload Compute Ratios from the Google Cluster Data Set}
-\author{Vincent Lee, Shumo Chu}
-\date{\today}
+\title{Amdahl's Ratios: The Balancing of Power for Large Data Centers}
+
+\numberofauthors{2} %  in this sample file, there are a *total*
+% of EIGHT authors. SIX appear on the 'first-page' (for formatting
+% reasons) and the remaining two appear in the \additionalauthors section.
+%
+\author{
+% You can go ahead and credit any number of authors here,
+% e.g. one 'row of three' or two rows (consisting of one row of three
+% and a second row of one, two or three).
+%
+% The command \alignauthor (no curly braces needed) should
+% precede each author name, affiliation/snail-mail address and
+% e-mail address. Additionally, tag each line of
+% affiliation/address with \affaddr, and tag the
+% e-mail address with \email.
+%
+% 1st. author
+\alignauthor
+Vincent Lee\\
+       \affaddr{Department of Computer Science and Engineering}\\
+       \affaddr{University of Washington}\\
+       \affaddr{Seattle, Washington}\\
+       \email{vlee2@cs.washington.edu}
+% 2nd. author
+\alignauthor
+Shumo Chu\\
+       \affaddr{Department of Computer Science and Engineering}\\
+       \affaddr{University of Washington}\\
+       \affaddr{Seattle, Washington}\\
+       \email{chushumo@cs.washington.edu}
+% 3rd. author
+\alignauthor NULL POINTER\\
+       \affaddr{The Ivory Tower}\\
+       \affaddr{Institute of Exascale Computing}\\
+       \affaddr{Atlantis, Hawaii}\\
+       \email{SEGFAULT@atlantis.gg}
+}
+\date{5 December 2014}
 
 \maketitle
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Intro
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-\section{Introduction}
+\begin{abstract}
 
 The advent of large distributed systems has enabled unprecedented amounts of computational resources to the end user.
 Large data centers today use enormous numbers of commodity servers and routers to operate over massive data sets.
 Due to the massive scale of deployment, small software and hardware architectural changes that influence power, network bandwidth, and memory efficiency have enormous impact.
 With the rise of big data applications, and dynamically shifting workload patterns, it is imperative that we understand how production workloads on these systems behave in order to determine what aspects of the system architecture work well and what should be changed.
-Of particular interest in this proposal are the ratios between compute, network bandwidth, and memory that are necessary to meet the demands of these applications running at scale.
+In particular, we explore whether the Amdahl's Rules of Thumb for a balanced system still hold for today's data center applications or if they are shifting to meet the demands of these systems.
+We analyze a google cluster trace to extrapolate order of magnitude estimates as to whether these system ratios between compute, memory, and disk still hold.
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Motivation
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\end{abstract}
 
-\section{Motivation}
+% A category with the (minimum) three required fields
+\category{H.4}{Information Systems Applications}{Miscellaneous}
+%A category including the fourth, optional field follows...
+\category{D.2.8}{Software Engineering}{Metrics}[complexity measures, performance measures]
 
-Data center architects are primarily concerned with optimizing power consumption and maximizing performance throughput.
-As a result, a far amount research in data center architecture design has been driven by the objective to achieve scalability and ``energy proportionality'' which strives to achieve linear corrleation between CPU energy usage and load.
-While we acknowledge that minimizing energy per FLOP of computation has immediate implications on data center performance, it is a poor metric that fails to capture all of the rich dynamics present in an active data center.
-For instance, data centers have many other metrics that can be measured such as cost per bit transmitted over the network, or cost per bit moved from main memory or mass storage.
-Metrics such as these are not captured in a simple performance per watt calculation.
-In addition, measuring the ratios between not only energy and performance, but between network communication bandwidth, memory usage, and compute for various different tasks can have far reaching implications in how we designate the roles between each of these subsystems in data center architectures.
+\terms{Theory}
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Proposal
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\keywords{ACM proceedings, \LaTeX, text tagging}
 
-\section{Proposal}
+\section{Introduction}
 
-We propose analyzing the $googlecluster$ data set to try to infer and quantify the ratios between computation, memory usage, energy, and communication bandwidth. 
-While some of this data such as power usage is not readily available, we still believe we can still infer an order of magnitude calculation that can still provide insight into how system components should be raeaoned about.
-To our knowledge, the data set we will analyze contains traces of all tasks running on a ``12k-machine cell over about a month-long period in May 2011''.
-The data set contains detailed information for each task on job length, maximum memory usage, disk I/O time, CPI, memory accesses per instruction, and CPU rate which we will use to estimate the afore mentioned metrics.
-Although some fields in the dataset are omitted, this is an infrequent occurrence and we plan to simply omit incomplete data entries.
-We also note that since the data is captured over a month long period, it will be also be meaningful to analyze a sliding window of time in our calculations to determine if there are any cyclic patterns in the data that may provide insight into the data.
+System designs today are driven by a myriad of factors such as application workload, performance targets, energy efficiency constraints, and system scalability.
+To build these systems, we rely largely on intuition to properly engineer the amount of computation, memory, disk, and networking I/O to satisfy the resource requirements or constraints of the system.
+To quantify the relationship between each of these system components, we build ratios between the amount of compute, memory, disk, and networking I/O; we collectively refer to these ratios as the ``system balance''.
+Ideally we'd like to construct systems which have sufficient amounts of memory, compute, disk, and network I/O but are not over-provisioned.
+A system with insufficient resources can result in poor performance as a single component of the system can bottleneck progress.
+Alternatively, a system with over-provisioned resources is wasteful and can expend unnecessary energy and silicon.
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Prior Work
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%We term such a system which is sufficient resources and not over-provisioned as a ``balanced system'' and the ratios between compute, memory, disk, and IO the ``system balance''.
 
-\section{Prior Work}
+Amdahl's Law first proposed in ~\cite{Amdahl:1967:VSP:1465482.1465560} outlines some of the first known system balance rules; most notably Amdahl's parallelism law.
+However, subsequent interpretations and reevaluations of Gene Amdahl's original work have derived additional relationships between system components as described in ~\cite{Gustafson:1988:RAL:42411.42415, Hill:2008:ALM:1449375.1449387, export:68636, Bell:2006:PCS:1110638.1110681}.
+These relationships have become known as ``Amdahl's Rules of Thumb'' and seek to quantify the ideal system balance configurations.
 
-Prior work on the $googlecluster$ data set has involved attempting to characterize and classify applications using select fields in the data set and applying k-means clustering techniques ~\cite{clusterdata:Di2013, clusterdata:Mishra2010}.
-Similarly, Reiss et al. ~\cite{clusterdata:Reiss2012b} expose numerous insights from the data set including machine workload heterogeneity, erratic and dynamic resource availability, poor scheduling predictability, and special resource constraint bottlenecks.
-The authors in both ~\cite{clusterdata:Liu2012, clusterdata:Mishra2010} perform similar workload characterization analysis to expose insight in scheduling behaviors and resource allocation.
-In ~\cite{clusterdata:Liu2012}, the authors in partiular expose the criticality of scheduling constraints and resource allocation in the behavior of the workloads.
-In ~\cite{clusterdata:Di2012a} Di et al. show that based on an analysis of the trace Google data centers show better resource allocation granularity to their Grid/HPC counterpart systems.
+For decades, Amdahl's Rules of Thumb have continued to hold despite rapid scaling in silicon, memory, and networking technology.
+As outlined by J. Gray et. al. ~\cite{export:68636}, the original Amdahl's Rules of Thumb for a balanced system consist of <INSTER CITATION HERE>:
+\begin{enumerate}
+\item Amdahl's parallelism law: if a computation has serial component S and parallel component P, then the maximum speedup is (S+P)/S
+\item Amdahl's balanced system law: a system needs one bit of memory IO per second for each instruction per second
+\item Amdahl's memory law: in a balanced system, the ratio $\alpha$ of the size of memory in MB to the instructions per second in million instructions per second (MIPS) is 1 MB per 1 MIPS or $\alpha = 1$
+\item Amdahl's IO law: programs do one memory IO per 10000 instructions
+\end{enumerate}
+However, the advent of large scale distributed computing and data centric applications has drastically changed the landscape of computing platforms and the methods we employ when engineering systems.
+Such systems may consist of millions of homogeneous cluster nodes or a heteogeneous spread of specialized hardware such as GPUs and custom accelerators.
+Cluster nodes may entirely be dedicated to serve as storage nodes or compute nodes, and cluster resource usage may be mediated by a centralized scheduler.
+In these large, dynamic, and potentially heterogeneous data center landscapes, it is unclear whether systems we build today are still considered balanced systems under Amdahl's Rules of Thumb.
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Deliverables
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+Using the Google cluster data set ~\cite{clusterdata:Wilkes2011, clusterdata:Reiss2011}, we attempt to extrapolate a more current picture of how the ratios between computation, memory, and disk behave today.
+The Google cluster data set contains details about usage statistics for individual tasks scheduled on a Google cluster over a period of roughly a month in 2011.
+In particular we compare the ratios between requested compute, memory, and disk resources, and actual compute, memory, and disk usage for each task scheduled in the cluster.
+The ratio between requested resource sizes allow us to estimate what resources the application programmers and scheduler think a required from the system.
+A comparison with actual usages will allow us to view whether request ratios are fully accurate in addition to validating whether Amdahl's Rules of Thumb for a balanced system still hold.
 
-\section{Evaluation}
+%Furthermore,
+%As outlined by J. Gray et. al. ~\cite{export:68636}, 
 
-TODO: inject analysis here
+%Data center architecture design has been driven by 
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Bibliography
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Google Cluster Data}
 
-\bibliography{proposal.bib}
+The Google cluster data contains a total of 6 different traces:
+\begin{enumerate}
+\item Job Events: record of the state changes to each job running on the system
+\item Task Usage: task resource usage such as memory, CPU rate, and disk for each task
+\item Machine Attributes: defines properties and configurations for each machine
+\item Machine Events: trace of when machines are added, removed, or updated
+\item Task Constraints: lists the placement constraints for various tasks
+\item Task Events: lists attributes about the scheduled tasks such as number of requested resources, job priority, and scheduling class
+\end{enumerate}
+We use Myria <INSERT CITATION> as our data analytics platform to analyze the Task Usage and Task Events traces to extract the resource usage ratios.
 
-\bibliographystyle{IEEEtran}
+\subsection{Cleaning Known Trace Anamolies}
+
+While a vast majority of data set fields are complete entries, the original creators note several anamolies in the trace attributed to profiler bugs or profiler overload.
+Most of these anamolies are missing data fields which occur in less than 0.1\% of the data set entries.
+However, there is a significant omission is the disk-time fraction measurement in the Task Events trace due to ``a change in [their] monitoring system'' which results in 15 days out of the 29 days missing this field.
+Since Myria requires a clean dataset with no missing fields, we ran a script to clean up each part of the trace.
+For missing numerical fields, we insert a value of -1 into the trace.
+Since all numerical values in the trace are positive floating points or integers, when performing our analysis we siplmy skip over fields which are -1.
+For missing boolean fields, we assume arbitrarily by default the presence of the attribute is false.
+This does not affect our results as we do not perform any queries over these boolean fields.
+
+\subsection{Obfuscated Data Calculations}
+
+Most fields in the trace have been obfuscated; for instance, the size of memory that may be requested is normalized to be a fraction of the largest memory unit available in the system as opposed to the absolute amount of memory requested in bytes.
+If it becomes necessary in our calculations to use the actual memory size in bytes, we attempt to use reasonable order of magnitude values.
+In the above case we might assume one unit worth of memory may be 1 or 2 GB.
+As far as we can tell, CPU rate, memory, disk space, and disk time fraction are all affected by this normalization technique.
+
+\section{Preliminary Measurements - TODO: Make this section title better}
+
+\subsection{Machine Events}
+
+The machine\_events table consists of entries which record when machines are added, removed, or updated in the cluster.
+Each record contains the CPU resource capacity and memory capacity normalized out of the largest of each respective capacity.
+Each record also contains an obfuscated hash of the platform or hardware used for each machine.
+
+We analyze the distribution of Platform IDs as it provides a picture of the homogeneity of the hardware platforms.
+Each Platform ID hash corresponds to one combination of hardware (CPU cores, memory, disk, etc.).
+Figure ~\ref{platform_dist} shows the distribution of hardware platforms deployed in the cluster.
+We arbitrarily map the nth obfuscated Platform ID field to Type n in Figure ~\ref{platform_dist} for simplicity.
+Not surprisingly, we find that cluster is overwhelmingly composed of a single platform indicating a fairly homogeneous system.
+
+\begin{figure}
+\centering
+\begin{tabular}{| c | c |} \hline
+Platform Type & Number of Machines\\ \hline
+Type 1 & 798\\ \hline
+Type 2 & 126\\ \hline
+Type 3 & 11659 \\ \hline
+\end{tabular}
+\label{platform_dist}
+\caption{Number of Each Type of Hardware Platform Deployed in Cluster}
+\end{figure}
+
+\subsection{Task Event Analysis}
+
+The task\_event trace tracks the resource request amounts in addition to task priorities.
+Of particular interest are the resource usage request amounts for CPU cores, RAM, and local disk space; again, these values were obfuscated by normalizing out of the maximum capacities of each resource.
+
+\begin{figure}
+\centering
+\begin{tabular}{| c | c | c | c |} \hline
+Resource Request & Avg & Min & Max \\ \hline
+CPU cores & & & \\ \hline
+RAM & & & \\ \hline
+Disk Space & & & \\ \hline
+\end{tabular}
+\end{figure}
+
+\begin{figure}
+TODO: configuration histograms should go here for CPU
+\end{figure}
+
+\begin{figure}
+TODO: configuration histograms should go here for memory
+\end{figure}
+
+\begin{figure}
+TODO: configuration histograms should go here for ratio
+\end{figure}
+
+TODO: brief analysis
+
+\subsection{Task Usage Analysis}
+
+The task\_usage trace tracks the resource usage requests for each task executing on the cluster.
+Each entry in the trace reflects values sampled over 300 seconds of the task or the entire task duration, which ever time span is shorter.
+Of particular interest in this trace are the average and peak usages for CPU, memory, and local disk, and the ratios between these qualitities.
+We also analyze the cycles per instruction (CPI), and memory accesses per instruction (MAI).
+Figure ~\ref{task_usage_stats} shows the average, minimum value, and maximum value for each of the fields of interest; note again that some fields are normalized.
+
+\begin{figure}
+\centering
+\begin{tabular}{| c | c | c | c |} \hline
+ & Avg & Min & Max \\ \hline
+Avg CPU Usage & & & \\ \hline
+Avg Memory Usage & & & \\ \hline
+Avg Local Disk Space & & & \\ \hline
+Assigned Memory & & & \\ \hline
+Peak Memory Usage & & & \\ \hline
+Disk I/O Time & & & \\ \hline
+Peak CPU Rate & & & \\ \hline
+Peak Disk I/O Time & & & \\ \hline
+CPI & & & \\ \hline
+MAI & & & \\ \hline
+\end{tabular}
+\caption{Task Usage Trace Statistics - average, minimum, and maximum values for each quantity of interest}
+\label{task_usage_stats}
+\end{figure}
+
+\section{Balanced System Calculations}
+
+To calculate whether the system is balanced or not, a few additional compenstation factors must be considered due to obfuscation of the original data set.
+Namely, to compute the system balance ratios we must compensate for the normalization operations over the original data.
+This means we cannot obtain exact estimates of the system balance, instead we extrapolate order of magnitude calculations which for comparing Amdahl's Rules of Thumb is sufficient.
+
+To allow us to compute reasonable order of magnitude estimates we define a order of magnitude assumptions about the hardware.
+Obviously, we do not know exactly the parameters of each hardware platform but we can make a fairly good guess based on commodity hardware trends at the time of the trace collection.
+As shown in ~\cite{googlehw} from 2009 (the same year the trace was collected), it appears the server motherboard contained at least two CPU cores in addition to 8 standard DIMM memory slots and two Hitachi Deskstar hard drives.
+If we assume each of the DIMM memory slots contains 1 or 2 GB of RAM, a typical server would have between 8 and 16 GB of memory capacity.
+A typical commodity disk capacity for the Hitachi Deskstar around the time the trace was collected was around 1 TB putting the disk capacity per server at around 2 TB.
+We estimate based on the fan count, the maximum number of cores in the trace are either 2, or possibly 4 cores each operating around the 2 GHz range.
+
+We use these estimates to compute order of magnitude calculations for the system balance ratios for the requested resource qualitites and actual resource usages.
+
+\subsection{Request System Balance Ratios}
+
+We first compare the system balance ratios of the requested CPU, memory, and disk resources by computing the average value of each ratio, and histogramming over each entry in the task\_events trace.
+We compute three ratios: (1) the ratio of requested CPU to requested memory (2), the ratio of requested CPU to requested, (3) the ratio of requested memory to requested disk.
+We then unnormalize each ratio by multiplying by appropriate extrapolated resource values.
+
+Figure ~\ref{req_cpu_mem} shows the histogram distributions for the ratio between the normalized CPU resource request to the normalized memory request. 
+In constrast, figure ~\ref{est_req_cpu_mem} shows the estimated unnormalized histogram of these ratios. 
+To obtain Figure ~\ref{est_req_cpu_mem} we take the ratios in Figure ~\ref{req_cpu_mem} which are in units of $(normalized core * seconds/normalized memory)$. 
+To convert to instructions per GB of memory, we multiply by the following quantities: (1) $1 normalized memory/(8 GB)$, (2) $4 CPU cores/(normalized core)$, (3) $2 Gibi-instructions / (CPU core)$.  %, (4) $1 / cycles per instructions$. TODO: conveniently dropped this from calculation
+Thus the histogram in Figure ~\ref{est_req_cpu_mem} histograms the quantity:
+$(requested normalized cores)/(requested normalized memories) * (1 normalized memory)/(8 GB) * (4 CPU cores)/(1 normalized core) * (2 G instructions)/(CPU core)$
+
+\begin{figure}
+\label{req_cpu_mem}
+\caption{Histogram of normalized CPU resource request to memory request.}
+\end{figure}
+
+\begin{figure}
+\label{est_req_cpu_mem}
+\caption{Histogram of estimated instructions per byte of memory for all tasks.}
+\end{figure}
+
+We perform a similar calculation with the ratio between the request for CPU cores and disk request size.
+To convert to instructions per byte of disk space, we multiply by the following quantities: (1) $1 normalized disk/(1 TB)$, (2) $4 CPU cores/(normalized core)$, (3) $2 Gibi-instructions/(CPU core)$.
+Figure ~\ref{req_cpu_disk} shows the histogram distributions for the ratio between the normalized CPU resource request and the normalized memory request.
+Figure ~\ref{est_req_cpu_disk} reflects the histogram for the quantity calculated by:
+$(requested normalized cores)/(requested normalized disk) * (1 normalized disk)/(1 TB) * (4 CPU cores)/(1 normalized core) * (2 G instructions)/(CPU core)$
+
+\begin{figure}
+\label{req_cpu_disk}
+\caption{Histogram of normalized CPU resource request to disk request for all tasks.}
+\end{figure}
+
+\begin{figure}
+\label{est_req_cpu_disk}
+\caption{Histogram of estimated instructions per byte of disk for all tasks.}
+\end{figure}
+
+Finally, we compute the ratio between normalized memory request and local disk request in Figure ~\ref{req_mem_disk}.
+To extrapolate
+
+Figure ~\ref{} summarizes the resulting average value, minimum value, and maximum values observed in the resource request ratios.
+
+\begin{figure}
+\begin{tabular}{| c | c | c | c |} \hline
+Ratio & Avg & Min & Max \\ \hline
+Req. CPU/Mem & & & \\ \hline
+Est. CPU/Mem & & & \\ \hline
+Req. CPU/Disk & & & \\ \hline
+Est. CPU/Disk & & & \\ \hline
+Req. Mem/Disk & & & \\ \hline
+Est. Mem/Disk & & & \\ \hline
+\end{tabular}
+\end{figure}
+
+TODO: insert some analysis here
+
+\subsection{Actual System Balance Ratios}
+
+TODO
+
+\section{Related Work}
+
+RELATED WORK STUB
+
+~\cite{clusterdata:Di2013}
+
+\section{Conclusions}
+
+CONCLUSIONS STUB
+
+%ACKNOWLEDGMENTS are optional
+%\section{Acknowledgments}
+
+%ACKNOWLEDGEMENTS STUB
+
+% BIBLIOGRAPHY
+
+\bibliographystyle{abbrv}
+\bibliography{report}
 
 \end{document}

@@ -9,6 +9,6 @@ all:
 	bibtex $(DOCUMENT_FILE)
 	pdflatex $(DOCUMENT_FILE)
 	pdflatex $(DOCUMENT_FILE)
-
+	rm -f *.out *.aux *.toc *.log *~ \#* *.bbl *.blg
 clean:
-	rm -f *.out *.aux *.toc *.pdf *.log *~ \#*
+	rm -f *.out *.aux *.toc *.pdf *.log *~ \#* *.bbl *.blg
