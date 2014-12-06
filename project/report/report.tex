@@ -223,6 +223,8 @@ MAI & & & \\ \hline
 \label{task_usage_stats}
 \end{figure}
 
+TODO: insert some comments about memory accesses per instruction here
+
 \section{Balanced System Calculations}
 
 To calculate whether the system is balanced or not, a few additional compenstation factors must be considered due to obfuscation of the original data set.
@@ -280,9 +282,20 @@ $(requested normalized cores)/(requested normalized disk) * (1 normalized disk)/
 Finally, we compute the ratio between normalized memory request and local disk request in Figure ~\ref{req_mem_disk}.
 To extrapolate
 
-Figure ~\ref{} summarizes the resulting average value, minimum value, and maximum values observed in the resource request ratios.
+\begin{figure}
+\label{req_mem_disk}
+\caption{Histogram of normalized requested memories to disk request for all tasks.}
+\end{figure}
 
 \begin{figure}
+\label{est_req_mem_disk}
+\caption{Histogram of estimated moemory bytes per byte of disk for all tasks.}
+\end{figure}
+
+Figure ~\ref{request_summary} summarizes the resulting average value, minimum value, and maximum values observed in the resource request ratios.
+
+\begin{figure}
+\centering
 \begin{tabular}{| c | c | c | c |} \hline
 Ratio & Avg & Min & Max \\ \hline
 Req. CPU/Mem & & & \\ \hline
@@ -292,21 +305,73 @@ Est. CPU/Disk & & & \\ \hline
 Req. Mem/Disk & & & \\ \hline
 Est. Mem/Disk & & & \\ \hline
 \end{tabular}
+\label{request_summary}
+\caption{Summary of requested resource ratios}
 \end{figure}
 
 TODO: insert some analysis here
 
 \subsection{Actual System Balance Ratios}
 
+We use the actual system balance ratios by taking the values from the task\_usage profile trace.
+Like the resource request values in the task\_events trace, we apply transformations to the normalized data to get an estimate for the actual order of magnitude for each ratio.
+
+Figure ~\ref{act_cpu_mem} shows the ratio between actual average CPU rate and average memory usage.
+
+\begin{figure}
+\centering
+%\includegraphics{}
+\label{act_cpu_mem}
+\caption{Histogram of ratio between normalized average CPU rate and normalized average memory usage over all tasks.}
+\end{figure}
+
+\begin{figure}
+\centering
+%\includegraphics{}
+\label{est_act_cpu_mem}
+\caption{Histogram of estimated instructions per byte of memory over all tasks.}
+\end{figure}
+
+
+\begin{figure}
+\centering
+%\includegraphics{}
+\label{act_cpu_disk}
+\caption{Histogram of ratio between normalized average CPU rate and normalized average local disk usage}
+\end{figure}
+
+\begin{figure}
+\centering
+%\includegraphics{}
+\label{est_act_cpu_disk}
+\caption{Histogram of estimated instructions per byte of local disk usage over all tasks.}
+\end{figure}
+
+
 TODO
 
 \section{Related Work}
 
-RELATED WORK STUB
+Prior analytics research on the Google cluster trace primarily focuses on characterizing and classifying applications in the trace.
+In ~\cite{clusterdata:Di2013}, the task events and resource statistics are calculated over the trace, and k-means clustering is used to classify applications.
+Similarly, Reiss et al. ~\cite{clusterdata:Reiss2012b} show that machine workloads are fairly hetergeneous which create challenges when scheduling cluster resources.
+Optimal scheduling is further complicated by special resource constraints, unpredicatable resource availability, and workload variability.
+Mishra et al. ~\cite{clusterdata:Mishra2010} apply similar k-means clustering techniques over the trace and show that most resources are utilized by a few tasks with long durations as a consequence of a bimodal task duration distribution.
 
-~\cite{clusterdata:Di2013}
+We are by no means, the first to examine Amdahl's Rules of Thumb for a balanced system in the context of large scale distributed systems.
+Rather, we are re-examining whether these Rules of Thumb continue to hold true for what the modern interpretation of an ideally balanced system.
+J. Gray et al. first establish and examine these system balance ratios in ~\cite{export:68636} and provides a summary of how these ratios have held in 1999.
+In particular, it is noted that for the most part Amdahl's Rules of Thumb have held true with a few minor revisions to the memory and IO law.
+In 2005, G. Bell et al. ~\cite{Bell:2006:PCS:1110638.1110681} re-evaluate Amdahl's Rules of Thumb in the context of petascale data intensive computing systems.
+The authors go on to contend that petascale computing will be data intensive and that system balance should carefully consider IO and networking resource ratios, not just compute.
+
+%Similar rules of thumb have been proposed for other aspects of system balance such as networking and web caching.
+%Gustafson's Law states that 
+%Gilder's Law states that networking
 
 \section{Conclusions}
+
+We show that 
 
 CONCLUSIONS STUB
 
