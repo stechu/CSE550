@@ -1,0 +1,18 @@
+-- get the statistics
+TE = scan(chushumo:google_cluster:task_events);
+R = [from TE 
+     where cpu_request>0 and disk_space_request>0
+     emit 
+        avg(cpu_request/disk_space_request) as average,
+        max(cpu_request/disk_space_request) as maxr,
+        min(cpu_request/disk_space_request) as minr];
+store(R, cpu_disk_stat);
+
+-- get the histogram
+TE = scan(chushumo:google_cluster:task_events);
+R = [from TE 
+     where cpu_request>0 and disk_space_request>0
+     emit 
+     floor(log(cpu_request/disk_space_request)) as range,
+     count(*) as value];
+store(R, cpu_disk_r_hist);
