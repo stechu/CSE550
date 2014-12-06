@@ -78,14 +78,13 @@ To build these systems, we rely largely on intuition to properly engineer the am
 To quantify the relationship between each of these system components, we build ratios between the amount of compute, memory, disk, and networking I/O; we collectively refer to these ratios as the ``system balance''.
 Ideally we'd like to construct systems which have sufficient amounts of memory, compute, disk, and network I/O but are not over-provisioned.
 A system with insufficient resources can result in poor performance as a single component of the system can bottleneck progress.
-Conversely, a system with over-provisioned resources is wasteful and can expend unnecessary energy and silicon.
+Alternatively, a system with over-provisioned resources is wasteful and can expend unnecessary energy and silicon.
 
 %We term such a system which is sufficient resources and not over-provisioned as a ``balanced system'' and the ratios between compute, memory, disk, and IO the ``system balance''.
 
-<something about Gene Amdahl postulating the Rules of Thumb>
-So how has the system balance evolved historically?
-According to observations made by Gene Amdahl,
-<finish this transition paragraph>
+Amdahl's Law first proposed in ~\cite{Amdahl:1967:VSP:1465482.1465560} outlines some of the first known system balance rules; most notably Amdahl's parallelism law.
+However, subsequent interpretations and reevaluations of Gene Amdahl's original work have derived additional relationships between system components as described in ~\cite{Gustafson:1988:RAL:42411.42415, Hill:2008:ALM:1449375.1449387, export:68636, Bell:2006:PCS:1110638.1110681}.
+These relationships have become known as ``Amdahl's Rules of Thumb'' and seek to quantify the ideal system balance configurations.
 
 For decades, Amdahl's Rules of Thumb have continued to hold despite rapid scaling in silicon, memory, and networking technology.
 As outlined by J. Gray et. al. ~\cite{export:68636}, the original Amdahl's Rules of Thumb for a balanced system consist of <INSTER CITATION HERE>:
@@ -146,7 +145,7 @@ As far as we can tell, CPU rate, memory, disk space, and disk time fraction are 
 
 \subsection{Machine Events}
 
-The machine_events table consists of entries which record when machines are added, removed, or updated in the cluster.
+The machine\_events table consists of entries which record when machines are added, removed, or updated in the cluster.
 Each record contains the CPU resource capacity and memory capacity normalized out of the largest of each respective capacity.
 Each record also contains an obfuscated hash of the platform or hardware used for each machine.
 
@@ -157,11 +156,12 @@ We arbitrarily map the nth obfuscated Platform ID field to Type n in Figure ~\re
 Not surprisingly, we find that cluster is overwhelmingly composed of a single platform indicating a fairly homogeneous system.
 
 \begin{figure}
-\begin{tabular}{| c | c |}
-Platform Type & Number of Machines\\
-Type 1 & 798\\
-Type 2 & 126\\
-Type 3 & 11659 \\
+\centering
+\begin{tabular}{| c | c |} \hline
+Platform Type & Number of Machines\\ \hline
+Type 1 & 798\\ \hline
+Type 2 & 126\\ \hline
+Type 3 & 11659 \\ \hline
 \end{tabular}
 \label{platform_dist}
 \caption{Number of Each Type of Hardware Platform Deployed in Cluster}
@@ -169,15 +169,16 @@ Type 3 & 11659 \\
 
 \subsection{Task Event Analysis}
 
-The task_event trace tracks the resource request amounts in addition to task priorities.
+The task\_event trace tracks the resource request amounts in addition to task priorities.
 Of particular interest are the resource usage request amounts for CPU cores, RAM, and local disk space; again, these values were obfuscated by normalizing out of the maximum capacities of each resource.
 
 \begin{figure}
-\begin{tabular}{| c | c | c |}
-Resource Request & Mean & Min & Max \\
-CPU cores & & & \\
-RAM & & & \\
-Disk Space & & & \\
+\centering
+\begin{tabular}{| c | c | c | c |} \hline
+Resource Request & Avg & Min & Max \\ \hline
+CPU cores & & & \\ \hline
+RAM & & & \\ \hline
+Disk Space & & & \\ \hline
 \end{tabular}
 \end{figure}
 
@@ -197,20 +198,103 @@ TODO: brief analysis
 
 \subsection{Task Usage Analysis}
 
-The task_usage trace tracks the resource usage requests for each task executing on the cluster.
+The task\_usage trace tracks the resource usage requests for each task executing on the cluster.
 Each entry in the trace reflects values sampled over 300 seconds of the task or the entire task duration, which ever time span is shorter.
+Of particular interest in this trace are the average and peak usages for CPU, memory, and local disk, and the ratios between these qualitities.
+We also analyze the cycles per instruction (CPI), and memory accesses per instruction (MAI).
+Figure ~\ref{task_usage_stats} shows the average, minimum value, and maximum value for each of the fields of interest; note again that some fields are normalized.
 
-TODO
+\begin{figure}
+\centering
+\begin{tabular}{| c | c | c | c |} \hline
+ & Avg & Min & Max \\ \hline
+Avg CPU Usage & & & \\ \hline
+Avg Memory Usage & & & \\ \hline
+Avg Local Disk Space & & & \\ \hline
+Assigned Memory & & & \\ \hline
+Peak Memory Usage & & & \\ \hline
+Disk I/O Time & & & \\ \hline
+Peak CPU Rate & & & \\ \hline
+Peak Disk I/O Time & & & \\ \hline
+CPI & & & \\ \hline
+MAI & & & \\ \hline
+\end{tabular}
+\caption{Task Usage Trace Statistics - average, minimum, and maximum values for each quantity of interest}
+\label{task_usage_stats}
+\end{figure}
 
 \section{Balanced System Calculations}
 
 To calculate whether the system is balanced or not, a few additional compenstation factors must be considered due to obfuscation of the original data set.
 Namely, to compute the system balance ratios we must compensate for the normalization operations over the original data.
-<describe the normalizations before each>
+This means we cannot obtain exact estimates of the system balance, instead we extrapolate order of magnitude calculations which for comparing Amdahl's Rules of Thumb is sufficient.
+
+To allow us to compute reasonable order of magnitude estimates we define a order of magnitude assumptions about the hardware.
+Obviously, we do not know exactly the parameters of each hardware platform but we can make a fairly good guess based on commodity hardware trends at the time of the trace collection.
+As shown in ~\cite{googlehw} from 2009 (the same year the trace was collected), it appears the server motherboard contained at least two CPU cores in addition to 8 standard DIMM memory slots and two Hitachi Deskstar hard drives.
+If we assume each of the DIMM memory slots contains 1 or 2 GB of RAM, a typical server would have between 8 and 16 GB of memory capacity.
+A typical commodity disk capacity for the Hitachi Deskstar around the time the trace was collected was around 1 TB putting the disk capacity per server at around 2 TB.
+We estimate based on the fan count, the maximum number of cores in the trace are either 2, or possibly 4 cores each operating around the 2 GHz range.
+
+We use these estimates to compute order of magnitude calculations for the system balance ratios for the requested resource qualitites and actual resource usages.
 
 \subsection{Request System Balance Ratios}
 
-TODO
+We first compare the system balance ratios of the requested CPU, memory, and disk resources by computing the average value of each ratio, and histogramming over each entry in the task\_events trace.
+We compute three ratios: (1) the ratio of requested CPU to requested memory (2), the ratio of requested CPU to requested, (3) the ratio of requested memory to requested disk.
+We then unnormalize each ratio by multiplying by appropriate extrapolated resource values.
+
+Figure ~\ref{req_cpu_mem} shows the histogram distributions for the ratio between the normalized CPU resource request to the normalized memory request. 
+In constrast, figure ~\ref{est_req_cpu_mem} shows the estimated unnormalized histogram of these ratios. 
+To obtain Figure ~\ref{est_req_cpu_mem} we take the ratios in Figure ~\ref{req_cpu_mem} which are in units of $(normalized core * seconds/normalized memory)$. 
+To convert to instructions per GB of memory, we multiply by the following quantities: (1) $1 normalized memory/(8 GB)$, (2) $4 CPU cores/(normalized core)$, (3) $2 Gibi-instructions / (CPU core)$.  %, (4) $1 / cycles per instructions$. TODO: conveniently dropped this from calculation
+Thus the histogram in Figure ~\ref{est_req_cpu_mem} histograms the quantity:
+$(requested normalized cores)/(requested normalized memories) * (1 normalized memory)/(8 GB) * (4 CPU cores)/(1 normalized core) * (2 G instructions)/(CPU core)$
+
+\begin{figure}
+\label{req_cpu_mem}
+\caption{Histogram of normalized CPU resource request to memory request.}
+\end{figure}
+
+\begin{figure}
+\label{est_req_cpu_mem}
+\caption{Histogram of estimated instructions per byte of memory for all tasks.}
+\end{figure}
+
+We perform a similar calculation with the ratio between the request for CPU cores and disk request size.
+To convert to instructions per byte of disk space, we multiply by the following quantities: (1) $1 normalized disk/(1 TB)$, (2) $4 CPU cores/(normalized core)$, (3) $2 Gibi-instructions/(CPU core)$.
+Figure ~\ref{req_cpu_disk} shows the histogram distributions for the ratio between the normalized CPU resource request and the normalized memory request.
+Figure ~\ref{est_req_cpu_disk} reflects the histogram for the quantity calculated by:
+$(requested normalized cores)/(requested normalized disk) * (1 normalized disk)/(1 TB) * (4 CPU cores)/(1 normalized core) * (2 G instructions)/(CPU core)$
+
+\begin{figure}
+\label{req_cpu_disk}
+\caption{Histogram of normalized CPU resource request to disk request for all tasks.}
+\end{figure}
+
+\begin{figure}
+\label{est_req_cpu_disk}
+\caption{Histogram of estimated instructions per byte of disk for all tasks.}
+\end{figure}
+
+Finally, we compute the ratio between normalized memory request and local disk request in Figure ~\ref{req_mem_disk}.
+To extrapolate
+
+Figure ~\ref{} summarizes the resulting average value, minimum value, and maximum values observed in the resource request ratios.
+
+\begin{figure}
+\begin{tabular}{| c | c | c | c |} \hline
+Ratio & Avg & Min & Max \\ \hline
+Req. CPU/Mem & & & \\ \hline
+Est. CPU/Mem & & & \\ \hline
+Req. CPU/Disk & & & \\ \hline
+Est. CPU/Disk & & & \\ \hline
+Req. Mem/Disk & & & \\ \hline
+Est. Mem/Disk & & & \\ \hline
+\end{tabular}
+\end{figure}
+
+TODO: insert some analysis here
 
 \subsection{Actual System Balance Ratios}
 
@@ -227,9 +311,9 @@ RELATED WORK STUB
 CONCLUSIONS STUB
 
 %ACKNOWLEDGMENTS are optional
-\section{Acknowledgments}
+%\section{Acknowledgments}
 
-ACKNOWLEDGEMENTS STUB
+%ACKNOWLEDGEMENTS STUB
 
 % BIBLIOGRAPHY
 
