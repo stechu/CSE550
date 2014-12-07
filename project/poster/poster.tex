@@ -49,7 +49,7 @@
 
 \begin{minipage}[b]{0.75\linewidth}
 \veryHuge \color{NavyBlue} \textbf{RADISH: The System Balance of Power for Large Data Centers} \color{Black}\\ % Title
-\Huge\textit{Evaluating Amdahl's Rule of Thumb with Google Cluster Data}\\[2cm] % Subtitle
+\Huge\textit{Evaluating Amdahl's Rules of Thumb with Google Cluster Data}\\[2cm] % Subtitle
 \huge \textbf{Vincent Lee \& Shumo Chu}\\[0.5cm] % Author(s)
 \huge University of Washington: Computer Science and Engineering\\[0.4cm] % University/organization
 \end{minipage}
@@ -70,9 +70,9 @@
 
 \color{Navy} % Navy color for the abstract
 
-\section{Introduciton}
+\section{Introduction}
 
-The design of large data centers is driven by application workloads, performance targets, energy efficient constraints, and system scalability.
+The design of large data centers is driven by application workloads, performance targets, energy efficiency constraints, and system scalability.
 To build these systems, we rely on empirical analysis and engineering intuition to properly allocate the amount of computation, memory, disk, and networking I/O to satisfy these contraints.
 A system with insufficient resources will perform poorly as a single component of the system can bottleneck progress.
 Alternatively, a system with over-provisioned resources is wasteful and can expend unnecessary energy and silicon area.
@@ -85,6 +85,10 @@ Ideally, we'd like to construct systems which have sufficient amounts of memory,
 \color{SaddleBrown} % SaddleBrown color for the introduction
 
 \section*{Amdahl's Rules of Thumb for a Balanced System}
+
+\begin{center}\vspace{1cm}
+\includegraphics[width=0.8\linewidth]{balance_fig.jpg}
+\end{center}\vspace{1cm}
 
 Amdahl's Rules of Thumb for a balanced system proposed in ~\cite{export:68636, Bell:2006:PCS:1110638.1110681} suggest that an ideally balanced system roughly adhere to the following ratios:
 \begin{enumerate}
@@ -113,28 +117,10 @@ Using the data trace, we seek to:
 
 We focus our attention on the task\_usage and task\_events traces which contain task granularity resource request quanities and actual usage records.
 
-\begin{figure}
-\centering
-\includegraphics{GoogleServerLarge.jpg}
-\label{google_server}
-\caption{Google server motherboard and components unveiled in 2009 as described in ~\cite{googlehw}}
-\end{figure}
-
-%----------------------------------------------------------------------------------------
-%	Google Cluster Trace
-%----------------------------------------------------------------------------------------
-
-\section*{Trace Obfuscation and Anamolies}
-
-In order to protect details about the cluster parameters, the cluster traces were obfuscated before publishing.
-Text fields were randomly hashed and numerical fields were normalized out of the largest value that appears in the trace.
-In fact the obfuscation techniques were probably intended to counter a project such as this. 
-Ideally, we'd like to compute exact system balance ratios, but an order of magnitude calculation is still possible and by no means meaningless. 
-However, we can make reasonable order of magnitude estimates of the normalization factors, especially for system components such as RAM and CPU instructions per second. \\
-
-Some trace entries were also missing from their records.
-In ~\cite{clusterdata:Reiss2011}, these anamolies are attributed to bugs in the profiling infrastructure, and high system load which may cause diagnostic traffic to be lost.
-We address these anamolies by cleaning the dataset and omitting their entries from the analysis where appropriate.
+\begin{center}\vspace{1cm}
+\includegraphics[width=0.8\linewidth]{GoogleServerLarge.jpg}
+\captionof{figure}{\color{Green} Google server motherboard and components unveiled in 2009 as described in ~\cite{googlehw}}
+\end{center}\vspace{1cm}
 
 %----------------------------------------------------------------------------------------
 %	RESULTS 
@@ -142,9 +128,69 @@ We address these anamolies by cleaning the dataset and omitting their entries fr
 
 \section*{Results}
 
+\begin{center}\vspace{1cm}
+\includegraphics[width=0.8\linewidth]{request_distributions.jpg}
+\captionof{figure}{\color{Green} Estimated system balance ratios for all task resource requests. Numbers are based on order of magnitude calculations for CPU count, CPU frequency, memory size, and disk space}
+\end{center}\vspace{1cm}
+
+\begin{center}\vspace{1cm}
+\includegraphics[width=0.8\linewidth]{actual_distributions.jpg}
+\captionof{figure}{\color{Green} Relative system balance ratios for all task usage entries. Ratios represent relative usages using normalized values.}
+\end{center}\vspace{1cm}
 
 
-RESULTS
+\begin{center}\vspace{1cm}
+\begin{tabular}{| l | l l l l |} 
+\toprule
+\textbf{Quantity} & \textbf{Average} & \textbf{Est. Median} & \textbf{Min. Value} & \textbf{Max. Value} \\
+\midrule
+Req. CPU/Mem & 1.702 &  $2^{-1}$ & 0.00392 & 49160.986  \\ \hline
+Est. Instr/Mem Byte & 1.702 & $2^{-1} $ & 0.00392 & 49160.986 \\ \hline
+Req. CPU/Disk & 403.730 & $2^4$ & 203208.556 & 0.184 \\ \hline
+Est. Instr/Disk Byte & 1.577 & $2^{-4}$ & 793.783 & 0.000719 \\ \hline
+Req. Mem/Disk & 260.060 & $2^4$ & 130334.487 & 0.200 \\ \hline
+Est. Mem Byte/Disk Byte & 1.0159&  $2^{-4}$ & 509.119 & 0.000781 \\ \hline
+\bottomrule
+\end{tabular}
+\captionof{table}{Relative Task Usage Ratios - individual quantities are still normalized; estimated median is given in order of magnitude}
+\end{center}\vspace{1cm}
+
+\begin{center}\vspace{1cm}
+\begin{tabular}{| l | l l l l |} 
+\toprule
+\textbf{Quantity} & \textbf{Average} & \textbf{Est. Median} & \textbf{Min. Value} & \textbf{Max. Value} \\
+\midrule
+Avg CPU/Avg Mem & 11.737 & $2^{-1}$ & 0.0000160 & 425920.100  \\ 
+Avg CPU/Avg Disk & 2901.793 & $2^5$ & 0.000263 & 152878263.605 \\ 
+Avg Mem/Avg Disk & 2253.51 & $2^5$ & 0.00102 & 579532.348 \\ 
+Peak CPU/Peak Mem & 26.567 & & 0.0000194 & 2008293.839 \\ 
+Avg CPU/(Avg Mem * CPI) & 9.949 & & 5.0193 & 293932.257 \\ 
+Avg CPU/(Avg Disk * CPI) & 2443.536 & & 0.00000522 & 66671724.206 \\ 
+\bottomrule
+\end{tabular}
+\captionof{table}{Relative Task Usage Ratios - individual quantities are still normalized}
+\end{center}\vspace{1cm}
+
+\begin{center}\vspace{1cm}
+\begin{tabular}{| l | l l l |} 
+\toprule
+\textbf{Quantity} & \textbf{Average} & \textbf{Min. Value} & \textbf{Max. Value} \\
+\midrule
+Avg CPU Usage & 0.023 & 0 & 145.8 \\ \hline
+Avg Memory Usage & 0.023 & 0 & 0.881 \\ \hline
+Avg Local Disk Space & 0.000125 & 0 & 0.00726 \\ \hline
+%Assigned Memory & 0.029 & 0.00000477 & 229100\* \\ \hline
+Peak Memory Usage & 0.024 & 0 & 0.886 \\ \hline
+Disk I/O Time & 0.00357 & 0 & 0.685 \\ \hline
+Peak CPU Rate & 0.0904 & 0 & 1744\* \\ \hline
+Peak Disk I/O Time & 0.0232 & 0 & 10.98 \\ \hline
+CPI & 4.866 & 0 & 25370\* \\ \hline
+MAI & 0.0176 & 0 & 8.5\* \\ \hline
+\bottomrule
+\end{tabular}
+\captionof{table}{Task Usage Statistics - some maximum values are anamolous and can be attributed to bugs in the data collection infrastructure or task statistics aggregation}
+\end{center}\vspace{1cm}
+
 
 %----------------------------------------------------------------------------------------
 %	CONCLUSIONS
@@ -154,23 +200,12 @@ RESULTS
 
 \section*{Conclusions}
 
-While we were not able to procure exact system balance ratios, our order of magnitude calculations still provide enough insight to re-evaluate Amdahl's Rules of Thumb:
+While we were not able to procure exact system balance ratios, our order of magnitude calculations still provide enough insight to re-evaluate Amdahl's Rules of Thumb: \\
 
-\noindent \bf{Amdahl's Parallelism Law} - clearly continues to hold \\
-\bf{Amdahl's Memory Law} - \\
-\bf{Amdahl's Balanced System and IO Law} - \\
-
-
-
-\color{DarkSlateGray} % Set the color back to DarkSlateGray for the rest of the content
-
-%----------------------------------------------------------------------------------------
-%	FORTHCOMING RESEARCH
-%----------------------------------------------------------------------------------------
-
-\section*{Future Directions}
-
-FUTURE WORK?
+\noindent \textbf{Amdahl's Parallelism Law} - clearly continues to hold \\
+\textbf{Amdahl's Balanced System Law} - we are unable to comment on this rule as the trace does not contain bandwidth statistics\\
+\textbf{Amdahl's Memory Law} - value for $\alpha$ indicating instruction per byte of memory is likely to be larger than 1, a trend predicted by J. Gray  and confirmed by our analysis\\
+\textbf{Amdahl's IO law} - memory access per instruction is closer to one memory access per 50 instructions instead of one memory access per 50000 instructions \\
 
  %----------------------------------------------------------------------------------------
 %	REFERENCES
