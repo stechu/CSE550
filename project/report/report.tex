@@ -58,7 +58,7 @@ Large data centers today use enormous numbers of commodity servers and routers t
 Due to the massive scale of deployment, small software and hardware architectural changes that influence power, network bandwidth, and memory efficiency have enormous impact.
 With the rise of big data applications, and dynamically shifting workload patterns, it is imperative that we understand how production workloads on these systems behave in order to determine what aspects of the system architecture work well and what should be changed.
 In particular, we explore whether the Amdahl's Rules of Thumb for a balanced system still hold for today's data center applications or if they are shifting to meet the demands of these systems.
-We analyze a google cluster trace to extrapolate order of magnitude estimates as to whether these system ratios between compute, memory, and disk still hold.
+We analyze the Google Cluster Trace to extrapolate order of magnitude estimates as to whether these system ratios between compute, memory, and disk still hold.
 
 \end{abstract}
 
@@ -74,7 +74,7 @@ We analyze a google cluster trace to extrapolate order of magnitude estimates as
 \section{Introduction}
 
 System designs today are driven by a myriad of factors such as application workload, performance targets, energy efficiency constraints, and system scalability.
-To build these systems, we rely largely on intuition to properly engineer the amount of computation, memory, disk, and networking I/O to satisfy the resource requirements or constraints of the system.
+To build these systems, we rely largely on empirical analyses of application workloads and intuition to properly engineer the amount of computation, memory, disk, and networking I/O to satisfy the resource requirements or constraints of the system.
 To quantify the relationship between each of these system components, we build ratios between the amount of compute, memory, disk, and networking I/O; we collectively refer to these ratios as the ``system balance''.
 Ideally we'd like to construct systems which have sufficient amounts of memory, compute, disk, and network I/O but are not over-provisioned.
 A system with insufficient resources can result in poor performance as a single component of the system can bottleneck progress.
@@ -87,7 +87,7 @@ However, subsequent interpretations and reevaluations of Gene Amdahl's original 
 These relationships have become known as ``Amdahl's Rules of Thumb'' and seek to quantify the ideal system balance configurations.
 
 For decades, Amdahl's Rules of Thumb have continued to hold despite rapid scaling in silicon, memory, and networking technology.
-As outlined by J. Gray et. al. ~\cite{export:68636}, the original Amdahl's Rules of Thumb for a balanced system consist of <INSTER CITATION HERE>:
+As outlined by J. Gray et. al. ~\cite{export:68636}, the original Amdahl's Rules of Thumb for a balanced system consist of:
 \begin{enumerate}
 \item Amdahl's parallelism law: if a computation has serial component S and parallel component P, then the maximum speedup is (S+P)/S
 \item Amdahl's balanced system law: a system needs one bit of memory IO per second for each instruction per second
@@ -104,11 +104,6 @@ The Google cluster data set contains details about usage statistics for individu
 In particular we compare the ratios between requested compute, memory, and disk resources, and actual compute, memory, and disk usage for each task scheduled in the cluster.
 The ratio between requested resource sizes allow us to estimate what resources the application programmers and scheduler think a required from the system.
 A comparison with actual usages will allow us to view whether request ratios are fully accurate in addition to validating whether Amdahl's Rules of Thumb for a balanced system still hold.
-
-%Furthermore,
-%As outlined by J. Gray et. al. ~\cite{export:68636}, 
-
-%Data center architecture design has been driven by 
 
 \section{Google Cluster Data}
 
@@ -141,7 +136,7 @@ If it becomes necessary in our calculations to use the actual memory size in byt
 In the above case we might assume one unit worth of memory may be 1 or 2 GB.
 As far as we can tell, CPU rate, memory, disk space, and disk time fraction are all affected by this normalization technique.
 
-\section{Preliminary Measurements - TODO: Make this section title better}
+\section{High Level Statistics}
 
 \subsection{Machine Events}
 
@@ -227,7 +222,7 @@ MAI & & & \\ \hline
 
 TODO: insert some comments about memory accesses per instruction here
 
-\section{Balanced System Calculations}
+\section{System Balance Calculations}
 
 To calculate whether the system is balanced or not, a few additional compenstation factors must be considered due to obfuscation of the original data set.
 Namely, to compute the system balance ratios we must compensate for the normalization operations over the original data.
@@ -384,6 +379,20 @@ While peak CPU operation does not usually correlate with peak memory usage, this
 
 TODO
 
+\section{What does the fox say?}
+
+\subsection{Amdahl's Parallelism Law}
+
+Without question, Amdahl's Parallelism Law has continued the test of time. QED.
+
+\subsection{Amdahl's Memory Law}
+
+<comment on $\alpha$ based on data>
+
+\subsection{Amdahl's Balanced System Law and IO Law}
+
+<comment on MAI values>
+
 \section{Related Work}
 
 Prior analytics research on the Google cluster trace primarily focuses on characterizing and classifying applications in the trace.
@@ -395,7 +404,8 @@ Mishra et al. ~\cite{clusterdata:Mishra2010} apply similar k-means clustering te
 We are by no means, the first to examine Amdahl's Rules of Thumb for a balanced system in the context of large scale distributed systems.
 Rather, we find that there is value in continuing to re-examine whether Amdahl's Rules of Thumb continue to hold true for what the modern interpretation of an ideally balanced system.
 J. Gray et al. first establish and examine these system balance ratios in ~\cite{export:68636} and provides a summary of how these ratios have held in 1999.
-In particular, it is noted that for the most part Amdahl's Rules of Thumb have held true with a few minor revisions to the memory and IO law.
+It is noted that for the most part Amdahl's Rules of Thumb have held true with a few minor revisions to the memory and IO law.
+In particular, Gray shows that the ratio $\alpha$ between executed instructions and byte of memory is rising from 1 to potentially 2 or 4.
 In 2005, G. Bell et al. ~\cite{Bell:2006:PCS:1110638.1110681} re-evaluate Amdahl's Rules of Thumb in the context of petascale data intensive computing systems.
 The authors go on to contend that petascale computing will be data intensive and that system balance should carefully consider IO and networking resource ratios, not just compute.
 
@@ -405,8 +415,14 @@ The authors go on to contend that petascale computing will be data intensive and
 
 \section{Conclusions}
 
-We show that 
+We evaluate the validity of Amdahl's Rules of Thumb for a balanced system and analyze whether they still hold in the context of data center scale systems and applications.
+Amdahl's Parallelism Law without question continues to hold today, however we find that in terms of order of magnitude, Amdahl's Rules of Thumb <TODO: INSERT CONCLUSTION>
+Concerning Amdahl's Memory Law, we observe that the actual compute usage per byte of memory is larger than $\alpha=1$, an observation consistent with Gray.
+This is starkly different from the requested compute and memory resources which are closer to the ideal value of $\alpha=1$.
+This suggests that for these cluster workloads, we should consider increasing the compute availability per byte of memory to rebalance the system.
+
 While we acknowledge that our analysis only provide an order of magnitude calculation and only provide relative system balance ratios, we still find the results valuable.
+
 
 CONCLUSIONS STUB
 
