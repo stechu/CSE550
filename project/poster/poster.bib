@@ -1,0 +1,205 @@
+@inproceedings{clusterdata:Di2013,
+   title = {Characterizing cloud applications on a {Google} data center},
+   author = {Di, Sheng and Kondo, Derrick and Franck, Cappello},
+   booktitle = {42nd International Conference on Parallel Processing (ICPP)},
+   year = 2013,
+   month = Oct,
+   address = {Lyon, France},
+   abstract = {}
+}
+ 
+
+ @INPROCEEDINGS{clusterdata:Reiss2012b,
+   title = {Heterogeneity and dynamicity of clouds at scale: {Google} trace analysis},
+    author = {Charles Reiss and Alexey Tumanov and Gregory R. Ganger and Randy H. Katz and Michael A. Kozuch},
+    year = 2012,
+   month = Oct,
+   address = {San Jose, CA, USA},
+   abstract = {To better understand the challenges in developing
+     effective cloud-based resource schedulers, we analyze the first
+     publicly available trace data from a sizable multi-purpose cluster.
+     The most notable workload characteristic is heterogeneity: in
+     resource types (e.g., cores:RAM per machine) and their usage
+     (e.g., duration and resources needed). Such heterogeneity reduces
+     the effectiveness of traditional slot- and core-based scheduling.
+     Furthermore, some tasks are constrained as to the kind of machine
+     types they can use, increasing the complexity of resource assignment
+     and complicating task migration. The workload is also highly
+     dynamic, varying over time and most workload features, and is
+     driven by many short jobs that demand quick scheduling decisions.
+     While few simplifying assumptions apply, we find that many
+     longer-running jobs have relatively stable resource utilizations,
+     which can help adaptive resource schedulers.},
+   url = {http://www.pdl.cmu.edu/PDL-FTP/CloudComputing/googletrace-socc2012.pdf},
+  }
+ 
+ @INPROCEEDINGS{clusterdata:Liu2012,
+   author = {Zitao Liu and Sangyeun Cho},
+   title = {Characterizing machines and workloads on a {Google} cluster},
+   booktitle = {8th International Workshop on Scheduling and Resource Management for Parallel and Distributed Systems (SRMPDS)},
+    year = 2012,
+   month = Sep,
+   address = {Pittsburgh, PA, USA},
+  abstract = {Cloud computing offers high scalability, flexibility and
+  cost-effectiveness to meet emerging computing
+ requirements. Understanding the characteristics of real
+ workloads on a large production cloud cluster benefits not
+ only cloud service providers but also researchers and daily
+ users.  This paper studies a large-scale Google cluster usage
+ trace dataset and characterizes how the machines in the
+ cluster are managed and the workloads submitted during a
+ 29-day period behave. We focus on the frequency and pattern of
+ machine maintenance events, job- and task-level workload
+ behavior, and how the overall cluster resources are utilized.},
+   url = {http://www.cs.pitt.edu/cast/abstract/liu-srmpds12.html},
+}
+
+ @INPROCEEDINGS{clusterdata:Di2012a,
+   author = {Sheng Di and Derrick Kondo and Walfredo Cirne},
+   title = {Characterization and comparison of cloud versus {Grid} workloads},
+   booktitle = {International Conference on Cluster Computing (IEEE CLUSTER)},
+   year = 2012,
+   month = Sep,
+   pages = {230--238},
+   address = {Beijing, China},
+   abstract = {},
+   keywords={cloud computing;computer centres;grid computing;queueing},
+   doi = {10.1109/CLUSTER.2012.35}
+}    
+ 
+@Article{clusterdata:Mishra2010,
+   author = {Mishra, Asit K. and Hellerstein, Joseph L. and Cirne, Walfredo and Das, Chita R.},
+   title = {Towards characterizing cloud backend workloads: insights from {Google} compute clusters},
+   volume = {37},
+   number = {4},
+   month = Mar,
+   year = 2010,
+   issn = {0163-5999},
+   pages = {34--41},
+   numpages = {8},
+   url = {http://doi.acm.org/10.1145/1773394.1773400},
+   doi = {10.1145/1773394.1773400},
+   publisher = {ACM}
+}
+
+@Inproceedings {export:68636,
+abstract     = {<p>This paper reexamines the rules of thumb for the design of data storage
+                systems. Briefly, it looks at storage, processing, and networking costs, ratios,
+                and trends with a particular focus on performance and price/performance. Amdahl's
+                ratio laws for system design need only slight revision after 35 years-the major
+                change being the increased use of RAM. An analysis also indicates storage should
+                be used to cache both database and Web data to save disk bandwidth, network
+                bandwidth, and people's time. Surprisingly, the 5-minute rule for disk caching
+                becomes a cache-everything rule for Web caching.</p>},
+author       = {Jim Gray and Preshant Shenay},
+institution  = {Microsoft Research},
+month        = {December},
+number       = {MSR-TR-99-100},
+pages        = {7},
+publisher    = {Institute of Electrical and Electronics Engineers, Inc.},
+title        = {Rules of Thumb in Data Engineering},
+url          = {http://research.microsoft.com/apps/pubs/default.aspx?id=68636},
+year         = {1999},
+}
+
+ @Misc{clusterdata:Wilkes2011,
+   author = {John Wilkes},
+   title = {More {Google} cluster data},
+   howpublished = {Google research blog},
+   month = Nov,
+   year = 2011,
+   note = {Posted at \url{http://googleresearch.blogspot.com/2011/11/more-google-cluster-data.html}.},
+ }
+ 
+
+ @TechReport{clusterdata:Reiss2011,
+   author = {Charles Reiss and John Wilkes and Joseph L. Hellerstein},
+   title = {{Google} cluster-usage traces: format + schema},
+   institution = {Google Inc.},
+   year = 2011,
+   month = Nov,
+   type = {Technical Report},
+   address = {Mountain View, CA, USA},
+   note = {Revised 2012.03.20.  Posted at URL}
+ }
+
+@inproceedings{Amdahl:1967:VSP:1465482.1465560,
+ author = {Amdahl, Gene M.},
+ title = {Validity of the Single Processor Approach to Achieving Large Scale Computing Capabilities},
+ booktitle = {Proceedings of the April 18-20, 1967, Spring Joint Computer Conference},
+ series = {AFIPS '67 (Spring)},
+ year = {1967},
+ location = {Atlantic City, New Jersey},
+ pages = {483--485},
+ numpages = {3},
+ url = {http://doi.acm.org/10.1145/1465482.1465560},
+ doi = {10.1145/1465482.1465560},
+ acmid = {1465560},
+ publisher = {ACM},
+ address = {New York, NY, USA},
+} 
+
+@article{Gustafson:1988:RAL:42411.42415,
+ author = {Gustafson, John L.},
+ title = {Reevaluating Amdahl's Law},
+ journal = {Commun. ACM},
+ issue_date = {May 1988},
+ volume = {31},
+ number = {5},
+ month = may,
+ year = {1988},
+ issn = {0001-0782},
+ pages = {532--533},
+ numpages = {2},
+ url = {http://doi.acm.org/10.1145/42411.42415},
+ doi = {10.1145/42411.42415},
+ acmid = {42415},
+ publisher = {ACM},
+ address = {New York, NY, USA},
+} 
+
+@article{Hill:2008:ALM:1449375.1449387,
+ author = {Hill, Mark D. and Marty, Michael R.},
+ title = {Amdahl's Law in the Multicore Era},
+ journal = {Computer},
+ issue_date = {July 2008},
+ volume = {41},
+ number = {7},
+ month = jul,
+ year = {2008},
+ issn = {0018-9162},
+ pages = {33--38},
+ numpages = {6},
+ url = {http://dx.doi.org/10.1109/MC.2008.209},
+ doi = {10.1109/MC.2008.209},
+ acmid = {1449387},
+ publisher = {IEEE Computer Society Press},
+ address = {Los Alamitos, CA, USA},
+ keywords = {Amdahl's law, Amdahl's law, multicore chips, chip multiprocessors (CMPs), chip multiprocessors (CMPs), multicore chips},
+} 
+
+@article{Bell:2006:PCS:1110638.1110681,
+ author = {Bell, Gordon and Gray, Jim and Szalay, Alex},
+ title = {Petascale Computational Systems},
+ journal = {Computer},
+ issue_date = {January 2006},
+ volume = {39},
+ number = {1},
+ month = jan,
+ year = {2006},
+ issn = {0018-9162},
+ pages = {110--112},
+ numpages = {3},
+ url = {http://dx.doi.org/10.1109/MC.2006.29},
+ doi = {10.1109/MC.2006.29},
+ acmid = {1110681},
+ publisher = {IEEE Computer Society Press},
+ address = {Los Alamitos, CA, USA},
+ keywords = {amdahl's laws, cyberinfrastructure, data-centric computation, petascale computation, petascale computation, cyberinfrastructure, data-centric computation, amdahl's laws},
+} 
+
+@misc{googlehw,
+  title = {Google uncloaks once secret server},
+  howpublished = {\url{http://www.cnet.com/news/google-uncloaks-once-secret-server-10209580/}},
+  note = {Accessed: 2014-12-05}
+}

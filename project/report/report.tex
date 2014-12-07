@@ -92,7 +92,7 @@ As outlined by J. Gray et. al. ~\cite{export:68636}, the original Amdahl's Rules
 \item Amdahl's parallelism law: if a computation has serial component S and parallel component P, then the maximum speedup is (S+P)/S
 \item Amdahl's balanced system law: a system needs one bit of memory IO per second for each instruction per second
 \item Amdahl's memory law: in a balanced system, the ratio $\alpha$ of the size of memory in MB to the instructions per second in million instructions per second (MIPS) is 1 MB per 1 MIPS or $\alpha = 1$
-\item Amdahl's IO law: programs do one memory IO per 10000 instructions
+\item Amdahl's IO law: programs do one memory IO per 50000 instructions
 \end{enumerate}
 However, the advent of large scale distributed computing and data centric applications has drastically changed the landscape of computing platforms and the methods we employ when engineering systems.
 Such systems may consist of millions of homogeneous cluster nodes or a heteogeneous spread of specialized hardware such as GPUs and custom accelerators.
@@ -163,35 +163,35 @@ Type 3 & 11659 \\ \hline
 \caption{Number of Each Type of Hardware Platform Deployed in Cluster}
 \end{figure}
 
-\subsection{Task Event Analysis}
+%\subsection{Task Event Analysis}
 
-The task\_event trace tracks the resource request amounts in addition to task priorities.
-Of particular interest are the resource usage request amounts for CPU cores, RAM, and local disk space; again, these values were obfuscated by normalizing out of the maximum capacities of each resource.
+%The task\_event trace tracks the resource request amounts in addition to task priorities.
+%Of particular interest are the resource usage request amounts for CPU cores, RAM, and local disk space; again, these values were obfuscated by normalizing out of the maximum capacities of each resource.
 
-\begin{figure}
-\centering
-\begin{tabular}{| c | c | c | c |} \hline
-Resource Request & Avg & Min & Max \\ \hline
-CPU cores & & & \\ \hline
-RAM & & & \\ \hline
-Disk Space & & & \\ \hline
-\end{tabular}
-\label{resource_summary}
-\end{figure}
+%\begin{figure}
+%\centering
+%\begin{tabular}{| c | c | c | c |} \hline
+%Resource Request & Avg & Min & Max \\ \hline
+%CPU cores & & & \\ \hline
+%RAM & & & \\ \hline
+%Disk Space & & & \\ \hline
+%\end{tabular}
+%\label{resource_summary}
+%\end{figure}
 
-\begin{figure}
-TODO: configuration histograms should go here for CPU
-\end{figure}
+%\begin{figure}
+%TODO: configuration histograms should go here for CPU
+%\end{figure}
 
-\begin{figure}
-TODO: configuration histograms should go here for memory
-\end{figure}
+%\begin{figure}
+%TODO: configuration histograms should go here for memory
+%\end{figure}
 
-\begin{figure}
-TODO: configuration histograms should go here for ratio
-\end{figure}
+%\begin{figure}
+%TODO: configuration histograms should go here for ratio
+%\end{figure}
 
-TODO: brief analysis
+%TODO: brief analysis
 
 \subsection{Task Usage Analysis}
 
@@ -205,22 +205,31 @@ Figure ~\ref{task_usage_stats} shows the average, minimum value, and maximum val
 \centering
 \begin{tabular}{| p{2.5cm} | p{1.5cm} | p{1.5cm} | p{1.5cm} |} \hline
  & Avg & Min & Max \\ \hline
-Avg CPU Usage & & & \\ \hline
-Avg Memory Usage & & & \\ \hline
-Avg Local Disk Space & & & \\ \hline
-Assigned Memory & & & \\ \hline
-Peak Memory Usage & & & \\ \hline
-Disk I/O Time & & & \\ \hline
-Peak CPU Rate & & & \\ \hline
-Peak Disk I/O Time & & & \\ \hline
-CPI & & & \\ \hline
-MAI & & & \\ \hline
+Avg CPU Usage & 0.023 & 0 & 145.8 \\ \hline
+Avg Memory Usage & 0.023 & 0 & 0.881 \\ \hline
+Avg Local Disk Space & 0.000125 & 0 & 0.00726 \\ \hline
+Assigned Memory & 0.029 & 0.00000477 & 229100\* \\ \hline
+Peak Memory Usage & 0.024 & 0 & 0.886 \\ \hline
+Disk I/O Time & 0.00357 & 0 & 0.685 \\ \hline
+Peak CPU Rate & 0.0904 & 0 & 1744\* \\ \hline
+Peak Disk I/O Time & 0.0232 & 0 & 10.98 \\ \hline
+CPI & 4.866 & 0 & 25370\* \\ \hline
+MAI & 0.0176 & 0 & 8.5\* \\ \hline
 \end{tabular}
 \caption{Task Usage Trace Statistics - average, minimum, and maximum values for each quantity of interest}
 \label{task_usage_stats}
 \end{figure}
 
-TODO: insert some comments about memory accesses per instruction here
+For certain fields marked with an \*, we see that the maximum values are greater than 1 and are sometimes unreaonably large.
+Some of this decrepancy can be attributed to the way the profiling infrastructure aggregates statistics from subcontainers when the parent task container cannot be profiled.
+As a result, the aggregation of the statistics which simply sums up individual subtask statistics can yield values greater than 1.
+Some of the more unreasonable values are most likely attributed to errors in the way statistics were collected or bugs in the collection infrastructure.
+For instance, the CPI measurement of 25370 is clearly not a reasonable data point and should hence be discarded.
+
+Of particular interest, is the average MAI value.
+This measurement reflects the performance counter value and to our knowledge is not normalized.
+When compared to Amdahl's IO Law, the MAI indicates that on average one memory access occurs for every 56.8 instructions.
+This is in stark contrast to the one memory access per 50000 instructions contended by Amdahl's Rules of Thumb suggesting that the workloads on these clusters are much more memory centric or data intensive.
 
 \section{System Balance Calculations}
 
@@ -318,7 +327,8 @@ Est. Mem Byte/Disk Byte & 1.0159& 509.119 & 0.000781 \\ \hline
 \caption{Summary of requested resource ratios}
 \end{figure}
 
-TODO: insert some analysis here on the ratios
+Another interesting statistic is that the estimate requested memory to local disk ratio is also on the order of 1 byte of memory per byte of request local disk.
+This implies that most tasks seem to be optimized not to rely heavily on disk access operations as disk bandwidth can be crippling to applications.
 
 \subsection{Actual System Balance Ratios}
 
@@ -377,21 +387,33 @@ In comparison with the normalized requested CPU and requested memory resources i
 What is even more striking is when considering the ratio between peak CPU usage and peak memory usage, this ratio further increases.
 While peak CPU operation does not usually correlate with peak memory usage, this shows further indicates that we should allocate more compute resources per byte of memory.
 
-TODO
-
-\section{What does the fox say?}
+\section{Analysis}
 
 \subsection{Amdahl's Parallelism Law}
 
 Without question, Amdahl's Parallelism Law has continued the test of time. QED.
 
+\subsection{Amdahl's Balanced System Law}
+
+We cannot comment on this rule of thumb as the trace did not contain bandwidth measurements.
+
 \subsection{Amdahl's Memory Law}
 
-<comment on $\alpha$ based on data>
+We observe that the estimated requested resource usage ratios mostly align with Amdahl's Memory Law which states the instruction per byte ratio $\alpha$ is around 1 or 1 MIPS per MB of memory.
+As originally observed by Gray, in ~\cite{export:68636} the value of $\alpha$ is rising.
+While based on the resource request ratios, the value of $\alpha$ appears to be on the order of 1.
+Our task usage trace is more in line with Gray's ammendment of the Memory Law as the relative ratios between normalized CPU and Memory are higher. 
+As such, it is likely that the ideal system balance between compute and memory is indeed shifting towards higher values of $\alpha$.
 
-\subsection{Amdahl's Balanced System Law and IO Law}
+\subsection{Amdahl's IO Law}
 
-<comment on MAI values>
+Based on the actual usage trace for the memory accesses per instruction, it is clear that on average one memory access occurs on the order of once every 50 instructions, not once every 50000 instructions as contended by Amdahl's IO Law.
+This observation is consistent with Gray's ammended version of the IO Law which states that ``random IOs happen once every 50000 instructions [but] sequential IOs are much larger and so the instructions per IO are much higher for sequential workloads.''
+This is expected as the shift towards data centric application workloads tend to exhibit lower compute per byte overheads in domains such as machine learning.
+
+\subsection{Memory to Disk Ratios}
+
+<comment on how the request ratios appear close to 1 and during actual execution it's much worse>
 
 \section{Related Work}
 
@@ -420,16 +442,11 @@ Amdahl's Parallelism Law without question continues to hold today, however we fi
 Concerning Amdahl's Memory Law, we observe that the actual compute usage per byte of memory is larger than $\alpha=1$, an observation consistent with Gray.
 This is starkly different from the requested compute and memory resources which are closer to the ideal value of $\alpha=1$.
 This suggests that for these cluster workloads, we should consider increasing the compute availability per byte of memory to rebalance the system.
+We also find that Amdahl's IO Law which contends that programs do one IO per 50000 instructions must be ammended to compensate for data centric applications.
+Our observations that on average memory access occur about once every 50 instructions is more in line with Gray's observation that ``random IOs happen once every 50000 instructions [but] sequential IOs happen more often''.
 
 While we acknowledge that our analysis only provide an order of magnitude calculation and only provide relative system balance ratios, we still find the results valuable.
 
-
-CONCLUSIONS STUB
-
-%ACKNOWLEDGMENTS are optional
-%\section{Acknowledgments}
-
-%ACKNOWLEDGEMENTS STUB
 
 % BIBLIOGRAPHY
 
