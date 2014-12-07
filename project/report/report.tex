@@ -99,7 +99,7 @@ Such systems may consist of millions of homogeneous cluster nodes or a heteogene
 Cluster nodes may entirely be dedicated to serve as storage nodes or compute nodes, and cluster resource usage may be mediated by a centralized scheduler.
 In these large, dynamic, and potentially heterogeneous data center landscapes, it is unclear whether systems we build today are still considered balanced systems under Amdahl's Rules of Thumb.
 
-Using the Google cluster data set ~\cite{clusterdata:Wilkes2011, clusterdata:Reiss2011}, we attempt to extrapolate a more current picture of how the ratios between computation, memory, and disk behave today.
+Using the Google cluster data set ~\cite{clusterdata:Wilkes2011, clusterdata:Reiss2011}, we attempt to extrapolate a more current picture of how the ratios between computation, memory, and disk behave today in data centers.
 The Google cluster data set contains details about usage statistics for individual tasks scheduled on a Google cluster over a period of roughly a month in 2011.
 In particular we compare the ratios between requested compute, memory, and disk resources, and actual compute, memory, and disk usage for each task scheduled in the cluster.
 The ratio between requested resource sizes allow us to estimate what resources the application programmers and scheduler think a required from the system.
@@ -154,6 +154,7 @@ Each Platform ID hash corresponds to one combination of hardware (CPU cores, mem
 Figure ~\ref{platform_dist} shows the distribution of hardware platforms deployed in the cluster.
 We arbitrarily map the nth obfuscated Platform ID field to Type n in Figure ~\ref{platform_dist} for simplicity.
 Not surprisingly, we find that cluster is overwhelmingly composed of a single platform indicating a fairly homogeneous system.
+We suspect the additional machines are specially equipped machines that may be used for specially contrained tasks.
 
 \begin{figure}
 \centering
@@ -180,6 +181,7 @@ CPU cores & & & \\ \hline
 RAM & & & \\ \hline
 Disk Space & & & \\ \hline
 \end{tabular}
+\label{resource_summary}
 \end{figure}
 
 \begin{figure}
@@ -206,7 +208,7 @@ Figure ~\ref{task_usage_stats} shows the average, minimum value, and maximum val
 
 \begin{figure}
 \centering
-\begin{tabular}{| c | c | c | c |} \hline
+\begin{tabular}{| p{2.5cm} | p{1.5cm} | p{1.5cm} | p{1.5cm} |} \hline
  & Avg & Min & Max \\ \hline
 Avg CPU Usage & & & \\ \hline
 Avg Memory Usage & & & \\ \hline
@@ -236,9 +238,10 @@ Obviously, we do not know exactly the parameters of each hardware platform but w
 As shown in ~\cite{googlehw} from 2009 (the same year the trace was collected), it appears the server motherboard contained at least two CPU cores in addition to 8 standard DIMM memory slots and two Hitachi Deskstar hard drives.
 If we assume each of the DIMM memory slots contains 1 or 2 GB of RAM, a typical server would have between 8 and 16 GB of memory capacity.
 A typical commodity disk capacity for the Hitachi Deskstar around the time the trace was collected was around 1 TB putting the disk capacity per server at around 2 TB.
-We estimate based on the fan count, the maximum number of cores in the trace are either 2, or possibly 4 cores each operating around the 2 GHz range.
+We estimate based on the fan count, the maximum number of cores in the trace are either 2, or possibly 4 cores each operating on the order of 2 GHz.
 
 We use these estimates to compute order of magnitude calculations for the system balance ratios for the requested resource qualitites and actual resource usages.
+To get a an order of magnitude sense of the system balance ratios, each histogram uses a log scale for each bucket and thus shows the number of tasks that fall under each order of magnitude.
 
 \subsection{Request System Balance Ratios}
 
@@ -297,64 +300,87 @@ Figure ~\ref{est_req_mem_disk} histograms the resulting quantity:
 \centering
 \includegraphics[width=3in]{../figures/est_req_mem_disk.jpg}
 \label{est_req_mem_disk}
-\caption{Histogram of estimated moemory bytes per byte of disk for all tasks.}
+\caption{Histogram of estimated memory bytes per byte of disk for all tasks.}
 \end{figure}
 
 Figure ~\ref{request_summary} summarizes the resulting average value, minimum value, and maximum values observed in the resource request ratios.
+The statistics indicate that the distributions are heavily tailed and confirmed by the prior histogram data.
+It is also interesting to note that the requested CPU to requested memory ratios are on the order of 1 instruction per byte of memory or $\alpha ~= 1$.
+This suggests that Amdahl's memory law for system balance still appear to hold as far as resource request patterns go.
 
 \begin{figure}
 \centering
-\begin{tabular}{| c | c | c | c |} \hline
+\begin{tabular}{| p{2.5cm} | p{1.5cm} | p{1.5cm} | p{1.5cm } |} \hline
 Ratio & Avg & Min & Max \\ \hline
-Req. CPU/Mem & & & \\ \hline
-Est. CPU/Mem & & & \\ \hline
-Req. CPU/Disk & & & \\ \hline
-Est. CPU/Disk & & & \\ \hline
-Req. Mem/Disk & & & \\ \hline
-Est. Mem/Disk & & & \\ \hline
+Req. CPU/Mem & 1.702 & 0.00392 & 49160.986  \\ \hline
+Est. Instr/Mem Byte & 1.702 & 0.00392 & 49160.986 \\ \hline
+Req. CPU/Disk & 403.730 & 203208.556 & 0.184 \\ \hline
+Est. Instr/Disk Byte & 1.577 & 793.783 & 0.000719 \\ \hline
+Req. Mem/Disk & 260.060 & 130334.487 & 0.200 \\ \hline
+Est. Mem Byte/Disk Byte & 1.0159& 509.119 & 0.000781 \\ \hline
 \end{tabular}
 \label{request_summary}
 \caption{Summary of requested resource ratios}
 \end{figure}
 
-TODO: insert some analysis here
+TODO: insert some analysis here on the ratios
 
 \subsection{Actual System Balance Ratios}
 
-We use the actual system balance ratios by taking the values from the task\_usage profile trace.
+We calculate the actual system balance ratios by taking the values from the task\_usage profile trace.
 Like the resource request values in the task\_events trace, we apply transformations to the normalized data to get an estimate for the actual order of magnitude for each ratio.
+Unlike the resource request ratios, task usage traces contain both an average usage and peak usage measurement for CPU and memory.
+Furthermore, because trace values are normalized out of the largest value in the trace for each resource and not the large maximum capacity for each resource, we are limited to computing relative ratios using normalized values for each resource.
 
-Figure ~\ref{act_cpu_mem} shows the ratio between actual average CPU rate and average memory usage.
+Figure ~\ref{avg_act_cpu_mem} shows the ratio between actual average CPU rate and average memory usage.
+
+%Since trace values for actual usages are not normalized by maximum capacity but rather by the maximum value for the field that appears in the trace, we expect to see some deviations from the request ratios
 
 \begin{figure}
 \centering
-%\includegraphics{}
-\label{act_cpu_mem}
+\includegraphics[width=3in]{../figures/avg_act_cpu_mem.jpg}
+\label{avg_act_cpu_mem}
 \caption{Histogram of ratio between normalized average CPU rate and normalized average memory usage over all tasks.}
 \end{figure}
 
 \begin{figure}
 \centering
-%\includegraphics{}
-\label{est_act_cpu_mem}
-\caption{Histogram of estimated instructions per byte of memory over all tasks.}
-\end{figure}
-
-
-\begin{figure}
-\centering
-%\includegraphics{}
-\label{act_cpu_disk}
+\includegraphics[width=3in]{../figures/avg_act_cpu_disk.jpg}
+\label{avg_act_cpu_disk}
 \caption{Histogram of ratio between normalized average CPU rate and normalized average local disk usage}
 \end{figure}
 
 \begin{figure}
 \centering
-%\includegraphics{}
-\label{est_act_cpu_disk}
-\caption{Histogram of estimated instructions per byte of local disk usage over all tasks.}
+\includegraphics[width=3in]{../figures/avg_act_mem_disk.jpg}
+\label{avg_act_mem_disk}
+\caption{Histogram of ratio between normalized average memory usage and normalized average local disk usage}
 \end{figure}
 
+Figure ~\ref{actual_summary} shows the average value, minimum value, and maximum value for each of the ratios we compute in these usage histograms.
+We also show the averages, minimum values, and maximum values for the average CPU to memory ratios, and average CPU to disk ratios adjusted for CPI.
+By adjusting for CPI, this provides a closer metric to the true number of instructions executed per byte of memory or disk.
+Similar to the resource request ratios, we see a heavily tailed distribution of each system balance ratio.
+
+\begin{figure}
+\centering
+\begin{tabular}{| p{2.5cm} | p{1.5cm} | p{1.5cm} | p{1.5cm} |} \hline
+Ratio & Avg & Min & Max \\ \hline
+Avg CPU/Avg Mem & 11.737 & 0.0000160 & 425920.100  \\ \hline
+Avg CPU/Avg Disk & 2901.793 & 0.000263 & 152878263.605 \\ \hline
+Avg Mem/Avg Disk & 2253.51 & 0.00102 & 579532.348 \\ \hline
+Peak CPU/Peak Mem & 26.567 & 0.0000194 & 2008293.839 \\ \hline
+Avg CPU/(Avg Mem * CPI) & 9.949 & 5.0193 & 293932.257 \\ \hline
+Avg CPU/(Avg Disk * CPI) & 2443.536 & 0.00000522 & 66671724.206 \\ \hline
+\end{tabular}
+\label{actual_summary}
+\caption{Summary of resource usage ratios}
+\end{figure}
+
+Of particular interest are the ratios between the CPU usage and memory usage.
+In comparison with the normalized requested CPU and requested memory resources in ~\ref{request_summary}, these ratios appear to be an order of magnitude higher implying more computation per byte of memory is needed.
+What is even more striking is when considering the ratio between peak CPU usage and peak memory usage, this ratio further increases.
+While peak CPU operation does not usually correlate with peak memory usage, this shows further indicates that we should allocate more compute resources per byte of memory.
 
 TODO
 
@@ -367,7 +393,7 @@ Optimal scheduling is further complicated by special resource constraints, unpre
 Mishra et al. ~\cite{clusterdata:Mishra2010} apply similar k-means clustering techniques over the trace and show that most resources are utilized by a few tasks with long durations as a consequence of a bimodal task duration distribution.
 
 We are by no means, the first to examine Amdahl's Rules of Thumb for a balanced system in the context of large scale distributed systems.
-Rather, we are re-examining whether these Rules of Thumb continue to hold true for what the modern interpretation of an ideally balanced system.
+Rather, we find that there is value in continuing to re-examine whether Amdahl's Rules of Thumb continue to hold true for what the modern interpretation of an ideally balanced system.
 J. Gray et al. first establish and examine these system balance ratios in ~\cite{export:68636} and provides a summary of how these ratios have held in 1999.
 In particular, it is noted that for the most part Amdahl's Rules of Thumb have held true with a few minor revisions to the memory and IO law.
 In 2005, G. Bell et al. ~\cite{Bell:2006:PCS:1110638.1110681} re-evaluate Amdahl's Rules of Thumb in the context of petascale data intensive computing systems.
@@ -380,6 +406,7 @@ The authors go on to contend that petascale computing will be data intensive and
 \section{Conclusions}
 
 We show that 
+While we acknowledge that our analysis only provide an order of magnitude calculation and only provide relative system balance ratios, we still find the results valuable.
 
 CONCLUSIONS STUB
 
