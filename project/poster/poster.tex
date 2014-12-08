@@ -90,7 +90,7 @@ Ideally, we'd like to construct systems which have sufficient amounts of memory,
 \includegraphics[width=0.8\linewidth]{balance_fig.jpg}
 \end{center}\vspace{1cm}
 
-\noindent Amdahl's Rules of Thumb for a balanced system proposed in ~\cite{export:68636, Bell:2006:PCS:1110638.1110681} suggest that an ideally balanced system roughly adhere to the following ratios: \\
+\noindent Amdahl's Rules of Thumb for a balanced system proposed in suggest that an ideally balanced system roughly adhere to the following ratios: \\
 \begin{enumerate}
 \item \textbf{Amdahl's parallelism law}: if a computation has serial component S and parallel component P, then the maximum speedup is (S+P)/S \\
 \item \textbf{Amdahl's balanced system law}: a system needs one bit of memory IO per second for each instruction per second \\
@@ -106,7 +106,8 @@ Ideally, we'd like to construct systems which have sufficient amounts of memory,
 
 \section*{Main Objectives}
 
-We seek to analyze the publically available Google Cluster Data trace described in ~\cite{clusterdata:Reiss2011}.
+We seek to analyze the publically available Google Cluster Data trace.
+
 The Google Cluster Data trace consists of job and task usage measurements recorded over a period of 29 days in May of 2009 at an undisclosed data center. 
 Using the data trace, we seek to:
 
@@ -119,7 +120,7 @@ We focus our attention on the task\_usage and task\_events traces which contain 
 
 \begin{center}\vspace{1cm}
 \includegraphics[width=0.8\linewidth]{GoogleServerLarge.jpg}
-\captionof{figure}{\color{Green} Google server motherboard and components unveiled in 2009 as described in ~\cite{googlehw}}
+\captionof{figure}{\color{Green} Google server motherboard and components unveiled in 2009.}
 \end{center}\vspace{1cm}
 
 %----------------------------------------------------------------------------------------
