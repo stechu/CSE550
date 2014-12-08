@@ -90,12 +90,12 @@ Ideally, we'd like to construct systems which have sufficient amounts of memory,
 \includegraphics[width=0.8\linewidth]{balance_fig.jpg}
 \end{center}\vspace{1cm}
 
-Amdahl's Rules of Thumb for a balanced system proposed in ~\cite{export:68636, Bell:2006:PCS:1110638.1110681} suggest that an ideally balanced system roughly adhere to the following ratios:
+\noindent Amdahl's Rules of Thumb for a balanced system proposed in ~\cite{export:68636, Bell:2006:PCS:1110638.1110681} suggest that an ideally balanced system roughly adhere to the following ratios: \\
 \begin{enumerate}
-\item Amdahl's parallelism law: if a computation has serial component S and parallel component P, then the maximum speedup is (S+P)/S
-\item Amdahl's balanced system law: a system needs one bit of memory IO per second for each instruction per second
-\item Amdahl's memory law: in a balanced system, the ratio $\alpha$ of the size of memory in MB to the instructions per second in million instructions per second (MIPS) is 1 MB per 1 MIPS or $\alpha = 1$
-\item Amdahl's IO law: programs do one memory IO per 50000 instructions
+\item \textbf{Amdahl's parallelism law}: if a computation has serial component S and parallel component P, then the maximum speedup is (S+P)/S \\
+\item \textbf{Amdahl's balanced system law}: a system needs one bit of memory IO per second for each instruction per second \\
+\item \textbf{Amdahl's memory law}: in a balanced system, the ratio $\alpha$ of the size of memory in MB to the instructions per second in million instructions per second (MIPS) is 1 MB per 1 MIPS or $\alpha = 1$ \\
+\item \textbf{Amdahl's IO law}: programs do one memory IO per 50000 instructions
 \end{enumerate}
 
 %----------------------------------------------------------------------------------------
@@ -129,12 +129,12 @@ We focus our attention on the task\_usage and task\_events traces which contain 
 \section*{Results}
 
 \begin{center}\vspace{1cm}
-\includegraphics[width=0.8\linewidth]{request_distributions.jpg}
+\includegraphics[width=0.9\linewidth]{request_distributions.jpg}
 \captionof{figure}{\color{Green} Estimated system balance ratios for all task resource requests. Numbers are based on order of magnitude calculations for CPU count, CPU frequency, memory size, and disk space}
 \end{center}\vspace{1cm}
 
 \begin{center}\vspace{1cm}
-\includegraphics[width=0.8\linewidth]{actual_distributions.jpg}
+\includegraphics[width=0.9\linewidth]{actual_distributions.jpg}
 \captionof{figure}{\color{Green} Relative system balance ratios for all task usage entries. Ratios represent relative usages using normalized values.}
 \end{center}\vspace{1cm}
 
@@ -205,14 +205,15 @@ While we were not able to procure exact system balance ratios, our order of magn
 \noindent \textbf{Amdahl's Parallelism Law} - clearly continues to hold \\
 \textbf{Amdahl's Balanced System Law} - we are unable to comment on this rule as the trace does not contain bandwidth statistics\\
 \textbf{Amdahl's Memory Law} - value for $\alpha$ indicating instruction per byte of memory is likely to be larger than 1, a trend predicted by J. Gray  and confirmed by our analysis\\
-\textbf{Amdahl's IO law} - memory access per instruction is closer to one memory access per 50 instructions instead of one memory access per 50000 instructions \\
+\textbf{Amdahl's IO law} - memory access per instruction is closer to one memory access per 50 or 500 instructions instead of one memory access per 50000 instructions \\
 
  %----------------------------------------------------------------------------------------
 %	REFERENCES
 %----------------------------------------------------------------------------------------
 
 %\nocite{*} % Print all references regardless of whether they were cited in the poster or not
-\bibliographystyle{plain} % Plain referencing style
+%\bibliographystyle{plain} % Plain referencing style
+\bibliographystyle{abbrv}
 \bibliography{poster.bib} % Use the example bibliography file sample.bib
 
 \end{multicols}
