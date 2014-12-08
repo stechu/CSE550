@@ -145,12 +145,12 @@ We focus our attention on the task\_usage and task\_events traces which contain 
 \toprule
 \textbf{Quantity} & \textbf{Average} & \textbf{Est. Median} & \textbf{Min. Value} & \textbf{Max. Value} \\
 \midrule
-Req. CPU/Mem & 1.702 &  $2^{-1}$ & 0.00392 & 49160.986  \\ \hline
-Est. Instr/Mem Byte & 1.702 & $2^{-1} $ & 0.00392 & 49160.986 \\ \hline
-Req. CPU/Disk & 403.730 & $2^4$ & 203208.556 & 0.184 \\ \hline
-Est. Instr/Disk Byte & 1.577 & $2^{-4}$ & 793.783 & 0.000719 \\ \hline
-Req. Mem/Disk & 260.060 & $2^4$ & 130334.487 & 0.200 \\ \hline
-Est. Mem Byte/Disk Byte & 1.0159&  $2^{-4}$ & 509.119 & 0.000781 \\ \hline
+Req. CPU/Mem & 1.702 &  $\approx 0.5$ & 0.00392 & 49160.986  \\ \hline
+Est. Instr/Mem Byte & 1.702 & $approx 0.5 $ & 0.00392 & 49160.986 \\ \hline
+Req. CPU/Disk & 403.730 & $\approx 16$ & 203208.556 & 0.184 \\ \hline
+Est. Instr/Disk Byte & 1.577 & $\approx 0.0625$ & 793.783 & 0.000719 \\ \hline
+Req. Mem/Disk & 260.060 & $\approx 16$ & 130334.487 & 0.200 \\ \hline
+Est. Mem Byte/Disk Byte & 1.0159&  $\approx 0.0625$ & 509.119 & 0.000781 \\ \hline
 \bottomrule
 \end{tabular}
 \captionof{table}{Relative Task Usage Ratios - individual quantities are still normalized; estimated median is given in order of magnitude}
@@ -161,9 +161,9 @@ Est. Mem Byte/Disk Byte & 1.0159&  $2^{-4}$ & 509.119 & 0.000781 \\ \hline
 \toprule
 \textbf{Quantity} & \textbf{Average} & \textbf{Est. Median} & \textbf{Min. Value} & \textbf{Max. Value} \\
 \midrule
-Avg CPU/Avg Mem & 11.737 & $2^{-1}$ & 0.0000160 & 425920.100  \\ 
-Avg CPU/Avg Disk & 2901.793 & $2^5$ & 0.000263 & 152878263.605 \\ 
-Avg Mem/Avg Disk & 2253.51 & $2^5$ & 0.00102 & 579532.348 \\ 
+Avg CPU/Avg Mem & 11.737 & $\approx 0.5$ & 0.0000160 & 425920.100  \\ 
+Avg CPU/Avg Disk & 2901.793 & $\approx 32$ & 0.000263 & 152878263.605 \\ 
+Avg Mem/Avg Disk & 2253.51 & $\approx 32$ & 0.00102 & 579532.348 \\ 
 Peak CPU/Peak Mem & 26.567 & & 0.0000194 & 2008293.839 \\ 
 Avg CPU/(Avg Mem * CPI) & 9.949 & & 5.0193 & 293932.257 \\ 
 Avg CPU/(Avg Disk * CPI) & 2443.536 & & 0.00000522 & 66671724.206 \\ 
@@ -186,7 +186,7 @@ Disk I/O Time & 0.00357 & 0 & 0.685 \\ \hline
 Peak CPU Rate & 0.0904 & 0 & 1744\* \\ \hline
 Peak Disk I/O Time & 0.0232 & 0 & 10.98 \\ \hline
 CPI & 4.866 & 0 & 25370\* \\ \hline
-MAI & 0.0176 & 0 & 8.5\* \\ \hline
+MAI & 0.0176 (median $\approx 0.0313$) & 0 & 8.5\* \\ \hline
 \bottomrule
 \end{tabular}
 \captionof{table}{Task Usage Statistics - some maximum values are anamolous and can be attributed to bugs in the data collection infrastructure or task statistics aggregation}
@@ -206,7 +206,7 @@ While we were not able to procure exact system balance ratios, our order of magn
 \noindent \textbf{Amdahl's Parallelism Law} - clearly continues to hold \\
 \textbf{Amdahl's Balanced System Law} - we are unable to comment on this rule as the trace does not contain bandwidth statistics\\
 \textbf{Amdahl's Memory Law} - value for $\alpha$ indicating instruction per byte of memory is likely to be larger than 1, a trend predicted by J. Gray  and confirmed by our analysis\\
-\textbf{Amdahl's IO law} - memory access per instruction is closer to one memory access per 50 or 500 instructions instead of one memory access per 50000 instructions \\
+\textbf{Amdahl's IO law} - memory access per instruction is closer to one memory access per 50 instructions instead of one memory access per 50000 instructions \\
 
  %----------------------------------------------------------------------------------------
 %	REFERENCES
