@@ -74,8 +74,8 @@ We analyze the Google Cluster Trace to extrapolate order of magnitude estimates 
 \section{Introduction}
 
 System designs today are driven by a myriad of factors such as application workload, performance targets, energy efficiency constraints, and system scalability.
-To build these systems, we rely largely on empirical analyses of application workloads and intuition to properly engineer the amount of computation, memory, disk, and networking I/O to satisfy the resource requirements or constraints of the system.
-To quantify the relationship between each of these system components, we build ratios between the amount of compute, memory, disk, and networking I/O; we collectively refer to these ratios as the ``system balance''.
+To build these systems, we rely largely on empirical analysis of application workloads and intuition to properly engineer the amount of computation, memory, disk, and networking I/O to satisfy the resource requirements or constraints of the system.
+To quantify the relationship between each of these system components, we track ratios between the amount of compute, memory, disk, and networking I/O; we collectively refer to these ratios as the ``system balance''.
 Ideally we'd like to construct systems which have sufficient amounts of memory, compute, disk, and network I/O but are not over-provisioned.
 A system with insufficient resources can result in poor performance as a single component of the system can bottleneck progress.
 Alternatively, a system with over-provisioned resources is wasteful and can expend unnecessary energy and silicon.
@@ -145,9 +145,9 @@ Each record contains the CPU resource capacity and memory capacity normalized ou
 Each record also contains an obfuscated hash of the platform or hardware used for each machine.
 
 We quickly analyze the distribution of Platform IDs as it provides a picture of the homogeneity of the hardware platforms.
-Each Platform ID hash corresponds to one combination of hardware (CPU cores, memory, disk, etc.).
+Each Platform ID hash string corresponds to one combination of hardware (CPU cores, memory, disk, etc.).
 Figure ~\ref{platform_dist} shows the distribution of hardware platforms deployed in the cluster.
-We arbitrarily map the nth obfuscated Platform ID field to Type n in Figure ~\ref{platform_dist} for simplicity.
+We arbitrarily map the $n$th obfuscated Platform ID field to Type $n$ in Figure ~\ref{platform_dist} for simplicity.
 Not surprisingly, we find that cluster is overwhelmingly composed of a single platform indicating a fairly homogeneous system.
 We suspect the minority of machines are specially equipped platforms that may be used for specially contrained tasks.
 
@@ -195,7 +195,7 @@ Type 3 & 11659 \\ \hline
 
 \subsection{Task Usage Analysis}
 
-The task\_usage trace tracks the resource usage requests for each task executing on the cluster.
+The task\_usage trace tracks the resource usage requests for each task executed on the cluster.
 Each entry in the trace reflects values sampled over 300 seconds of the task or the entire task duration, which ever time span is shorter.
 Of particular interest in this trace are the average and peak usages for CPU, memory, and local disk, and the ratios between these qualitities.
 We also analyze the cycles per instruction (CPI), and memory accesses per instruction (MAI).
@@ -253,7 +253,7 @@ We first compare the system balance ratios of the requested CPU, memory, and dis
 We compute three ratios: (1) the ratio of requested CPU to requested memory (2), the ratio of requested CPU to requested, (3) the ratio of requested memory to requested disk.
 We then unnormalize each ratio by multiplying by appropriate extrapolated resource values.
 
-Figure ~\ref{req_cpu_mem} shows the histogram distributions for the ratio between the CPU resource request to memory resource request. 
+Figure ~\ref{req_cpu_mem} shows the histogram of the ratio between the CPU resource request to memory resource request. 
 To convert to instructions per GB of memory, we multiply ratio taken from the trace which is in normalized CPU cores per normalized memory by the following quantities: (1) 1 normalized memory/(8 GB), (2) 4 CPU cores/(normalized core), (3) 2 Gibi-instructions / (CPU core).  %, (4) $1 / cycles per instructions$. TO
 This gives the quantity: \\
 (requested normalized cores)/(requested normalized memories) * (1 normalized memory)/(8 GB) * (4 CPU cores)/(1 normalized core) * (2 G instructions)/(CPU core) = (8 Gibi-instructions) / (8 GB)
@@ -288,7 +288,7 @@ Figure ~\ref{est_req_cpu_disk} reflects the histogram for the quantity calculate
 \caption{Histogram of estimated instructions per byte of disk for all tasks.}
 \end{figure}
 
-Finally, we compute the distribution of the ratio between normalized memory request and local disk request in Figure ~\ref{req_mem_disk}.
+Finally, we compute the histogram of the ratio between normalized memory request and local disk request in Figure ~\ref{req_mem_disk}.
 To obtain the estimate in bytes of memory per byte of disk, we multiply by the following conversion factors to the normalized memory request over normalized disk request: (1) 1 TB / 1 normalized disk (2) 1 normalized memory / 8 GB.
 Figure ~\ref{est_req_mem_disk} histograms the resulting quantity:
 (requested normalized memory)/(requested normalized disk) * (8 GB / normalized memory) * (1 normalized disk / 2 TB)
