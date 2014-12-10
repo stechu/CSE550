@@ -55,9 +55,9 @@ Shumo Chu\\
 
 The advent of large distributed systems has enabled unprecedented amounts of computational resources to the end user.
 Large data centers today use enormous numbers of commodity servers and routers to operate over massive data sets.
-Due to the massive scale of deployment, small software and hardware architectural changes that influence power, network bandwidth, and memory efficiency have enormous impact.
+Due to the massive scale of deployment, small architectural software and hardware changes that influence power, network bandwidth, and memory efficiency have enormous impact.
 With the rise of big data applications, and dynamically shifting workload patterns, it is imperative that we understand how production workloads on these systems behave in order to determine what aspects of the system architecture work well and what should be changed.
-In particular, we explore whether the Amdahl's Rules of Thumb for a balanced system still hold for today's data center applications or if they are shifting to meet the demands of these systems.
+In particular, we explore whether the Amdahl's Rules of Thumb for a balanced system still hold for today's data center applications or if they are shifting to meet the demands of these new applications.
 We analyze the Google Cluster Trace to extrapolate order of magnitude estimates as to whether these system ratios between compute, memory, and disk still hold.
 
 \end{abstract}
@@ -82,17 +82,17 @@ Alternatively, a system with over-provisioned resources is wasteful and can expe
 
 %We term such a system which is sufficient resources and not over-provisioned as a ``balanced system'' and the ratios between compute, memory, disk, and IO the ``system balance''.
 
-Amdahl's Law first proposed in ~\cite{Amdahl:1967:VSP:1465482.1465560} outlines some of the first known system balance rules; most notably Amdahl's parallelism law.
-However, subsequent interpretations and reevaluations of Gene Amdahl's original work have derived additional relationships between system components as described in ~\cite{Gustafson:1988:RAL:42411.42415, Hill:2008:ALM:1449375.1449387, export:68636, Bell:2006:PCS:1110638.1110681}.
+Amdahl's Law first proposed in ~\cite{Amdahl:1967:VSP:1465482.1465560} outlines some of the first known system balance rules; most notably Amdahl's Parallelism Law.
+However, subsequent interpretations and re-evaluations of Gene Amdahl's original work have derived additional relationships between system components as described in ~\cite{Gustafson:1988:RAL:42411.42415, Hill:2008:ALM:1449375.1449387, export:68636, Bell:2006:PCS:1110638.1110681}.
 These relationships have become known as ``Amdahl's Rules of Thumb'' and seek to quantify the ideal system balance configurations.
 
 For decades, Amdahl's Rules of Thumb have continued to hold despite rapid scaling in silicon, memory, and networking technology.
 As outlined by J. Gray et. al. ~\cite{export:68636}, the original Amdahl's Rules of Thumb for a balanced system consist of:
 \begin{enumerate}
-\item Amdahl's parallelism law: if a computation has serial component S and parallel component P, then the maximum speedup is (S+P)/S
-\item Amdahl's balanced system law: a system needs one bit of memory IO per second for each instruction per second
-\item Amdahl's memory law: in a balanced system, the ratio $\alpha$ of the size of memory in MB to the instructions per second in million instructions per second (MIPS) is 1 MB per 1 MIPS or $\alpha = 1$
-\item Amdahl's IO law: programs do one memory IO per 50000 instructions
+\item Amdahl's Parallelism Law: if a computation has serial component S and parallel component P, then the maximum speedup is (S+P)/S
+\item Amdahl's Balanced System Law: a system needs one bit of memory IO per second for each instruction per second
+\item Amdahl's Memory Law: in a balanced system, the ratio $\alpha$ of the size of memory in MB to the instructions per second in million instructions per second (MIPS) is 1 MB per 1 MIPS or $\alpha = 1$
+\item Amdahl's IO Law: programs do one memory IO per 50000 instructions
 \end{enumerate}
 However, the advent of large scale distributed computing and data centric applications has drastically changed the landscape of computing platforms and the methods we employ when engineering systems.
 Such systems may consist of millions of homogeneous cluster nodes or a heteogeneous spread of specialized hardware such as GPUs and custom accelerators.
@@ -102,7 +102,7 @@ In these large, dynamic, and potentially heterogeneous data center landscapes, i
 Using the Google cluster data set ~\cite{clusterdata:Wilkes2011, clusterdata:Reiss2011}, we attempt to extrapolate a more current picture of how the ratios between computation, memory, and disk behave today in data centers.
 The Google cluster data set contains details about usage statistics for individual tasks scheduled on a Google cluster over a period of roughly a month in 2011.
 In particular we compare the ratios between requested compute, memory, and disk resources, and actual compute, memory, and disk usage for each task scheduled in the cluster.
-The ratio between requested resource sizes allow us to estimate what resources the application programmers and scheduler think a required from the system.
+The ratio between requested resource sizes allow us to estimate what resources the application programmers and scheduler think are required from the system.
 A comparison with actual usages will allow us to view whether request ratios are fully accurate in addition to validating whether Amdahl's Rules of Thumb for a balanced system still hold.
 
 \section{Google Cluster Data}
@@ -122,10 +122,10 @@ We use Myria \cite{HalperinACCKMORWWXBHS14SIGMOD} as our data analytics platform
 
 While a vast majority of data set fields are complete entries, the original creators note several anamolies in the trace attributed to profiler bugs or profiler overload.
 Most of these anamolies are missing data fields which occur in less than 0.1\% of the data set entries.
-However, there is a significant omission is the disk-time fraction measurement in the Task Events trace due to ``a change in [their] monitoring system'' which results in 15 days out of the 29 days missing this field.
+However, there is a significant omission in the disk-time fraction measurement in the Task Events trace due to ``a change in [their] monitoring system'' which resulted in missing data for 15 days out of the 29 days in the trace.
 Since Myria requires a clean dataset with no missing fields, we ran a script to clean up each part of the trace.
 For missing numerical fields, we insert a value of -1 into the trace.
-Since all numerical values in the trace are positive floating points or integers, when performing our analysis we siplmy skip over fields which are -1.
+Since all numerical values in the trace are positive floating points or integers, when performing our analysis we simply skip over fields which are -1.
 For missing boolean fields, we assume arbitrarily by default the presence of the attribute is false.
 This does not affect our results as we do not perform any queries over these boolean fields.
 
@@ -198,7 +198,7 @@ Type 3 & 11659 \\ \hline
 The task\_usage trace tracks the resource usage requests for each task executed on the cluster.
 Each entry in the trace reflects values sampled over 300 seconds of the task or the entire task duration, which ever time span is shorter.
 Of particular interest in this trace are the average and peak usages for CPU, memory, and local disk, and the ratios between these qualitities.
-We also analyze the cycles per instruction (CPI), and memory accesses per instruction (MAI).
+We also analyze the distribution of the cycles per instruction (CPI), and memory accesses per instruction (MAI).
 Figure ~\ref{task_usage_stats} shows the average, minimum value, and maximum value for each of the fields of interest; note again that some fields are normalized out of the maximum value seen in the trace.
 For many of these fields however, we expect that the normalization factors are very close to or on the same order of magnitude as their resource capacities as the distributions are heavily tailed.
 
@@ -236,7 +236,7 @@ This is in stark contrast to the one memory access per 50000 instructions conten
 
 To calculate whether the system is balanced or not, a few additional compensation factors must be considered due to obfuscation of the original data set.
 Namely, to compute the system balance ratios we must compensate for the normalization operations over the original data.
-This means we cannot obtain exact estimates of the system balance, instead we extrapolate order of magnitude calculations which, for comparing Amdahl's Rules of Thumb, are sufficient.
+This means we cannot obtain exact ratios of the system balance, instead we extrapolate order of magnitude calculations which for evaluating Amdahl's Rules of Thumb are sufficient.
 
 To allow us to compute reasonable order of magnitude estimates we define some assumptions about the hardware.
 We do not know exactly the parameters of each hardware platform but we can make a fairly reasonable estimate based on commodity hardware trends at the time of the trace collection.
@@ -329,7 +329,7 @@ Est. Mem Byte/Disk Byte & 1.0159 & $\approx 0.0625$ & 509.119 & 0.000781 \\ \hli
 \caption{Summary of requested resource ratios}
 \end{figure}
 
-Another interesting statistic is that the estimate requested memory to local disk ratio is also on the order of 1 byte of memory per byte of request local disk.
+Another interesting statistic is that the estimated requested memory to local disk ratio is also on the order of 1 byte of memory per byte of request local disk.
 This implies that most tasks seem to be optimized not to rely heavily on disk access operations as disk bandwidth can be crippling to applications.
 
 \subsection{Actual System Balance Ratios}
@@ -337,7 +337,7 @@ This implies that most tasks seem to be optimized not to rely heavily on disk ac
 We calculate the actual system balance ratios by taking the values from the task\_usage profile trace.
 Like the resource request values in the task\_events trace, we apply transformations to the normalized data to get an estimate for the actual order of magnitude for each ratio.
 Unlike the resource request ratios, task usage traces contain both an average usage and peak usage measurement for CPU and memory.
-Furthermore, because trace values are normalized out of the largest value in the trace for each resource and not the large maximum capacity for each resource, we are limited to computing relative ratios using normalized values for each resource.
+Furthermore, because trace values are normalized out of the largest value in the trace for each resource and not the largest maximum capacity for each resource, we are limited to computing relative ratios using normalized values for each resource.
 
 Figure ~\ref{avg_act_cpu_mem} shows the ratio between actual average CPU rate and average memory usage.
 
@@ -387,7 +387,7 @@ Avg CPU/(Avg Disk * CPI) & 2443.536 & 0.00000522 & 66671724.206 \\ \hline
 Of particular interest are the ratios between the CPU usage and memory usage.
 In comparison with the normalized requested CPU and requested memory resources in ~\ref{request_summary}, these ratios appear to be an order of magnitude higher implying more computation per byte of memory is needed.
 What is even more striking is when considering the ratio between peak CPU usage and peak memory usage, this ratio further increases.
-While peak CPU operation does not usually correlate with peak memory usage, this shows further indicates that we should allocate more compute resources per byte of memory.
+While peak CPU operation does not usually correlate with peak memory usage, this suggests that we should allocate more compute resources per byte of memory.
 
 \section{Analysis}
 
@@ -397,14 +397,14 @@ Without question, Amdahl's Parallelism Law has continued the test of time. QED.
 
 \subsection{Amdahl's Balanced System Law}
 
-We cannot comment on this rule of thumb as the trace did not contain bandwidth measurements.
+We cannot comment on this Rule of Thumb as the trace did not contain bandwidth measurements.
 
 \subsection{Amdahl's Memory Law}
 
 We observe that the estimated requested resource usage ratios mostly align with Amdahl's Memory Law which states the instruction per byte ratio $\alpha$ is around 1 or 1 MIPS per MB of memory.
 As originally observed by Gray, in ~\cite{export:68636} the value of $\alpha$ is rising.
-While based on the resource request ratios, the value of $\alpha$ appears to be on the order of 1.
-Our task usage trace is more in line with Gray's ammendment of the Memory Law as the relative ratios between normalized CPU and Memory are higher. 
+When based on the resource request ratios, the value of $\alpha$ appears to be on the order of 1.
+Our task usage trace is more in line with Gray's ammendment of the Memory Law that $\alpha$ is rising as the relative ratios between normalized CPU and Memory are higher. 
 As such, it is likely that the ideal system balance between compute and memory is indeed shifting towards higher values of $\alpha$.
 
 \subsection{Amdahl's IO Law}
@@ -417,33 +417,33 @@ This is expected as the shift towards data centric application workloads tend to
 
 Based on the request resource ratios, it is intersting to see that the order of magnitude for the bytes of memory to bytes of disk ratio are close to 1.
 This suggests that applications avoid relying on local disk during their executions most likely due to the performance bottleneck that would be incurred by disk latencies.
-Since we expect most application workloads running on the cluster to be optimized somewhat for performance, it is not startling that main memory is the prefered resource for storage.
-This trend is less clear in the actual usage trace as the obfuscation; since disk usage is not a resource we expect to see maximize its capacity during execution, the normalization factor is likely to be much smaller.
+Since we expect most application workloads running on the cluster to be optimized somewhat for performance, it is not startling that main memory is the preferred resource for storage.
+This trend is less clear in the actual usage trace because of obfuscation; since disk usage is not a resource we expect to see maximize its capacity during execution, the normalization factor is likely to be much smaller.
 This renders the CPU usage to disk usage ratio less meaningful as we cannot make a reasonable estimate of the order of magnitude the disk usage was normalized by.
 
 \section{Related Work}
 
-Prior analytics research on the Google cluster trace primarily focuses on characterizing and classifying applications in the trace.
-In ~\cite{clusterdata:Di2013}, the task events and resource statistics are calculated over the trace, and k-means clustering is used to classify applications.
+Prior analytics work on the Google cluster trace primarily focuses on characterizing and classifying applications in the trace.
+In ~\cite{clusterdata:Di2013}, the task events and resource statistics are calculated over the trace, and k-means clustering is used to classify application tasks.
 Similarly, Reiss et al. ~\cite{clusterdata:Reiss2012b} show that machine workloads are fairly hetergeneous which create challenges when scheduling cluster resources.
 Optimal scheduling is further complicated by special resource constraints, unpredicatable resource availability, and workload variability.
 Mishra et al. ~\cite{clusterdata:Mishra2010} apply similar k-means clustering techniques over the trace and show that most resources are utilized by a few tasks with long durations as a consequence of a bimodal task duration distribution.
 
 We are by no means, the first to examine Amdahl's Rules of Thumb for a balanced system in the context of large scale distributed systems.
-Rather, we find that there is value in continuing to re-examine whether Amdahl's Rules of Thumb continue to hold true for what the modern interpretation of an ideally balanced system.
+Rather, we find that there is value in continuing to re-examine whether Amdahl's Rules of Thumb continue to hold true for what we consider as the contemporary interpretation of an ideally balanced system.
 J. Gray et al. first establish and examine these system balance ratios in ~\cite{export:68636} and provides a summary of how these ratios have held in 1999.
 It is noted that for the most part Amdahl's Rules of Thumb have held true with a few minor revisions to the memory and IO law.
-In particular, Gray shows that the ratio $\alpha$ between executed instructions and byte of memory is rising from 1 to potentially 2 or 4.
-In 2005, G. Bell et al. ~\cite{Bell:2006:PCS:1110638.1110681} re-evaluate Amdahl's Rules of Thumb in the context of petascale data intensive computing systems.
+In particular, Gray predicts that the ratio $\alpha$ between executed instructions and byte of memory is rising from 1 to potentially 2 or 4.
+In 2005, G. Bell et al. ~\cite{Bell:2006:PCS:1110638.1110681} re-evaluate Amdahl's Rules of Thumb in the context of future petascale data intensive computing systems.
 The authors go on to contend that petascale computing will be more data intensive and that system balance should carefully consider IO and networking resource ratios, not just compute.
 
 \section{Future Work}
 
-One area of further exploration would be to expand the analysis to current publically available workloads that are representative of data center workloads.
+One area of further exploration would be to expand the analysis to workload traces that are not obfuscated.
 This would allow us to determine exact system balance ratios for similar systems instead of estimating compensation factors over the obfuscated data provided in the Google trace.
 Another interesting research direction would be to extend the task usage traces to collect network I/O transactions, network bandwidth quantities, and memory bandwidth measurements.
 This would allow us to evaluate Amdahl's Balanced System Law and Gilder's Laws for Networking as established in ~\cite{export:68636}.
-Finally, we believe that usage metrics should also be expanded to network routing infrastructure and individual cluster node usages no longer compose the entire power budget in a data center.
+Finally, we believe that usage metrics should also be expanded to network routing infrastructure as individual cluster node usages no longer compose the entire power budget in a data center.
 We believe analyzing the system balance of network interconnects and cost of communication per byte will be critical to understanding energy efficiency of large scale systems as optimization to reduce energy usage on end nodes become increasingly difficult.
 
 %Similar rules of thumb have been proposed for other aspects of system balance such as networking and web caching.
@@ -454,13 +454,13 @@ We believe analyzing the system balance of network interconnects and cost of com
 
 We evaluate the validity of Amdahl's Rules of Thumb for a balanced system and analyze whether they still hold in the context of data center scale systems and applications.
 Amdahl's Parallelism Law without question continues to hold today.
-Concerning Amdahl's Memory Law, we observe that the actual compute usage per byte of memory is larger than $\alpha=1$, an observation consistent with Gray.
-This is starkly different from the requested compute and memory resources which are closer to the ideal value of $\alpha=1$.
+Concerning Amdahl's Memory Law, we observe that the actual compute usage per byte of memory is larger than $\alpha=1$, an observation consistent with those of J. Gray.
+This is different from the requested compute and memory resources which are closer to the ideal value of $\alpha=1$.
 This suggests that for these cluster workloads, we should consider increasing the compute availability per byte of memory to rebalance the system.
 We also find that Amdahl's IO Law which contends that programs do one IO per 50000 instructions must be ammended to compensate for data centric applications.
 Our observations that on average memory access occur about once every 50 instructions is more in line with Gray's observation that ``random IOs happen once every 50000 instructions [but] sequential IOs happen more often''.
 
-While we acknowledge that our analysis only provide an order of magnitude calculation and only provide relative system balance ratios, we still find the results valuable.
+While we acknowledge that our analysis only provide an order of magnitude calculation and only provide relative system balance ratios, we still find the results provide a valuable sanity check when engineering systems.
 
 
 % BIBLIOGRAPHY
