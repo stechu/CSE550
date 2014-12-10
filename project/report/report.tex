@@ -5,7 +5,7 @@
 \begin{document}
 %
 % --- Author Metadata here ---
-\conferenceinfo{Potentially Systems Research}{'14 Pompeii, Italy}
+%\conferenceinfo{Potentially Systems Research}{'14 Pompeii, Italy}
 %\CopyrightYear{2007} % Allows default copyright year (20XX) to be over-ridden - IF NEED BE.
 %\crdata{0-12345-67-8/90/01}  % Allows default copyright data (0-89791-88-6/97/05) to be over-ridden - IF NEED BE.
 % --- End of Author Metadata ---
@@ -42,11 +42,11 @@ Shumo Chu\\
        \affaddr{Seattle, Washington}\\
        \email{chushumo@cs.washington.edu}
 % 3rd. author
-\alignauthor NULL POINTER\\
-       \affaddr{The Ivory Tower}\\
-       \affaddr{Institute of Exascale Computing}\\
-       \affaddr{Atlantis, Hawaii}\\
-       \email{SEGFAULT@atlantis.gg}
+% \alignauthor NULL POINTER\\
+%       \affaddr{The Ivory Tower}\\
+%       \affaddr{Institute of Exascale Computing}\\
+%       \affaddr{Atlantis, Hawaii}\\
+%       \email{SEGFAULT@atlantis.gg}
 }
 \date{5 December 2014}
 
@@ -63,13 +63,13 @@ We analyze the Google Cluster Trace to extrapolate order of magnitude estimates 
 \end{abstract}
 
 % A category with the (minimum) three required fields
-\category{H.4}{Information Systems Applications}{Miscellaneous}
+%\category{H.4}{Information Systems Applications}{Miscellaneous}
 %A category including the fourth, optional field follows...
-\category{D.2.8}{Software Engineering}{Metrics}[complexity measures, performance measures]
+%\category{D.2.8}{Software Engineering}{Metrics}[complexity measures, performance measures]
 
-\terms{Theory}
+\terms{distributed systems}
 
-\keywords{ACM proceedings, \LaTeX, text tagging}
+\keywords{distributed systems, data center, workload analysis}
 
 \section{Introduction}
 
@@ -261,7 +261,7 @@ This gives the quantity: \\
 But since this conversion factor is the unity, it is the same histogram as the normalized histogram.
 Thus Figure ~\ref{req_cpu_mem} reflects both the normalized ratios and estimated ratios in instructions per byte of memory.
 
-\begin{figure}
+\begin{figure}[t]
 \centering
 \includegraphics[width=3in]{../figures/req_cpu_mem.jpg}
 \label{req_cpu_mem}
@@ -274,14 +274,14 @@ Figure ~\ref{req_cpu_disk} shows the histogram distributions for the ratio betwe
 Figure ~\ref{est_req_cpu_disk} reflects the histogram for the quantity calculated by: \\
 (requested normalized cores)/(requested normalized disk) * (1 normalized disk)/(2 TB) * (4 CPU cores)/(1 normalized core) * (2 G instructions)/(CPU core) = 8 G instructions / 2 TB
 
-\begin{figure}
+\begin{figure}[t]
 \centering
 \includegraphics[width=3in]{../figures/req_cpu_disk.jpg}
 \label{req_cpu_disk}
 \caption{Histogram of normalized CPU resource request to disk request for all tasks.}
 \end{figure}
 
-\begin{figure}
+\begin{figure}[t]
 \centering
 \includegraphics[width=3in]{../figures/est_req_cpu_disk.jpg}
 \label{est_req_cpu_disk}
@@ -293,14 +293,14 @@ To obtain the estimate in bytes of memory per byte of disk, we multiply by the f
 Figure ~\ref{est_req_mem_disk} histograms the resulting quantity:
 (requested normalized memory)/(requested normalized disk) * (8 GB / normalized memory) * (1 normalized disk / 2 TB)
 
-\begin{figure}
+\begin{figure}[t]
 \centering
 \includegraphics[width=3in]{../figures/req_mem_disk.jpg}
 \label{req_mem_disk}
 \caption{Histogram of normalized requested memories to disk request for all tasks.}
 \end{figure}
 
-\begin{figure}
+\begin{figure}[t]
 \centering
 \includegraphics[width=3in]{../figures/est_req_mem_disk.jpg}
 \label{est_req_mem_disk}
@@ -343,21 +343,21 @@ Figure ~\ref{avg_act_cpu_mem} shows the ratio between actual average CPU rate an
 
 %Since trace values for actual usages are not normalized by maximum capacity but rather by the maximum value for the field that appears in the trace, we expect to see some deviations from the request ratios
 
-\begin{figure}
+\begin{figure}[t]
 \centering
 \includegraphics[width=3in]{../figures/avg_act_cpu_mem.jpg}
 \label{avg_act_cpu_mem}
 \caption{Histogram of ratio between normalized average CPU rate and normalized average memory usage over all tasks.}
 \end{figure}
 
-\begin{figure}
+\begin{figure}[t]
 \centering
 \includegraphics[width=3in]{../figures/avg_act_cpu_disk.jpg}
 \label{avg_act_cpu_disk}
 \caption{Histogram of ratio between normalized average CPU rate and normalized average local disk usage}
 \end{figure}
 
-\begin{figure}
+\begin{figure}[t]
 \centering
 \includegraphics[width=3in]{../figures/avg_act_mem_disk.jpg}
 \label{avg_act_mem_disk}
@@ -369,7 +369,7 @@ We also show the averages, minimum values, and maximum values for the average CP
 By adjusting for CPI, this provides a closer metric to the true number of instructions executed per byte of memory or disk.
 Similar to the resource request ratios, we see a heavily tailed distribution of each system balance ratio.
 
-\begin{figure}
+\begin{figure}[t]
 \centering
 \begin{tabular}{| p{2.5cm} | p{1.5cm} | p{1.5cm} | p{1.5cm} |} \hline
 Ratio & Avg & Min & Max \\ \hline
